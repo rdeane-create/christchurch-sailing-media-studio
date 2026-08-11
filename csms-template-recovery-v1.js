@@ -2,23 +2,17 @@
 'use strict';
 const HEADER_FILES=['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js'];
 const RECOVERY_FILES=['recovery-exact-1.js','recovery-exact-2.js','recovery-exact-3.js'];
-const VERSION='20260811-approved-unit-v2';
+const VERSION='20260811-approved-unit-v3';
 
-async function fetchChunk(src){
-  const r=await fetch(src+'?v='+VERSION,{cache:'no-store'});
-  if(!r.ok)throw new Error('Could not fetch '+src+' ('+r.status+')');
-  const text=await r.text();
-
-  // Chunk files are one assignment ending with +'<base64>';.  Do not depend on
-  // whitespace or the variable name: extract the quoted payload directly.
-  const start=text.indexOf("+'");
-  if(start<0)throw new Error('Could not find payload start in '+src);
-  const payloadStart=start+2;
-  const end=text.lastIndexOf("'");
-  if(end<=payloadStart)throw new Error('Could not find payload end in '+src);
-  const payload=text.slice(payloadStart,end).trim();
-  if(!payload || !/^[A-Za-z0-9+/=]+$/.test(payload))throw new Error('Invalid payload in '+src);
-  return payload;
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=src+'?v='+VERSION;
+    s.async=false;
+    s.onload=()=>{s.remove();resolve();};
+    s.onerror=()=>{s.remove();reject(new Error('Could not load '+src));};
+    document.head.appendChild(s);
+  });
 }
 
 async function gunzipBase64(b64){
@@ -30,16 +24,11 @@ async function gunzipBase64(b64){
 }
 
 function adaptApprovedSource(source){
-  // The permanent-install recovery package used workspace-heroes, which now
-  // collides with the newer native Hero editor. Give the APPROVED workspace
-  // its own name while leaving the native workspace untouched.
   source=source.replaceAll('workspace-heroes','workspace-hero-approved');
   source=source.replaceAll("name === 'heroes'","name === 'hero-approved'");
   source=source.replaceAll("workspace = 'heroes'","workspace = 'hero-approved'");
   source=source.replaceAll("showWorkspace('heroes')","showWorkspace('hero-approved')");
 
-  // The approved header is already assembled by this loader. Prevent the
-  // recovered Hero renderer from trying to load external header chunks again.
   const headerFn=/async function loadApprovedHeroHeader\(\)\{[\s\S]*?\n  \}\n\n  function loadHeroImage/;
   if(!headerFn.test(source))throw new Error('Approved Hero header function was not found in recovery package.');
   source=source.replace(headerFn,
@@ -52,14 +41,19 @@ function adaptApprovedSource(source){
 
 (async()=>{
   try{
-    let header='';
-    for(const f of HEADER_FILES)header+=await fetchChunk(f);
-    if(!header)throw new Error('Approved Hero header is empty.');
+    // Load the original approved header chunks exactly as authored. They
+    // concatenate their payload into this variable; no parsing is involved.
+    window.__CSMS_HERO_HEADER_B64='';
+    for(const f of HEADER_FILES)await loadScript(f);
+    const header=window.__CSMS_HERO_HEADER_B64||'';
+    if(!header)throw new Error('Approved Hero header did not load.');
     window.__CSMS_APPROVED_HERO_HEADER_URI='data:image/webp;base64,'+header;
 
-    let packed='';
-    for(const f of RECOVERY_FILES)packed+=await fetchChunk(f);
-    if(!packed)throw new Error('Approved recovery package is empty.');
+    // Load the original approved recovery package chunks exactly as authored.
+    window.__CSMS_RECOVERY_GZ='';
+    for(const f of RECOVERY_FILES)await loadScript(f);
+    const packed=window.__CSMS_RECOVERY_GZ||'';
+    if(!packed)throw new Error('Approved recovery package did not load.');
 
     let source=await gunzipBase64(packed);
     source=adaptApprovedSource(source);
