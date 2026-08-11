@@ -6068,15 +6068,24 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
 
 
-  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V5 START =====
+
+  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V6 START =====
   const CSMS_AUTH_BRIDGE_URL="https://script.google.com/a/macros/christchurchschool.org/s/AKfycbwVpWix_ivzxwpEQxNTBGvJNpThQYjfRRG8T7CYMNPz3r9lB-JI6CowrskoQUAs67lt/exec?action=bridge";
   const CSMS_DRIVE_SYNC_MAX_BYTES=15728640;
 
   let csmsAuthBridgeFrame=null;
+  let csmsAuthBridgePopup=null;
   let csmsAuthBridgeReadyPromise=null;
   let csmsAuthBridgePort=null;
   let csmsAuthBridgeToken='';
+  let csmsAuthBridgeTransport='';
   const csmsAuthBridgePending=new Map();
+
+  function csmsIsSafari(){
+    const ua=navigator.userAgent||'';
+    return /Safari/i.test(ua) &&
+      !/Chrome|Chromium|CriOS|Edg|OPR|Android/i.test(ua);
+  }
 
   function csmsFileToBase64(file){
     return new Promise((resolve,reject)=>{
@@ -6128,8 +6137,29 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     }
   }
 
-  function csmsAttachBridgePort(port){
+  function csmsResetBridgeConnection(){
+    if(csmsAuthBridgePort){
+      try{csmsAuthBridgePort.close();}catch{}
+    }
+
+    csmsAuthBridgePort=null;
+    csmsAuthBridgeReadyPromise=null;
+    csmsAuthBridgeToken='';
+    csmsAuthBridgeTransport='';
+
+    csmsAuthBridgePending.forEach(entry=>{
+      clearTimeout(entry.timeout);
+      entry.reject(
+        new Error('Drive Bridge connection reset')
+      );
+    });
+
+    csmsAuthBridgePending.clear();
+  }
+
+  function csmsAttachBridgePort(port,transport){
     csmsAuthBridgePort=port;
+    csmsAuthBridgeTransport=transport||'unknown';
 
     port.onmessage=(event)=>{
       const data=event.data||{};
@@ -6140,19 +6170,37 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         !data.requestId
       )return;
 
-      const pending=csmsAuthBridgePending.get(data.requestId);
+      const pending=
+        csmsAuthBridgePending.get(
+          data.requestId
+        );
+
       if(!pending)return;
 
-      csmsAuthBridgePending.delete(data.requestId);
-      clearTimeout(pending.timeout);
+      csmsAuthBridgePending.delete(
+        data.requestId
+      );
+
+      clearTimeout(
+        pending.timeout
+      );
 
       if(data.ok){
         pending.resolve(data.result);
       }else{
         pending.reject(
-          new Error(data.error||'Drive Bridge request failed')
+          new Error(
+            data.error ||
+            'Drive Bridge request failed'
+          )
         );
       }
+    };
+
+    port.onmessageerror=()=>{
+      console.warn(
+        'Drive Bridge message channel error'
+      );
     };
 
     if(typeof port.start==='function'){
@@ -6160,88 +6208,369 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     }
   }
 
-  function csmsEnsureAuthenticatedBridge(){
+  function csmsBridgeBanner(){
+    let banner=
+      document.getElementById(
+        'csmsDriveBridgeBanner'
+      );
+
+    if(banner)return banner;
+
+    const status=
+      document.getElementById(
+        'unifiedMediaStatus'
+      );
+
+    if(!status)return null;
+
+    banner=
+      document.createElement('div');
+
+    banner.id=
+      'csmsDriveBridgeBanner';
+
+    banner.className='status';
+
+    banner.style.marginBottom='10px';
+    banner.style.borderLeft='5px solid #ff6f18';
+    banner.style.background='#fff7ef';
+
+    status.parentNode.insertBefore(
+      banner,
+      status
+    );
+
+    return banner;
+  }
+
+  function csmsHideDriveConnectPrompt(){
+    const banner=
+      document.getElementById(
+        'csmsDriveBridgeBanner'
+      );
+
+    if(banner){
+      banner.remove();
+    }
+  }
+
+  function csmsShowDriveConnectPrompt(message){
+    const banner=csmsBridgeBanner();
+    if(!banner)return;
+
+    banner.innerHTML='';
+
+    const text=
+      document.createElement('div');
+
+    text.textContent=
+      message ||
+      'Connect Google Drive to restore and sync Studio media.';
+
+    text.style.marginBottom='8px';
+
+    const button=
+      document.createElement('button');
+
+    button.type='button';
+    button.className='primary';
+    button.textContent=
+      'Connect Google Drive';
+
+    button.style.width='auto';
+
+    button.addEventListener(
+      'click',
+      async()=>{
+        button.disabled=true;
+        button.textContent='Connecting…';
+
+        try{
+          await csmsConnectDrivePopup();
+
+          button.textContent='Connected';
+
+          await csmsRestoreMissingMediaFromDrive(
+            {requireExistingConnection:true}
+          );
+
+          csmsHideDriveConnectPrompt();
+
+        }catch(err){
+          console.warn(
+            'Drive connection failed',
+            err
+          );
+
+          button.disabled=false;
+          button.textContent=
+            'Connect Google Drive';
+
+          text.textContent=
+            err&&err.message
+              ? err.message
+              : String(err);
+        }
+      }
+    );
+
+    banner.append(
+      text,
+      button
+    );
+  }
+
+  function csmsHandshakePromise(
+    expectedSource,
+    transport,
+    timeoutMs
+  ){
+    return new Promise((resolve,reject)=>{
+      const timeout=setTimeout(()=>{
+        window.removeEventListener(
+          'message',
+          onHandshake
+        );
+
+        reject(
+          new Error(
+            transport==='popup'
+              ? 'Drive Bridge popup did not connect. Make sure the popup is allowed and you are signed in with the Christchurch Google account.'
+              : 'Drive Bridge iframe did not connect.'
+          )
+        );
+      },timeoutMs||20000);
+
+      function onHandshake(event){
+        const data=event.data||{};
+
+        if(
+          data.source!=='csms-drive-bridge' ||
+          data.type!=='channel-ready' ||
+          data.bridgeToken!==csmsAuthBridgeToken
+        )return;
+
+        if(
+          expectedSource &&
+          event.source!==expectedSource
+        )return;
+
+        const port=
+          event.ports &&
+          event.ports[0];
+
+        if(!port)return;
+
+        clearTimeout(timeout);
+
+        window.removeEventListener(
+          'message',
+          onHandshake
+        );
+
+        csmsAttachBridgePort(
+          port,
+          transport
+        );
+
+        resolve(true);
+      }
+
+      window.addEventListener(
+        'message',
+        onHandshake
+      );
+    });
+  }
+
+  async function csmsConnectDrivePopup(){
+    if(csmsAuthBridgePort){
+      return true;
+    }
+
+    csmsResetBridgeConnection();
+
+    csmsAuthBridgeToken=
+      csmsBridgeRandomToken();
+
+    const popupUrl=
+      CSMS_AUTH_BRIDGE_URL +
+      '&token=' +
+      encodeURIComponent(
+        csmsAuthBridgeToken
+      ) +
+      '&transport=popup' +
+      '&cb=' +
+      Date.now();
+
+    const popup=
+      window.open(
+        popupUrl,
+        'csms-drive-bridge',
+        'popup=yes,width=470,height=220,resizable=yes,scrollbars=yes'
+      );
+
+    if(!popup){
+      csmsShowDriveConnectPrompt(
+        'Safari blocked the Drive connection window. Allow pop-ups for this Studio site, then click Connect Google Drive again.'
+      );
+
+      throw new Error(
+        'Drive Bridge popup was blocked.'
+      );
+    }
+
+    csmsAuthBridgePopup=popup;
+
+    csmsAuthBridgeReadyPromise=
+      csmsHandshakePromise(
+        popup,
+        'popup',
+        30000
+      );
+
+    await csmsAuthBridgeReadyPromise;
+
+    csmsHideDriveConnectPrompt();
+
+    return true;
+  }
+
+  async function csmsConnectDriveIframe(){
+    if(csmsAuthBridgePort){
+      return true;
+    }
+
+    csmsResetBridgeConnection();
+
+    csmsAuthBridgeToken=
+      csmsBridgeRandomToken();
+
+    const iframe=
+      document.createElement('iframe');
+
+    iframe.id=
+      'csms-auth-drive-bridge';
+
+    iframe.src=
+      CSMS_AUTH_BRIDGE_URL +
+      '&token=' +
+      encodeURIComponent(
+        csmsAuthBridgeToken
+      ) +
+      '&transport=iframe' +
+      '&cb=' +
+      Date.now();
+
+    iframe.setAttribute(
+      'aria-hidden',
+      'true'
+    );
+
+    iframe.style.position='fixed';
+    iframe.style.width='1px';
+    iframe.style.height='1px';
+    iframe.style.border='0';
+    iframe.style.opacity='0';
+    iframe.style.pointerEvents='none';
+    iframe.style.left='-10000px';
+    iframe.style.top='-10000px';
+
+    csmsAuthBridgeFrame=iframe;
+
+    const ready=
+      csmsHandshakePromise(
+        iframe.contentWindow,
+        'iframe',
+        14000
+      );
+
+    document.body.appendChild(
+      iframe
+    );
+
+    csmsAuthBridgeReadyPromise=ready;
+
+    try{
+      await ready;
+      return true;
+
+    }catch(err){
+      try{iframe.remove();}catch{}
+      csmsAuthBridgeFrame=null;
+      csmsResetBridgeConnection();
+      throw err;
+    }
+  }
+
+  async function csmsEnsureAuthenticatedBridge(
+    options={}
+  ){
+    if(csmsAuthBridgePort){
+      return true;
+    }
+
     if(csmsAuthBridgeReadyPromise){
       return csmsAuthBridgeReadyPromise;
     }
 
-    csmsAuthBridgeReadyPromise=
-      new Promise((resolve,reject)=>{
-        csmsAuthBridgeToken=csmsBridgeRandomToken();
+    const forcePopup=
+      Boolean(options.forcePopup);
 
-        const iframe=document.createElement('iframe');
+    if(
+      forcePopup ||
+      csmsIsSafari()
+    ){
+      if(!options.userInitiated){
+        csmsShowDriveConnectPrompt();
 
-        iframe.id='csms-auth-drive-bridge';
-        iframe.src=
-          CSMS_AUTH_BRIDGE_URL +
-          '&token=' +
-          encodeURIComponent(csmsAuthBridgeToken) +
-          '&cb=' +
-          Date.now();
-
-        iframe.setAttribute('aria-hidden','true');
-        iframe.style.position='fixed';
-        iframe.style.width='1px';
-        iframe.style.height='1px';
-        iframe.style.border='0';
-        iframe.style.opacity='0';
-        iframe.style.pointerEvents='none';
-        iframe.style.left='-10000px';
-        iframe.style.top='-10000px';
-
-        csmsAuthBridgeFrame=iframe;
-
-        const timeout=setTimeout(()=>{
-          window.removeEventListener(
-            'message',
-            onBridgeHandshake
+        const error=
+          new Error(
+            'Connect Google Drive to restore media in Safari.'
           );
 
-          csmsAuthBridgeReadyPromise=null;
+        error.code=
+          'CSMS_DRIVE_CONNECT_REQUIRED';
 
-          reject(
-            new Error(
-              'Authenticated Drive Bridge did not become ready. Open the Apps Script Bridge once in a normal tab and confirm you are signed in with the Christchurch Google account.'
-            )
-          );
-        },25000);
+        throw error;
+      }
 
-        function onBridgeHandshake(event){
-          const data=event.data||{};
+      return csmsConnectDrivePopup();
+    }
 
-          if(
-            data.source!=='csms-drive-bridge' ||
-            data.type!=='channel-ready' ||
-            data.bridgeToken!==csmsAuthBridgeToken
-          )return;
+    try{
+      return await csmsConnectDriveIframe();
 
-          const port=event.ports&&event.ports[0];
-          if(!port)return;
+    }catch(err){
+      console.warn(
+        'Automatic Drive Bridge iframe unavailable; popup connection is available.',
+        err
+      );
 
-          clearTimeout(timeout);
+      csmsShowDriveConnectPrompt(
+        'Google Drive needs a one-time connection for this browser session.'
+      );
 
-          window.removeEventListener(
-            'message',
-            onBridgeHandshake
-          );
-
-          csmsAttachBridgePort(port);
-          resolve(true);
-        }
-
-        window.addEventListener(
-          'message',
-          onBridgeHandshake
+      const error=
+        new Error(
+          'Google Drive connection required.'
         );
 
-        document.body.appendChild(iframe);
-      });
+      error.code=
+        'CSMS_DRIVE_CONNECT_REQUIRED';
 
-    return csmsAuthBridgeReadyPromise;
+      throw error;
+    }
   }
 
-  async function csmsAuthenticatedBridgeCall(action,payload={}){
-    await csmsEnsureAuthenticatedBridge();
+  async function csmsAuthenticatedBridgeCall(
+    action,
+    payload={},
+    options={}
+  ){
+    await csmsEnsureAuthenticatedBridge(
+      options
+    );
 
     if(!csmsAuthBridgePort){
       throw new Error(
@@ -6249,31 +6578,46 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       );
     }
 
-    return await new Promise((resolve,reject)=>{
-      const requestId=
-        'csms_' +
-        Date.now() +
-        '_' +
-        Math.random().toString(36).slice(2);
+    return await new Promise(
+      (resolve,reject)=>{
+        const requestId=
+          'csms_' +
+          Date.now() +
+          '_' +
+          Math.random()
+            .toString(36)
+            .slice(2);
 
-      const timeout=setTimeout(()=>{
-        csmsAuthBridgePending.delete(requestId);
-        reject(new Error('Drive Bridge request timed out'));
-      },60000);
+        const timeout=setTimeout(()=>{
+          csmsAuthBridgePending.delete(
+            requestId
+          );
 
-      csmsAuthBridgePending.set(
-        requestId,
-        {resolve,reject,timeout}
-      );
+          reject(
+            new Error(
+              'Drive Bridge request timed out'
+            )
+          );
+        },60000);
 
-      csmsAuthBridgePort.postMessage({
-        source:'csms-studio',
-        type:'request',
-        requestId,
-        action,
-        payload
-      });
-    });
+        csmsAuthBridgePending.set(
+          requestId,
+          {
+            resolve,
+            reject,
+            timeout
+          }
+        );
+
+        csmsAuthBridgePort.postMessage({
+          source:'csms-studio',
+          type:'request',
+          requestId,
+          action,
+          payload
+        });
+      }
+    );
   }
 
   function csmsStoredRecordToFile(record){
@@ -6300,6 +6644,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
             Date.now()
         }
       );
+
     }catch(err){
       console.warn(
         'Could not rebuild cached media file',
@@ -6327,7 +6672,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     }
 
     const file=
-      csmsStoredRecordToFile(record);
+      csmsStoredRecordToFile(
+        record
+      );
 
     if(!file){
       return false;
@@ -6362,7 +6709,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       await csmsAuthenticatedBridgeCall(
         'getMedia',
         {
-          mediaId:record.mediaId
+          mediaId:
+            record.mediaId
         }
       );
 
@@ -6396,16 +6744,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
             blob.type,
 
           lastModified:
-            Number(media.lastModified) ||
+            Number(
+              media.lastModified
+            ) ||
             Date.now()
         }
       );
 
-    /*
-     * skipDriveSync prevents the Drive-restored file from being
-     * uploaded back to Drive. Persistence remains enabled so this
-     * browser gets a fast IndexedDB copy for future launches.
-     */
     await addUnifiedMedia(
       [file],
       {
@@ -6415,7 +6760,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
     const restoredItem=
       unifiedMediaRuntime.find(
-        item=>item.id===media.mediaId
+        item=>
+          item.id===
+          media.mediaId
       );
 
     if(!restoredItem){
@@ -6427,16 +6774,52 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     return restoredItem;
   }
 
-  async function csmsRestoreMissingMediaFromDrive(){
-    const inventory=
-      await csmsAuthenticatedBridgeCall(
-        'listMedia'
-      );
+  async function csmsRestoreMissingMediaFromDrive(
+    options={}
+  ){
+    if(
+      options.requireExistingConnection &&
+      !csmsAuthBridgePort
+    ){
+      return {
+        ok:false,
+        connectRequired:true
+      };
+    }
+
+    let inventory;
+
+    try{
+      inventory=
+        await csmsAuthenticatedBridgeCall(
+          'listMedia',
+          {},
+          {
+            userInitiated:false
+          }
+        );
+
+    }catch(err){
+      if(
+        err &&
+        err.code===
+          'CSMS_DRIVE_CONNECT_REQUIRED'
+      ){
+        return {
+          ok:false,
+          connectRequired:true
+        };
+      }
+
+      throw err;
+    }
 
     if(
       !inventory ||
       !inventory.ok ||
-      !Array.isArray(inventory.items)
+      !Array.isArray(
+        inventory.items
+      )
     ){
       return {
         ok:false,
@@ -6451,17 +6834,6 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       };
     }
 
-    /*
-     * IMPORTANT:
-     * The in-memory runtime is the truth for what the user can
-     * actually see in this browser session.
-     *
-     * If runtime is empty after the fast local restore, do not
-     * trust IndexedDB bookkeeping alone. A stale/partial Safari
-     * cache can report a record without producing a usable media
-     * item. In that case Drive becomes authoritative and we fetch
-     * every inventory item needed to rebuild the visible library.
-     */
     const runtimeStartedEmpty=
       unifiedMediaRuntime.length===0;
 
@@ -6471,11 +6843,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       try{
         storedRecords=
           await persistentMediaGetAll();
+
       }catch(err){
         console.warn(
           'Persistent media inventory read failed',
           err
         );
+
         storedRecords=[];
       }
     }
@@ -6502,7 +6876,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     let restoredFromDrive=0;
     const failures=[];
 
-    for(const record of inventory.items){
+    for(
+      const record of
+      inventory.items
+    ){
       if(
         !record ||
         !record.mediaId
@@ -6521,11 +6898,6 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         continue;
       }
 
-      /*
-       * Only use IndexedDB as an optimization when this session
-       * already demonstrated that local restore works. If the
-       * runtime started empty, fetch from Drive instead.
-       */
       if(!runtimeStartedEmpty){
         const cachedRecord=
           storedById.get(
@@ -6614,6 +6986,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       total:
         inventory.items.length,
 
+      transport:
+        csmsAuthBridgeTransport,
+
       runtimeStartedEmpty:
         runtimeStartedEmpty,
 
@@ -6648,27 +7023,46 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       );
     }catch{}
 
+    csmsHideDriveConnectPrompt();
+
     return report;
   }
 
   async function csmsDriveSyncUnifiedMediaItem(item){
-    if(!item||!item.id||!item.file)return null;
+    if(
+      !item ||
+      !item.id ||
+      !item.file
+    ){
+      return null;
+    }
 
-    const meta=loadMediaMeta();
-    const current=meta[item.id]||defaultMediaMeta(item);
+    const meta=
+      loadMediaMeta();
+
+    const current=
+      meta[item.id] ||
+      defaultMediaMeta(item);
 
     if(current.driveFileId){
       return {
         ok:true,
         alreadySynced:true,
-        fileId:current.driveFileId
+        fileId:
+          current.driveFileId
       };
     }
 
-    if(item.file.size>CSMS_DRIVE_SYNC_MAX_BYTES){
-      current.driveStatus='deferred_large';
+    if(
+      item.file.size>
+      CSMS_DRIVE_SYNC_MAX_BYTES
+    ){
+      current.driveStatus=
+        'deferred_large';
+
       current.driveError=
         'File exceeds current Drive Bridge direct-upload limit';
+
       current.driveUpdatedAt=
         new Date().toISOString();
 
@@ -6694,7 +7088,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       const existing=
         await csmsAuthenticatedBridgeCall(
           'findMedia',
-          {mediaId:item.id}
+          {
+            mediaId:item.id
+          }
         );
 
       if(
@@ -6756,7 +7152,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         !uploaded.file
       ){
         throw new Error(
-          uploaded&&uploaded.error
+          uploaded &&
+          uploaded.error
             ? uploaded.error
             : 'Drive upload returned no file'
         );
@@ -6811,10 +7208,21 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       meta[item.id]=current;
       saveMediaMeta(meta);
 
+      if(
+        err &&
+        err.code===
+          'CSMS_DRIVE_CONNECT_REQUIRED'
+      ){
+        csmsShowDriveConnectPrompt(
+          'Connect Google Drive to sync this media.'
+        );
+      }
+
       throw err;
     }
   }
-  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V5 END =====
+  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V6 END =====
+
 
 
 
