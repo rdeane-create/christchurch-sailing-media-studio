@@ -1,0 +1,74 @@
+name: Restore approved Hero footer
+
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-approved-hero-footer.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore-footer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out complete repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract exact approved footer from historical Studio recovery
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          import pathlib
+          import re
+          import struct
+          import subprocess
+
+          SOURCE_COMMIT = 'dd18c641b45d8757ea29cd56a9675f27e0ba7ca4'
+          SOURCE_PATH = 'csms-template-recovery-v1.js'
+          OUTPUT = pathlib.Path('assets/Reference/HERO_FOOTER_OVERLAY_v1.png')
+
+          try:
+              source = subprocess.check_output(
+                  ['git', 'show', f'{SOURCE_COMMIT}:{SOURCE_PATH}'],
+                  text=True,
+              )
+          except subprocess.CalledProcessError:
+              subprocess.check_call(['git', 'fetch', 'origin', SOURCE_COMMIT])
+              source = subprocess.check_output(
+                  ['git', 'show', f'{SOURCE_COMMIT}:{SOURCE_PATH}'],
+                  text=True,
+              )
+
+          match = re.search(r"const HERO_FOOTER_B64='([^']+)'", source)
+          if not match:
+              raise SystemExit('Could not locate HERO_FOOTER_B64 in historical source')
+
+          raw = base64.b64decode(match.group(1), validate=True)
+          if not raw.startswith(b'\x89PNG\r\n\x1a\n'):
+              raise SystemExit('Recovered footer is not a PNG')
+
+          width, height = struct.unpack('>II', raw[16:24])
+          if (width, height) != (1080, 1350):
+              raise SystemExit(f'Unexpected footer dimensions: {width}x{height}')
+
+          OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+          OUTPUT.write_bytes(raw)
+          print(f'Restored {OUTPUT} ({len(raw)} bytes, {width}x{height})')
+          PY
+
+      - name: Commit restored original footer asset
+        shell: bash
+        run: |
+          if git diff --quiet -- assets/Reference/HERO_FOOTER_OVERLAY_v1.png && git ls-files --error-unmatch assets/Reference/HERO_FOOTER_OVERLAY_v1.png >/dev/null 2>&1; then
+            echo 'Approved footer already restored; nothing to commit.'
+            exit 0
+          fi
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add assets/Reference/HERO_FOOTER_OVERLAY_v1.png
+          git commit -m 'Restore original approved Hero footer asset'
+          git push
