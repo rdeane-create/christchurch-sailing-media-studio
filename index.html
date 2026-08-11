@@ -6057,6 +6057,196 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(files.length)await addUnifiedMedia(files,{skipPersistence:true});
   }
 
+
+
+  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V2 START =====
+  const CSMS_AUTH_BRIDGE_URL="https://script.google.com/a/macros/christchurchschool.org/s/AKfycbwVpWix_ivzxwpEQxNTBGvJNpThQYjfRRG8T7CYMNPz3r9lB-JI6CowrskoQUAs67lt/exec?action=bridge";
+  const CSMS_DRIVE_SYNC_MAX_BYTES=15728640;
+
+  let csmsAuthBridgeFrame=null;
+  let csmsAuthBridgeReadyPromise=null;
+  const csmsAuthBridgePending=new Map();
+
+  function csmsFileToBase64(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const text=String(reader.result||'');
+        const comma=text.indexOf(',');
+        resolve(comma>=0?text.slice(comma+1):text);
+      };
+      reader.onerror=()=>reject(reader.error||new Error('Could not read media file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function csmsEnsureAuthenticatedBridge(){
+    if(csmsAuthBridgeReadyPromise)return csmsAuthBridgeReadyPromise;
+
+    csmsAuthBridgeReadyPromise=new Promise((resolve,reject)=>{
+      const iframe=document.createElement('iframe');
+      iframe.id='csms-auth-drive-bridge';
+      iframe.src=CSMS_AUTH_BRIDGE_URL;
+      iframe.setAttribute('aria-hidden','true');
+      iframe.style.position='fixed';
+      iframe.style.width='1px';
+      iframe.style.height='1px';
+      iframe.style.border='0';
+      iframe.style.opacity='0';
+      iframe.style.pointerEvents='none';
+      iframe.style.left='-10000px';
+      iframe.style.top='-10000px';
+      csmsAuthBridgeFrame=iframe;
+
+      const timeout=setTimeout(()=>{
+        reject(new Error(
+          'Authenticated Drive Bridge did not become ready. Open the Apps Script Bridge in a normal tab and confirm you are signed in with the Christchurch Google account.'
+        ));
+      },20000);
+
+      function onReady(event){
+        const data=event.data||{};
+        if(data.source!=='csms-drive-bridge'||data.type!=='ready')return;
+        clearTimeout(timeout);
+        resolve(true);
+      }
+
+      window.addEventListener('message',onReady);
+      document.body.appendChild(iframe);
+    });
+
+    return csmsAuthBridgeReadyPromise;
+  }
+
+  window.addEventListener('message',(event)=>{
+    const data=event.data||{};
+    if(
+      data.source!=='csms-drive-bridge'||
+      data.type!=='response'||
+      !data.requestId
+    )return;
+
+    const pending=csmsAuthBridgePending.get(data.requestId);
+    if(!pending)return;
+
+    csmsAuthBridgePending.delete(data.requestId);
+    clearTimeout(pending.timeout);
+
+    if(data.ok)pending.resolve(data.result);
+    else pending.reject(new Error(data.error||'Drive Bridge request failed'));
+  });
+
+  async function csmsAuthenticatedBridgeCall(action,payload={}){
+    await csmsEnsureAuthenticatedBridge();
+
+    if(!csmsAuthBridgeFrame||!csmsAuthBridgeFrame.contentWindow){
+      throw new Error('Authenticated Drive Bridge iframe is unavailable');
+    }
+
+    return await new Promise((resolve,reject)=>{
+      const requestId='csms_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+      const timeout=setTimeout(()=>{
+        csmsAuthBridgePending.delete(requestId);
+        reject(new Error('Drive Bridge request timed out'));
+      },60000);
+
+      csmsAuthBridgePending.set(requestId,{resolve,reject,timeout});
+
+      csmsAuthBridgeFrame.contentWindow.postMessage({
+        source:'csms-studio',
+        type:'request',
+        requestId,
+        action,
+        payload
+      },'*');
+    });
+  }
+
+  async function csmsDriveSyncUnifiedMediaItem(item){
+    if(!item||!item.id||!item.file)return null;
+
+    const meta=loadMediaMeta();
+    const current=meta[item.id]||defaultMediaMeta(item);
+
+    if(current.driveFileId){
+      return {ok:true,alreadySynced:true,fileId:current.driveFileId};
+    }
+
+    if(item.file.size>CSMS_DRIVE_SYNC_MAX_BYTES){
+      current.driveStatus='deferred_large';
+      current.driveError='File exceeds current Drive Bridge direct-upload limit';
+      current.driveUpdatedAt=new Date().toISOString();
+      meta[item.id]=current;
+      saveMediaMeta(meta);
+      return {ok:false,deferred:true,reason:'large_file'};
+    }
+
+    current.driveStatus='syncing';
+    current.driveError='';
+    current.driveUpdatedAt=new Date().toISOString();
+    meta[item.id]=current;
+    saveMediaMeta(meta);
+
+    try{
+      const existing=await csmsAuthenticatedBridgeCall('findMedia',{mediaId:item.id});
+
+      if(existing&&existing.found&&existing.file){
+        current.driveFileId=existing.file.id;
+        current.driveFolderId=existing.file.folderId||'';
+        current.driveStatus='synced';
+        current.driveSyncedAt=new Date().toISOString();
+        current.driveUpdatedAt=current.driveSyncedAt;
+        current.driveError='';
+        meta[item.id]=current;
+        saveMediaMeta(meta);
+        return {ok:true,existing:true,file:existing.file};
+      }
+
+      const base64=await csmsFileToBase64(item.file);
+      const uploaded=await csmsAuthenticatedBridgeCall('uploadMedia',{
+        mediaId:item.id,
+        name:item.file.name,
+        mimeType:item.file.type||'application/octet-stream',
+        size:item.file.size,
+        lastModified:item.file.lastModified,
+        data:base64
+      });
+
+      if(!uploaded||!uploaded.ok||!uploaded.file){
+        throw new Error(uploaded&&uploaded.error?uploaded.error:'Drive upload returned no file');
+      }
+
+      current.driveFileId=uploaded.file.id;
+      current.driveFolderId=uploaded.file.folderId||'';
+      current.driveStatus='synced';
+      current.driveSyncedAt=new Date().toISOString();
+      current.driveUpdatedAt=current.driveSyncedAt;
+      current.driveError='';
+      meta[item.id]=current;
+      saveMediaMeta(meta);
+
+      try{
+        AppCore.signal('media.driveSync',{
+          mediaId:item.id,
+          status:'synced',
+          driveFileId:uploaded.file.id
+        });
+      }catch{}
+
+      return uploaded;
+    }catch(err){
+      current.driveStatus='error';
+      current.driveUpdatedAt=new Date().toISOString();
+      current.driveError=err&&err.message?err.message:String(err);
+      meta[item.id]=current;
+      saveMediaMeta(meta);
+      throw err;
+    }
+  }
+  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V2 END =====
+
+
+
   const originalAddUnifiedMedia=addUnifiedMedia;
   addUnifiedMedia=async function(files,options={}){
     await originalAddUnifiedMedia(files);
@@ -6068,6 +6258,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           file.lastModified===item.file.lastModified
         )){
           try{await persistentMediaPut(item);}catch(err){console.warn('Persistent media save failed',err);}
+          try{await csmsDriveSyncUnifiedMediaItem(item);}catch(err){console.warn('Drive media sync failed',err);}
         }
       }
     }
