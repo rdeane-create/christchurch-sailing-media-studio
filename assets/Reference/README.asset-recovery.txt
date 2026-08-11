@@ -1,0 +1,1 @@
+Approved Hero assets restored from the original Christchurch Hero Card master. Do not modify locked Hero brand assets.
