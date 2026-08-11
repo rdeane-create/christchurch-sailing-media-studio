@@ -6066,7 +6066,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
 
 
-  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V4 START =====
+
+  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V5 START =====
   const CSMS_AUTH_BRIDGE_URL="https://script.google.com/a/macros/christchurchschool.org/s/AKfycbwVpWix_ivzxwpEQxNTBGvJNpThQYjfRRG8T7CYMNPz3r9lB-JI6CowrskoQUAs67lt/exec?action=bridge";
   const CSMS_DRIVE_SYNC_MAX_BYTES=15728640;
 
@@ -6144,10 +6145,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       csmsAuthBridgePending.delete(data.requestId);
       clearTimeout(pending.timeout);
 
-      if(data.ok)pending.resolve(data.result);
-      else pending.reject(
-        new Error(data.error||'Drive Bridge request failed')
-      );
+      if(data.ok){
+        pending.resolve(data.result);
+      }else{
+        pending.reject(
+          new Error(data.error||'Drive Bridge request failed')
+        );
+      }
     };
 
     if(typeof port.start==='function'){
@@ -6165,6 +6169,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         csmsAuthBridgeToken=csmsBridgeRandomToken();
 
         const iframe=document.createElement('iframe');
+
         iframe.id='csms-auth-drive-bridge';
         iframe.src=
           CSMS_AUTH_BRIDGE_URL +
@@ -6193,9 +6198,11 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
           csmsAuthBridgeReadyPromise=null;
 
-          reject(new Error(
-            'Authenticated Drive Bridge did not become ready. Open the Apps Script Bridge once in a normal tab and confirm you are signed in with the Christchurch Google account.'
-          ));
+          reject(
+            new Error(
+              'Authenticated Drive Bridge did not become ready. Open the Apps Script Bridge once in a normal tab and confirm you are signed in with the Christchurch Google account.'
+            )
+          );
         },25000);
 
         function onBridgeHandshake(event){
@@ -6268,24 +6275,181 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     });
   }
 
+  function csmsStoredRecordToFile(record){
+    if(
+      !record ||
+      !record.blob ||
+      !record.name
+    ){
+      return null;
+    }
+
+    try{
+      return new File(
+        [record.blob],
+        record.name,
+        {
+          type:
+            record.type ||
+            record.blob.type ||
+            'application/octet-stream',
+
+          lastModified:
+            Number(record.lastModified) ||
+            Date.now()
+        }
+      );
+    }catch(err){
+      console.warn(
+        'Could not rebuild cached media file',
+        err
+      );
+
+      return null;
+    }
+  }
+
+  async function csmsEnsureMediaInRuntimeFromCache(record){
+    if(
+      !record ||
+      !record.id
+    ){
+      return false;
+    }
+
+    if(
+      unifiedMediaRuntime.some(
+        item=>item.id===record.id
+      )
+    ){
+      return true;
+    }
+
+    const file=
+      csmsStoredRecordToFile(record);
+
+    if(!file){
+      return false;
+    }
+
+    try{
+      await addUnifiedMedia(
+        [file],
+        {
+          skipPersistence:true,
+          skipDriveSync:true
+        }
+      );
+
+      return unifiedMediaRuntime.some(
+        item=>item.id===record.id
+      );
+
+    }catch(err){
+      console.warn(
+        'Could not restore cached media into runtime',
+        record.id,
+        err
+      );
+
+      return false;
+    }
+  }
+
+  async function csmsRestoreMediaRecordFromDrive(record){
+    const payload=
+      await csmsAuthenticatedBridgeCall(
+        'getMedia',
+        {
+          mediaId:record.mediaId
+        }
+      );
+
+    if(
+      !payload ||
+      !payload.ok ||
+      !payload.media ||
+      !payload.media.data
+    ){
+      throw new Error(
+        'Drive media payload was incomplete'
+      );
+    }
+
+    const media=
+      payload.media;
+
+    const blob=
+      csmsBase64ToBlob(
+        media.data,
+        media.mimeType
+      );
+
+    const file=
+      new File(
+        [blob],
+        media.name,
+        {
+          type:
+            media.mimeType ||
+            blob.type,
+
+          lastModified:
+            Number(media.lastModified) ||
+            Date.now()
+        }
+      );
+
+    /*
+     * skipDriveSync prevents the Drive-restored file from being
+     * uploaded back to Drive. Persistence remains enabled so this
+     * browser gets a fast IndexedDB copy for future launches.
+     */
+    await addUnifiedMedia(
+      [file],
+      {
+        skipDriveSync:true
+      }
+    );
+
+    const restoredItem=
+      unifiedMediaRuntime.find(
+        item=>item.id===media.mediaId
+      );
+
+    if(!restoredItem){
+      throw new Error(
+        'Restored media identity did not match Drive media ID'
+      );
+    }
+
+    return restoredItem;
+  }
+
   async function csmsRestoreMissingMediaFromDrive(){
     const inventory=
-      await csmsAuthenticatedBridgeCall('listMedia');
+      await csmsAuthenticatedBridgeCall(
+        'listMedia'
+      );
 
     if(
       !inventory ||
       !inventory.ok ||
       !Array.isArray(inventory.items)
     ){
-      return {ok:false,restored:0};
+      return {
+        ok:false,
+        total:0,
+        restored:0,
+        failures:[
+          {
+            error:
+              'Drive media inventory was unavailable'
+          }
+        ]
+      };
     }
 
-    /*
-     * Compare Drive against the durable browser cache, not the
-     * in-memory runtime. The runtime can contain session records
-     * that are not actually persisted on this browser, which can
-     * incorrectly make Drive restore think nothing is missing.
-     */
     let storedRecords=[];
 
     try{
@@ -6300,82 +6464,77 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       storedRecords=[];
     }
 
-    const persistedIds=
-      new Set(
+    const storedById=
+      new Map(
         storedRecords
-          .map(record=>record&&record.id)
-          .filter(Boolean)
+          .filter(
+            record=>
+              record &&
+              record.id
+          )
+          .map(
+            record=>[
+              record.id,
+              record
+            ]
+          )
       );
 
-    const missing=
-      inventory.items.filter(
-        record=>
-          record &&
-          record.mediaId &&
-          !persistedIds.has(record.mediaId)
-      );
-
-    let restored=0;
+    let loadedFromCache=0;
+    let restoredFromDrive=0;
+    let alreadyInRuntime=0;
     const failures=[];
 
-    for(const record of missing){
+    for(
+      const record of inventory.items
+    ){
+      if(
+        !record ||
+        !record.mediaId
+      ){
+        continue;
+      }
+
+      if(
+        unifiedMediaRuntime.some(
+          item=>
+            item.id===
+            record.mediaId
+        )
+      ){
+        alreadyInRuntime+=1;
+        continue;
+      }
+
+      const cachedRecord=
+        storedById.get(
+          record.mediaId
+        );
+
+      if(cachedRecord){
+        const loaded=
+          await csmsEnsureMediaInRuntimeFromCache(
+            cachedRecord
+          );
+
+        if(loaded){
+          loadedFromCache+=1;
+          continue;
+        }
+      }
+
       try{
-        const payload=
-          await csmsAuthenticatedBridgeCall(
-            'getMedia',
-            {mediaId:record.mediaId}
-          );
-
-        if(
-          !payload ||
-          !payload.ok ||
-          !payload.media ||
-          !payload.media.data
-        ){
-          throw new Error(
-            'Drive media payload was incomplete'
-          );
-        }
-
-        const media=payload.media;
-
-        const blob=csmsBase64ToBlob(
-          media.data,
-          media.mimeType
+        await csmsRestoreMediaRecordFromDrive(
+          record
         );
 
-        const file=new File(
-          [blob],
-          media.name,
-          {
-            type:media.mimeType||blob.type,
-            lastModified:
-              Number(media.lastModified) ||
-              Date.now()
-          }
-        );
-
-        await addUnifiedMedia(
-          [file],
-          {skipDriveSync:true}
-        );
-
-        const restoredItem=
-          unifiedMediaRuntime.find(
-            item=>item.id===media.mediaId
-          );
-
-        if(!restoredItem){
-          throw new Error(
-            'Restored media identity did not match Drive media ID'
-          );
-        }
-
-        restored+=1;
+        restoredFromDrive+=1;
 
       }catch(err){
         failures.push({
-          mediaId:record.mediaId,
+          mediaId:
+            record.mediaId,
+
           error:
             err&&err.message
               ? err.message
@@ -6384,31 +6543,73 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       }
     }
 
+    /*
+     * The addUnifiedMedia path normally updates the library, but
+     * render explicitly here as a final reconciliation step so a
+     * browser restored from Drive cannot remain visually stale.
+     */
     try{
-      AppCore.signal(
-        'media.driveRestore',
-        {
-          total:inventory.items.length,
-          missing:missing.length,
-          restored:restored,
-          failures:failures.length
-        }
+      if(
+        typeof renderUnifiedMedia===
+        'function'
+      ){
+        renderUnifiedMedia();
+      }
+    }catch(err){
+      console.warn(
+        'Unified Media render after Drive restore failed',
+        err
       );
-    }catch{}
+    }
+
+    try{
+      if(
+        typeof syncProjectMediaFromUnified===
+        'function'
+      ){
+        syncProjectMediaFromUnified();
+      }
+    }catch(err){
+      console.warn(
+        'Project media sync after Drive restore failed',
+        err
+      );
+    }
 
     const report={
-      ok:failures.length===0,
-      total:inventory.items.length,
-      persisted:persistedIds.size,
-      missing:missing.length,
-      restored:restored,
-      failures:failures
+      ok:
+        failures.length===0,
+
+      total:
+        inventory.items.length,
+
+      alreadyInRuntime:
+        alreadyInRuntime,
+
+      cachedRecords:
+        storedRecords.length,
+
+      loadedFromCache:
+        loadedFromCache,
+
+      restoredFromDrive:
+        restoredFromDrive,
+
+      failures:
+        failures
     };
 
     console.info(
       'CSMS Drive restore',
       report
     );
+
+    try{
+      AppCore.signal(
+        'media.driveRestore',
+        report
+      );
+    }catch{}
 
     return report;
   }
@@ -6431,7 +6632,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       current.driveStatus='deferred_large';
       current.driveError=
         'File exceeds current Drive Bridge direct-upload limit';
-      current.driveUpdatedAt=new Date().toISOString();
+      current.driveUpdatedAt=
+        new Date().toISOString();
 
       meta[item.id]=current;
       saveMediaMeta(meta);
@@ -6445,7 +6647,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
     current.driveStatus='syncing';
     current.driveError='';
-    current.driveUpdatedAt=new Date().toISOString();
+    current.driveUpdatedAt=
+      new Date().toISOString();
 
     meta[item.id]=current;
     saveMediaMeta(meta);
@@ -6457,12 +6660,26 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           {mediaId:item.id}
         );
 
-      if(existing&&existing.found&&existing.file){
-        current.driveFileId=existing.file.id;
-        current.driveFolderId=existing.file.folderId||'';
-        current.driveStatus='synced';
-        current.driveSyncedAt=new Date().toISOString();
-        current.driveUpdatedAt=current.driveSyncedAt;
+      if(
+        existing &&
+        existing.found &&
+        existing.file
+      ){
+        current.driveFileId=
+          existing.file.id;
+
+        current.driveFolderId=
+          existing.file.folderId||'';
+
+        current.driveStatus=
+          'synced';
+
+        current.driveSyncedAt=
+          new Date().toISOString();
+
+        current.driveUpdatedAt=
+          current.driveSyncedAt;
+
         current.driveError='';
 
         meta[item.id]=current;
@@ -6475,7 +6692,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         };
       }
 
-      const base64=await csmsFileToBase64(item.file);
+      const base64=
+        await csmsFileToBase64(
+          item.file
+        );
 
       const uploaded=
         await csmsAuthenticatedBridgeCall(
@@ -6487,12 +6707,17 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
               item.file.type||
               'application/octet-stream',
             size:item.file.size,
-            lastModified:item.file.lastModified,
+            lastModified:
+              item.file.lastModified,
             data:base64
           }
         );
 
-      if(!uploaded||!uploaded.ok||!uploaded.file){
+      if(
+        !uploaded ||
+        !uploaded.ok ||
+        !uploaded.file
+      ){
         throw new Error(
           uploaded&&uploaded.error
             ? uploaded.error
@@ -6500,11 +6725,21 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         );
       }
 
-      current.driveFileId=uploaded.file.id;
-      current.driveFolderId=uploaded.file.folderId||'';
-      current.driveStatus='synced';
-      current.driveSyncedAt=new Date().toISOString();
-      current.driveUpdatedAt=current.driveSyncedAt;
+      current.driveFileId=
+        uploaded.file.id;
+
+      current.driveFolderId=
+        uploaded.file.folderId||'';
+
+      current.driveStatus=
+        'synced';
+
+      current.driveSyncedAt=
+        new Date().toISOString();
+
+      current.driveUpdatedAt=
+        current.driveSyncedAt;
+
       current.driveError='';
 
       meta[item.id]=current;
@@ -6516,7 +6751,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           {
             mediaId:item.id,
             status:'synced',
-            driveFileId:uploaded.file.id
+            driveFileId:
+              uploaded.file.id
           }
         );
       }catch{}
@@ -6524,8 +6760,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       return uploaded;
 
     }catch(err){
-      current.driveStatus='error';
-      current.driveUpdatedAt=new Date().toISOString();
+      current.driveStatus=
+        'error';
+
+      current.driveUpdatedAt=
+        new Date().toISOString();
+
       current.driveError=
         err&&err.message
           ? err.message
@@ -6537,7 +6777,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       throw err;
     }
   }
-  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V4 END =====
+  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V5 END =====
+
 
 
 
@@ -6555,7 +6796,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           file.lastModified===item.file.lastModified
         )){
           try{await persistentMediaPut(item);}catch(err){console.warn('Persistent media save failed',err);}
-          if(!options.skipDriveSync){if(!options.skipDriveSync){try{await csmsDriveSyncUnifiedMediaItem(item);}catch(err){console.warn('Drive media sync failed',err);}}}
+          if(!options.skipDriveSync){if(!options.skipDriveSync){if(!options.skipDriveSync){try{await csmsDriveSyncUnifiedMediaItem(item);}catch(err){console.warn('Drive media sync failed',err);}}}}
         }
       }
     }
