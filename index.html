@@ -6067,6 +6067,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
 
 
+
   // ===== CSMS AUTHENTICATED DRIVE BRIDGE V5 START =====
   const CSMS_AUTH_BRIDGE_URL="https://script.google.com/a/macros/christchurchschool.org/s/AKfycbwVpWix_ivzxwpEQxNTBGvJNpThQYjfRRG8T7CYMNPz3r9lB-JI6CowrskoQUAs67lt/exec?action=bridge";
   const CSMS_DRIVE_SYNC_MAX_BYTES=15728640;
@@ -6440,7 +6441,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       return {
         ok:false,
         total:0,
-        restored:0,
+        restoredFromDrive:0,
         failures:[
           {
             error:
@@ -6450,18 +6451,33 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       };
     }
 
+    /*
+     * IMPORTANT:
+     * The in-memory runtime is the truth for what the user can
+     * actually see in this browser session.
+     *
+     * If runtime is empty after the fast local restore, do not
+     * trust IndexedDB bookkeeping alone. A stale/partial Safari
+     * cache can report a record without producing a usable media
+     * item. In that case Drive becomes authoritative and we fetch
+     * every inventory item needed to rebuild the visible library.
+     */
+    const runtimeStartedEmpty=
+      unifiedMediaRuntime.length===0;
+
     let storedRecords=[];
 
-    try{
-      storedRecords=
-        await persistentMediaGetAll();
-    }catch(err){
-      console.warn(
-        'Persistent media inventory read failed',
-        err
-      );
-
-      storedRecords=[];
+    if(!runtimeStartedEmpty){
+      try{
+        storedRecords=
+          await persistentMediaGetAll();
+      }catch(err){
+        console.warn(
+          'Persistent media inventory read failed',
+          err
+        );
+        storedRecords=[];
+      }
     }
 
     const storedById=
@@ -6470,7 +6486,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           .filter(
             record=>
               record &&
-              record.id
+              record.id &&
+              record.blob
           )
           .map(
             record=>[
@@ -6480,14 +6497,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           )
       );
 
+    let alreadyInRuntime=0;
     let loadedFromCache=0;
     let restoredFromDrive=0;
-    let alreadyInRuntime=0;
     const failures=[];
 
-    for(
-      const record of inventory.items
-    ){
+    for(const record of inventory.items){
       if(
         !record ||
         !record.mediaId
@@ -6506,20 +6521,27 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         continue;
       }
 
-      const cachedRecord=
-        storedById.get(
-          record.mediaId
-        );
-
-      if(cachedRecord){
-        const loaded=
-          await csmsEnsureMediaInRuntimeFromCache(
-            cachedRecord
+      /*
+       * Only use IndexedDB as an optimization when this session
+       * already demonstrated that local restore works. If the
+       * runtime started empty, fetch from Drive instead.
+       */
+      if(!runtimeStartedEmpty){
+        const cachedRecord=
+          storedById.get(
+            record.mediaId
           );
 
-        if(loaded){
-          loadedFromCache+=1;
-          continue;
+        if(cachedRecord){
+          const loaded=
+            await csmsEnsureMediaInRuntimeFromCache(
+              cachedRecord
+            );
+
+          if(loaded){
+            loadedFromCache+=1;
+            continue;
+          }
         }
       }
 
@@ -6543,11 +6565,6 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       }
     }
 
-    /*
-     * The addUnifiedMedia path normally updates the library, but
-     * render explicitly here as a final reconciliation step so a
-     * browser restored from Drive cannot remain visually stale.
-     */
     try{
       if(
         typeof renderUnifiedMedia===
@@ -6558,6 +6575,20 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     }catch(err){
       console.warn(
         'Unified Media render after Drive restore failed',
+        err
+      );
+    }
+
+    try{
+      if(
+        typeof renderCommandCenter===
+        'function'
+      ){
+        renderCommandCenter();
+      }
+    }catch(err){
+      console.warn(
+        'Command Center render after Drive restore failed',
         err
       );
     }
@@ -6583,6 +6614,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       total:
         inventory.items.length,
 
+      runtimeStartedEmpty:
+        runtimeStartedEmpty,
+
       alreadyInRuntime:
         alreadyInRuntime,
 
@@ -6594,6 +6628,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
       restoredFromDrive:
         restoredFromDrive,
+
+      runtimeAfter:
+        unifiedMediaRuntime.length,
 
       failures:
         failures
@@ -6785,6 +6822,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
 
 
+
   const originalAddUnifiedMedia=addUnifiedMedia;
   addUnifiedMedia=async function(files,options={}){
     await originalAddUnifiedMedia(files);
@@ -6796,7 +6834,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           file.lastModified===item.file.lastModified
         )){
           try{await persistentMediaPut(item);}catch(err){console.warn('Persistent media save failed',err);}
-          if(!options.skipDriveSync){if(!options.skipDriveSync){if(!options.skipDriveSync){try{await csmsDriveSyncUnifiedMediaItem(item);}catch(err){console.warn('Drive media sync failed',err);}}}}
+          if(!options.skipDriveSync){if(!options.skipDriveSync){try{await csmsDriveSyncUnifiedMediaItem(item);}catch(err){console.warn('Drive media sync failed',err);}}}
         }
       }
     }
