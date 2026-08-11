@@ -6059,191 +6059,399 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
 
 
-  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V2 START =====
+
+  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V3 START =====
   const CSMS_AUTH_BRIDGE_URL="https://script.google.com/a/macros/christchurchschool.org/s/AKfycbwVpWix_ivzxwpEQxNTBGvJNpThQYjfRRG8T7CYMNPz3r9lB-JI6CowrskoQUAs67lt/exec?action=bridge";
   const CSMS_DRIVE_SYNC_MAX_BYTES=15728640;
 
   let csmsAuthBridgeFrame=null;
   let csmsAuthBridgeReadyPromise=null;
+  let csmsAuthBridgePort=null;
+  let csmsAuthBridgeToken='';
   const csmsAuthBridgePending=new Map();
 
   function csmsFileToBase64(file){
     return new Promise((resolve,reject)=>{
       const reader=new FileReader();
+
       reader.onload=()=>{
         const text=String(reader.result||'');
         const comma=text.indexOf(',');
         resolve(comma>=0?text.slice(comma+1):text);
       };
-      reader.onerror=()=>reject(reader.error||new Error('Could not read media file'));
+
+      reader.onerror=()=>reject(
+        reader.error ||
+        new Error('Could not read media file')
+      );
+
       reader.readAsDataURL(file);
     });
   }
 
-  function csmsEnsureAuthenticatedBridge(){
-    if(csmsAuthBridgeReadyPromise)return csmsAuthBridgeReadyPromise;
+  function csmsBridgeRandomToken(){
+    try{
+      const bytes=new Uint8Array(24);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes)
+        .map(value=>value.toString(16).padStart(2,'0'))
+        .join('');
+    }catch{
+      return (
+        Date.now().toString(36) +
+        Math.random().toString(36).slice(2) +
+        Math.random().toString(36).slice(2)
+      );
+    }
+  }
 
-    csmsAuthBridgeReadyPromise=new Promise((resolve,reject)=>{
-      const iframe=document.createElement('iframe');
-      iframe.id='csms-auth-drive-bridge';
-      iframe.src=CSMS_AUTH_BRIDGE_URL;
-      iframe.setAttribute('aria-hidden','true');
-      iframe.style.position='fixed';
-      iframe.style.width='1px';
-      iframe.style.height='1px';
-      iframe.style.border='0';
-      iframe.style.opacity='0';
-      iframe.style.pointerEvents='none';
-      iframe.style.left='-10000px';
-      iframe.style.top='-10000px';
-      csmsAuthBridgeFrame=iframe;
+  function csmsAttachBridgePort(port){
+    csmsAuthBridgePort=port;
 
-      const timeout=setTimeout(()=>{
-        reject(new Error(
-          'Authenticated Drive Bridge did not become ready. Open the Apps Script Bridge in a normal tab and confirm you are signed in with the Christchurch Google account.'
-        ));
-      },20000);
+    port.onmessage=(event)=>{
+      const data=event.data||{};
 
-      function onReady(event){
-        const data=event.data||{};
-        if(data.source!=='csms-drive-bridge'||data.type!=='ready')return;
-        clearTimeout(timeout);
-        resolve(true);
+      if(
+        data.source!=='csms-drive-bridge' ||
+        data.type!=='response' ||
+        !data.requestId
+      ){
+        return;
       }
 
-      window.addEventListener('message',onReady);
-      document.body.appendChild(iframe);
-    });
+      const pending=
+        csmsAuthBridgePending.get(data.requestId);
+
+      if(!pending)return;
+
+      csmsAuthBridgePending.delete(data.requestId);
+      clearTimeout(pending.timeout);
+
+      if(data.ok){
+        pending.resolve(data.result);
+      }else{
+        pending.reject(
+          new Error(
+            data.error ||
+            'Drive Bridge request failed'
+          )
+        );
+      }
+    };
+
+    if(typeof port.start==='function'){
+      port.start();
+    }
+  }
+
+  function csmsEnsureAuthenticatedBridge(){
+    if(csmsAuthBridgeReadyPromise){
+      return csmsAuthBridgeReadyPromise;
+    }
+
+    csmsAuthBridgeReadyPromise=
+      new Promise((resolve,reject)=>{
+
+        csmsAuthBridgeToken=
+          csmsBridgeRandomToken();
+
+        const iframe=
+          document.createElement('iframe');
+
+        iframe.id='csms-auth-drive-bridge';
+
+        iframe.src=
+          CSMS_AUTH_BRIDGE_URL +
+          '&token=' +
+          encodeURIComponent(csmsAuthBridgeToken) +
+          '&cb=' +
+          Date.now();
+
+        iframe.setAttribute(
+          'aria-hidden',
+          'true'
+        );
+
+        iframe.style.position='fixed';
+        iframe.style.width='1px';
+        iframe.style.height='1px';
+        iframe.style.border='0';
+        iframe.style.opacity='0';
+        iframe.style.pointerEvents='none';
+        iframe.style.left='-10000px';
+        iframe.style.top='-10000px';
+
+        csmsAuthBridgeFrame=iframe;
+
+        const timeout=setTimeout(()=>{
+          window.removeEventListener(
+            'message',
+            onBridgeHandshake
+          );
+
+          csmsAuthBridgeReadyPromise=null;
+
+          reject(
+            new Error(
+              'Authenticated Drive Bridge did not become ready. Open the Apps Script Bridge once in a normal tab and confirm you are signed in with the Christchurch Google account.'
+            )
+          );
+        },25000);
+
+        function onBridgeHandshake(event){
+          const data=event.data||{};
+
+          if(
+            data.source!=='csms-drive-bridge' ||
+            data.type!=='channel-ready' ||
+            data.bridgeToken!==csmsAuthBridgeToken
+          ){
+            return;
+          }
+
+          const port=
+            event.ports &&
+            event.ports[0];
+
+          if(!port){
+            return;
+          }
+
+          clearTimeout(timeout);
+
+          window.removeEventListener(
+            'message',
+            onBridgeHandshake
+          );
+
+          csmsAttachBridgePort(port);
+          resolve(true);
+        }
+
+        window.addEventListener(
+          'message',
+          onBridgeHandshake
+        );
+
+        document.body.appendChild(iframe);
+      });
 
     return csmsAuthBridgeReadyPromise;
   }
 
-  window.addEventListener('message',(event)=>{
-    const data=event.data||{};
-    if(
-      data.source!=='csms-drive-bridge'||
-      data.type!=='response'||
-      !data.requestId
-    )return;
-
-    const pending=csmsAuthBridgePending.get(data.requestId);
-    if(!pending)return;
-
-    csmsAuthBridgePending.delete(data.requestId);
-    clearTimeout(pending.timeout);
-
-    if(data.ok)pending.resolve(data.result);
-    else pending.reject(new Error(data.error||'Drive Bridge request failed'));
-  });
-
-  async function csmsAuthenticatedBridgeCall(action,payload={}){
+  async function csmsAuthenticatedBridgeCall(
+    action,
+    payload={}
+  ){
     await csmsEnsureAuthenticatedBridge();
 
-    if(!csmsAuthBridgeFrame||!csmsAuthBridgeFrame.contentWindow){
-      throw new Error('Authenticated Drive Bridge iframe is unavailable');
+    if(!csmsAuthBridgePort){
+      throw new Error(
+        'Authenticated Drive Bridge channel is unavailable'
+      );
     }
 
-    return await new Promise((resolve,reject)=>{
-      const requestId='csms_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-      const timeout=setTimeout(()=>{
-        csmsAuthBridgePending.delete(requestId);
-        reject(new Error('Drive Bridge request timed out'));
-      },60000);
+    return await new Promise(
+      (resolve,reject)=>{
 
-      csmsAuthBridgePending.set(requestId,{resolve,reject,timeout});
+        const requestId=
+          'csms_' +
+          Date.now() +
+          '_' +
+          Math.random().toString(36).slice(2);
 
-      csmsAuthBridgeFrame.contentWindow.postMessage({
-        source:'csms-studio',
-        type:'request',
-        requestId,
-        action,
-        payload
-      },'*');
-    });
+        const timeout=setTimeout(()=>{
+          csmsAuthBridgePending.delete(
+            requestId
+          );
+
+          reject(
+            new Error(
+              'Drive Bridge request timed out'
+            )
+          );
+        },60000);
+
+        csmsAuthBridgePending.set(
+          requestId,
+          {resolve,reject,timeout}
+        );
+
+        csmsAuthBridgePort.postMessage({
+          source:'csms-studio',
+          type:'request',
+          requestId,
+          action,
+          payload
+        });
+      }
+    );
   }
 
   async function csmsDriveSyncUnifiedMediaItem(item){
-    if(!item||!item.id||!item.file)return null;
+    if(!item||!item.id||!item.file){
+      return null;
+    }
 
     const meta=loadMediaMeta();
-    const current=meta[item.id]||defaultMediaMeta(item);
+    const current=
+      meta[item.id]||
+      defaultMediaMeta(item);
 
     if(current.driveFileId){
-      return {ok:true,alreadySynced:true,fileId:current.driveFileId};
+      return {
+        ok:true,
+        alreadySynced:true,
+        fileId:current.driveFileId
+      };
     }
 
     if(item.file.size>CSMS_DRIVE_SYNC_MAX_BYTES){
       current.driveStatus='deferred_large';
-      current.driveError='File exceeds current Drive Bridge direct-upload limit';
-      current.driveUpdatedAt=new Date().toISOString();
+      current.driveError=
+        'File exceeds current Drive Bridge direct-upload limit';
+      current.driveUpdatedAt=
+        new Date().toISOString();
+
       meta[item.id]=current;
       saveMediaMeta(meta);
-      return {ok:false,deferred:true,reason:'large_file'};
+
+      return {
+        ok:false,
+        deferred:true,
+        reason:'large_file'
+      };
     }
 
     current.driveStatus='syncing';
     current.driveError='';
-    current.driveUpdatedAt=new Date().toISOString();
+    current.driveUpdatedAt=
+      new Date().toISOString();
+
     meta[item.id]=current;
     saveMediaMeta(meta);
 
     try{
-      const existing=await csmsAuthenticatedBridgeCall('findMedia',{mediaId:item.id});
+      const existing=
+        await csmsAuthenticatedBridgeCall(
+          'findMedia',
+          {mediaId:item.id}
+        );
 
-      if(existing&&existing.found&&existing.file){
-        current.driveFileId=existing.file.id;
-        current.driveFolderId=existing.file.folderId||'';
+      if(
+        existing &&
+        existing.found &&
+        existing.file
+      ){
+        current.driveFileId=
+          existing.file.id;
+
+        current.driveFolderId=
+          existing.file.folderId||'';
+
         current.driveStatus='synced';
-        current.driveSyncedAt=new Date().toISOString();
-        current.driveUpdatedAt=current.driveSyncedAt;
+        current.driveSyncedAt=
+          new Date().toISOString();
+
+        current.driveUpdatedAt=
+          current.driveSyncedAt;
+
         current.driveError='';
+
         meta[item.id]=current;
         saveMediaMeta(meta);
-        return {ok:true,existing:true,file:existing.file};
+
+        return {
+          ok:true,
+          existing:true,
+          file:existing.file
+        };
       }
 
-      const base64=await csmsFileToBase64(item.file);
-      const uploaded=await csmsAuthenticatedBridgeCall('uploadMedia',{
-        mediaId:item.id,
-        name:item.file.name,
-        mimeType:item.file.type||'application/octet-stream',
-        size:item.file.size,
-        lastModified:item.file.lastModified,
-        data:base64
-      });
+      const base64=
+        await csmsFileToBase64(
+          item.file
+        );
 
-      if(!uploaded||!uploaded.ok||!uploaded.file){
-        throw new Error(uploaded&&uploaded.error?uploaded.error:'Drive upload returned no file');
+      const uploaded=
+        await csmsAuthenticatedBridgeCall(
+          'uploadMedia',
+          {
+            mediaId:item.id,
+            name:item.file.name,
+            mimeType:
+              item.file.type||
+              'application/octet-stream',
+            size:item.file.size,
+            lastModified:
+              item.file.lastModified,
+            data:base64
+          }
+        );
+
+      if(
+        !uploaded ||
+        !uploaded.ok ||
+        !uploaded.file
+      ){
+        throw new Error(
+          uploaded &&
+          uploaded.error
+            ? uploaded.error
+            : 'Drive upload returned no file'
+        );
       }
 
-      current.driveFileId=uploaded.file.id;
-      current.driveFolderId=uploaded.file.folderId||'';
+      current.driveFileId=
+        uploaded.file.id;
+
+      current.driveFolderId=
+        uploaded.file.folderId||'';
+
       current.driveStatus='synced';
-      current.driveSyncedAt=new Date().toISOString();
-      current.driveUpdatedAt=current.driveSyncedAt;
+      current.driveSyncedAt=
+        new Date().toISOString();
+
+      current.driveUpdatedAt=
+        current.driveSyncedAt;
+
       current.driveError='';
+
       meta[item.id]=current;
       saveMediaMeta(meta);
 
       try{
-        AppCore.signal('media.driveSync',{
-          mediaId:item.id,
-          status:'synced',
-          driveFileId:uploaded.file.id
-        });
+        AppCore.signal(
+          'media.driveSync',
+          {
+            mediaId:item.id,
+            status:'synced',
+            driveFileId:
+              uploaded.file.id
+          }
+        );
       }catch{}
 
       return uploaded;
+
     }catch(err){
       current.driveStatus='error';
-      current.driveUpdatedAt=new Date().toISOString();
-      current.driveError=err&&err.message?err.message:String(err);
+      current.driveUpdatedAt=
+        new Date().toISOString();
+
+      current.driveError=
+        err&&err.message
+          ? err.message
+          : String(err);
+
       meta[item.id]=current;
       saveMediaMeta(meta);
+
       throw err;
     }
   }
-  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V2 END =====
+  // ===== CSMS AUTHENTICATED DRIVE BRIDGE V3 END =====
+
 
 
 
