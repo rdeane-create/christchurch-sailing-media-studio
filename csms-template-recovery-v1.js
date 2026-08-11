@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  const MODULE_VERSION = '1.0.0';
+  const MODULE_VERSION = '1.1.0';
   const TEMPLATE_KEY = 'christchurch_creative_templates_v1';
   const BACKUP_KEY = 'christchurch_template_recovery_pre_v1';
   const LEGACY_DB = 'ChristchurchMediaStudio';
@@ -1049,6 +1049,46 @@
     }, 250);
   }
 
+  function installRecoveredTemplateRouting() {
+    if (window.__CSMS_RECOVERED_TEMPLATE_ROUTING_V11__) return;
+    window.__CSMS_RECOVERED_TEMPLATE_ROUTING_V11__ = true;
+
+    function routeFromElement(target) {
+      const button = target.closest && target.closest('button');
+      const row = target.closest && (
+        target.closest('.athleteItem') ||
+        target.closest('.csmsRecoveredTemplateRow') ||
+        target.closest('#templateLibraryList > div')
+      );
+      if (!row) return false;
+
+      const rowText = String(row.textContent || '').toUpperCase();
+      let workspace = '';
+      if (rowText.includes('WELCOME ABOARD')) workspace = 'welcome';
+      if (rowText.includes('COLLEGE ANNOUNCEMENT')) workspace = 'college';
+      if (!workspace) return false;
+
+      if (button) {
+        const action = String(button.textContent || '').trim().toLowerCase();
+        if (action !== 'open' && action !== 'create from template') return false;
+      }
+
+      showWorkspace(workspace);
+      return true;
+    }
+
+    document.addEventListener('click', function (event) {
+      if (!event.target || !event.target.closest) return;
+      if (!document.getElementById('templateLibraryList')?.contains(event.target)) return;
+
+      if (routeFromElement(event.target)) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+      }
+    }, true);
+  }
+
   function diagnostic() {
     const templates = readTemplates();
     return {
@@ -1076,6 +1116,7 @@
     const merge = mergeTemplates();
     ensureWorkspaces();
     bindWorkspaceEvents();
+    installRecoveredTemplateRouting();
     monitorTemplateLibrary();
 
     try { await ensureLegacyWelcomeMaster(); } catch (_) {}
