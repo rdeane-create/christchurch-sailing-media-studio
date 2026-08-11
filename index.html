@@ -6065,6 +6065,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
 
 
+
   // ===== CSMS AUTHENTICATED DRIVE BRIDGE V4 START =====
   const CSMS_AUTH_BRIDGE_URL="https://script.google.com/a/macros/christchurchschool.org/s/AKfycbwVpWix_ivzxwpEQxNTBGvJNpThQYjfRRG8T7CYMNPz3r9lB-JI6CowrskoQUAs67lt/exec?action=bridge";
   const CSMS_DRIVE_SYNC_MAX_BYTES=15728640;
@@ -6279,9 +6280,31 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       return {ok:false,restored:0};
     }
 
-    const localIds=
+    /*
+     * Compare Drive against the durable browser cache, not the
+     * in-memory runtime. The runtime can contain session records
+     * that are not actually persisted on this browser, which can
+     * incorrectly make Drive restore think nothing is missing.
+     */
+    let storedRecords=[];
+
+    try{
+      storedRecords=
+        await persistentMediaGetAll();
+    }catch(err){
+      console.warn(
+        'Persistent media inventory read failed',
+        err
+      );
+
+      storedRecords=[];
+    }
+
+    const persistedIds=
       new Set(
-        unifiedMediaRuntime.map(item=>item.id)
+        storedRecords
+          .map(record=>record&&record.id)
+          .filter(Boolean)
       );
 
     const missing=
@@ -6289,7 +6312,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         record=>
           record &&
           record.mediaId &&
-          !localIds.has(record.mediaId)
+          !persistedIds.has(record.mediaId)
       );
 
     let restored=0;
@@ -6373,13 +6396,21 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       );
     }catch{}
 
-    return {
+    const report={
       ok:failures.length===0,
       total:inventory.items.length,
+      persisted:persistedIds.size,
       missing:missing.length,
       restored:restored,
       failures:failures
     };
+
+    console.info(
+      'CSMS Drive restore',
+      report
+    );
+
+    return report;
   }
 
   async function csmsDriveSyncUnifiedMediaItem(item){
@@ -6512,6 +6543,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
 
 
+
   const originalAddUnifiedMedia=addUnifiedMedia;
   addUnifiedMedia=async function(files,options={}){
     await originalAddUnifiedMedia(files);
@@ -6523,7 +6555,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           file.lastModified===item.file.lastModified
         )){
           try{await persistentMediaPut(item);}catch(err){console.warn('Persistent media save failed',err);}
-          if(!options.skipDriveSync){try{await csmsDriveSyncUnifiedMediaItem(item);}catch(err){console.warn('Drive media sync failed',err);}}
+          if(!options.skipDriveSync){if(!options.skipDriveSync){try{await csmsDriveSyncUnifiedMediaItem(item);}catch(err){console.warn('Drive media sync failed',err);}}}
         }
       }
     }
