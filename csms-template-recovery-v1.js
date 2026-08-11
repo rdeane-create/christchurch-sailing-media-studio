@@ -1,8 +1,9 @@
 (function(){
 'use strict';
-const VERSION='1.2.0';
+const VERSION='1.3.0';
 const TEMPLATE_KEY='christchurch_creative_templates_v1';
 const RECOVERED_IDS=new Set(['christchurch_welcome_aboard_template','christchurch_college_announcement_template']);
+
 function parse(raw,fallback){try{return JSON.parse(raw)}catch(e){return fallback}}
 function stripNativeRecoveredTemplates(){
   const rows=parse(localStorage.getItem(TEMPLATE_KEY)||'[]',[]);
@@ -10,29 +11,212 @@ function stripNativeRecoveredTemplates(){
   const next=rows.filter(x=>!x||!RECOVERED_IDS.has(x.id));
   if(next.length!==rows.length)localStorage.setItem(TEMPLATE_KEY,JSON.stringify(next));
 }
-function style(){if(document.getElementById('csmsRecoveredStyle'))return;const s=document.createElement('style');s.id='csmsRecoveredStyle';s.textContent=`
-.csmsRecoveredWorkspace{display:none}.csmsRecoveredWorkspace.active{display:block}.csmsRecoveredShell{display:grid;grid-template-columns:380px minmax(0,1fr);gap:18px}.csmsRecoveredWorkspace .panel{background:#fff;border:1px solid #dbe3ee;border-radius:18px;padding:18px}.csmsRecoveredWorkspace .previewWrap{background:#08152e;border-radius:18px;padding:14px;display:flex;justify-content:center}.csmsRecoveredWorkspace canvas{width:min(100%,540px);height:auto;aspect-ratio:4/5;background:#07152f;border-radius:12px}.csmsRecoveredWorkspace .control{margin-bottom:12px}.csmsRecoveredWorkspace label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}.csmsRecoveredWorkspace select,.csmsRecoveredWorkspace input[type=text]{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11px;background:#fff}.csmsRecoveredWorkspace .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.csmsRecoveredWorkspace button{border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}.csmsRecoveredWorkspace .primary{background:#ff6f18;color:#fff}.csmsRecoveredWorkspace .secondary{background:#e9eef6;color:#163052}.csmsRecoveredStatus{background:#f4f7fb;border:1px solid #dce5f0;border-radius:12px;padding:12px;margin-top:14px;font-size:13px}.csmsRecoveredRow{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:9px;align-items:center;border:1px solid #dde5ef;border-radius:10px;padding:7px 9px;background:#fafbfd;margin-top:8px}.csmsRecoveredRow .t{font-weight:900;font-size:22px}.csmsRecoveredRow .btns{display:flex;gap:6px}.csmsRecoveredRow button{padding:7px 9px;font-size:12px;border:0;border-radius:10px;font-weight:700;cursor:pointer}.csmsRecoveredRow .create{background:#ff6f18;color:#fff}.csmsRecoveredRow .open{background:#e9eef6;color:#163052}@media(max-width:900px){.csmsRecoveredShell{grid-template-columns:1fr}}
-`;document.head.appendChild(s)}
-function markup(){return `<div id="workspace-welcome" class="workspace csmsRecoveredWorkspace"><div class="csmsRecoveredShell"><section class="panel"><h2>WELCOME ABOARD — MASTER v1.0 🔒</h2><div class="notice">Built from a finished Hero Card. The Hero Card stays locked; only the WELCOME ABOARD graphic is added.</div><div class="control"><label>Available Hero Cards</label><select id="welcomeHeroSelect"><option value="">Select a saved Hero Card</option></select></div><div class="control"><label>Project name</label><input id="welcomeProjectName" type="text" value="Welcome Aboard — Untitled"></div><div class="actions"><button class="secondary" id="welcomeBack">Back to Templates</button><button class="secondary" id="welcomePlay">Play Drop</button></div><button class="secondary" id="welcomeSave" style="width:100%;margin-top:10px">Save Welcome Aboard</button><button class="primary" id="welcomeExport" style="width:100%;margin-top:10px">Export PNG</button><div id="welcomeStatus" class="csmsRecoveredStatus">Choose a saved Hero Card.</div></section><section class="panel"><h2>Live Preview</h2><div class="previewWrap"><canvas id="welcomeCanvas" width="1080" height="1350"></canvas></div></section></div></div><div id="workspace-college" class="workspace csmsRecoveredWorkspace"><div class="csmsRecoveredShell"><section class="panel"><h2>COLLEGE ANNOUNCEMENT — MASTER v1.0 🔒</h2><div class="notice">Built from a finished Hero Card. The Hero Card stays locked; only the official college artwork is added.</div><div class="control"><label>Available Hero Cards</label><select id="collegeHeroSelect"><option value="">Select a saved Hero Card</option></select></div><div class="control"><label>Project name</label><input id="collegeProjectName" type="text" value="College Announcement — Untitled"></div><div class="control"><label>Official college artwork</label><input id="collegeLogo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></div><div class="actions"><button class="secondary" id="collegeBack">Back to Templates</button><button class="secondary" id="collegePlay">Play Drop</button></div><button class="secondary" id="collegeSave" style="width:100%;margin-top:10px">Save College Announcement</button><button class="primary" id="collegeExport" style="width:100%;margin-top:10px">Export PNG</button><div id="collegeStatus" class="csmsRecoveredStatus">Choose a saved Hero Card.</div></section><section class="panel"><h2>Live Preview</h2><div class="previewWrap"><canvas id="collegeCanvas" width="1080" height="1350"></canvas></div></section></div></div>`}
-function ensureWorkspaces(){if(document.getElementById('workspace-welcome')&&document.getElementById('workspace-college'))return;const host=document.querySelector('.app')||document.body;const box=document.createElement('div');box.innerHTML=markup();while(box.firstElementChild)host.appendChild(box.firstElementChild)}
-function show(name){document.querySelectorAll('.workspace').forEach(x=>x.classList.toggle('active',x.id==='workspace-'+name));if(name==='welcome')refreshHeroes('welcome');if(name==='college')refreshHeroes('college');if(name==='templates'&&typeof window.activateWorkspace==='function')window.activateWorkspace('templates')}
-async function getHeroes(){try{if(typeof window.getUnifiedAthletes==='function'){const r=await window.getUnifiedAthletes();if(Array.isArray(r))return r}}catch(e){}try{if(typeof window.mediaGetAll==='function'){const r=await window.mediaGetAll();if(Array.isArray(r))return r}}catch(e){}return[]}
-function heroBlob(r){return r&& (r.heroBlob||r.heroImage||r.blob||null)}
+function activateNative(name){
+  if(typeof window.activateWorkspace==='function'){
+    try{window.activateWorkspace(name);return}catch(e){}
+  }
+  const btn=document.querySelector('.workspaceTab[data-workspace="'+name+'"]');
+  if(btn){btn.click();return}
+  document.querySelectorAll('.workspace').forEach(x=>x.classList.toggle('active',x.id==='workspace-'+name));
+}
+function launchHeroBuilder(){
+  localStorage.setItem('csms_template_launch_id','christchurch_hero_card_template');
+  localStorage.setItem('csms_template_launch_name','Hero Card — Untitled');
+  localStorage.setItem('csms_template_launch_mode','hero_editor');
+  if(typeof window.CSMSCreateQueuedTemplateProject==='function'){
+    try{window.CSMSCreateQueuedTemplateProject()}catch(e){console.error('Hero launch failed',e)}
+  }
+  activateNative('creative');
+  if(typeof window.renderCreativeStudio==='function'){
+    try{window.renderCreativeStudio()}catch(e){}
+  }
+}
+function style(){
+  if(document.getElementById('csmsRecoveredStyle'))return;
+  const s=document.createElement('style');
+  s.id='csmsRecoveredStyle';
+  s.textContent=`
+.csmsRecoveredWorkspace{display:none}.csmsRecoveredWorkspace.active{display:block}
+.csmsRecoveredShell{display:grid;grid-template-columns:380px minmax(0,1fr);gap:18px}
+.csmsRecoveredWorkspace .panel{background:#fff;border:1px solid #dbe3ee;border-radius:18px;padding:18px}
+.csmsRecoveredWorkspace .previewWrap{background:#08152e;border-radius:18px;padding:14px;display:flex;justify-content:center}
+.csmsRecoveredWorkspace canvas{width:min(100%,540px);height:auto;aspect-ratio:4/5;background:#07152f;border-radius:12px}
+.csmsRecoveredWorkspace .control{margin-bottom:12px}
+.csmsRecoveredWorkspace label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
+.csmsRecoveredWorkspace select,.csmsRecoveredWorkspace input[type=text]{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11px;background:#fff}
+.csmsRecoveredWorkspace .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.csmsRecoveredWorkspace button{border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}
+.csmsRecoveredWorkspace .primary{background:#ff6f18;color:#fff}.csmsRecoveredWorkspace .secondary{background:#e9eef6;color:#163052}
+.csmsRecoveredStatus{background:#f4f7fb;border:1px solid #dce5f0;border-radius:12px;padding:12px;margin-top:14px;font-size:13px}
+.csmsRecoveredRow{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:9px;align-items:center;border:1px solid #dde5ef;border-radius:10px;padding:7px 9px;background:#fafbfd;margin-top:8px}
+.csmsRecoveredRow .t{font-weight:900;font-size:22px}.csmsRecoveredRow .btns{display:flex;gap:6px}
+.csmsRecoveredRow button{padding:7px 9px;font-size:12px;border:0;border-radius:10px;font-weight:700;cursor:pointer}
+.csmsRecoveredRow .create{background:#ff6f18;color:#fff}.csmsRecoveredRow .open{background:#e9eef6;color:#163052}
+@media(max-width:900px){.csmsRecoveredShell{grid-template-columns:1fr}}`;
+  document.head.appendChild(s);
+}
+function markup(){return `
+<div id="workspace-welcome" class="workspace csmsRecoveredWorkspace">
+  <div class="csmsRecoveredShell">
+    <section class="panel">
+      <h2>WELCOME ABOARD — MASTER v1.0 🔒</h2>
+      <div class="notice">Built from a finished Hero Card. The Hero Card stays locked; only the WELCOME ABOARD graphic is added.</div>
+      <div class="control"><label>Available Hero Cards</label><select id="welcomeHeroSelect"><option value="">Select a saved Hero Card</option></select></div>
+      <div class="control"><label>Project name</label><input id="welcomeProjectName" type="text" value="Welcome Aboard — Untitled"></div>
+      <div class="actions"><button class="secondary" id="welcomeBack">Back to Templates</button><button class="secondary" id="welcomePlay">Play Drop</button></div>
+      <button class="secondary" id="welcomeSave" style="width:100%;margin-top:10px">Save Welcome Aboard</button>
+      <button class="primary" id="welcomeExport" style="width:100%;margin-top:10px">Export PNG</button>
+      <div id="welcomeStatus" class="csmsRecoveredStatus">Choose a saved Hero Card.</div>
+    </section>
+    <section class="panel"><h2>Live Preview</h2><div class="previewWrap"><canvas id="welcomeCanvas" width="1080" height="1350"></canvas></div></section>
+  </div>
+</div>
+<div id="workspace-college" class="workspace csmsRecoveredWorkspace">
+  <div class="csmsRecoveredShell">
+    <section class="panel">
+      <h2>COLLEGE ANNOUNCEMENT — MASTER v1.0 🔒</h2>
+      <div class="notice">Built from a finished Hero Card. The Hero Card stays locked; only the official college artwork is added.</div>
+      <div class="control"><label>Available Hero Cards</label><select id="collegeHeroSelect"><option value="">Select a saved Hero Card</option></select></div>
+      <div class="control"><label>Project name</label><input id="collegeProjectName" type="text" value="College Announcement — Untitled"></div>
+      <div class="control"><label>Official college artwork</label><input id="collegeLogo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></div>
+      <div class="actions"><button class="secondary" id="collegeBack">Back to Templates</button><button class="secondary" id="collegePlay">Play Drop</button></div>
+      <button class="secondary" id="collegeSave" style="width:100%;margin-top:10px">Save College Announcement</button>
+      <button class="primary" id="collegeExport" style="width:100%;margin-top:10px">Export PNG</button>
+      <div id="collegeStatus" class="csmsRecoveredStatus">Choose a saved Hero Card.</div>
+    </section>
+    <section class="panel"><h2>Live Preview</h2><div class="previewWrap"><canvas id="collegeCanvas" width="1080" height="1350"></canvas></div></section>
+  </div>
+</div>`}
+function ensureWorkspaces(){
+  if(document.getElementById('workspace-welcome')&&document.getElementById('workspace-college'))return;
+  const host=document.querySelector('.app')||document.body;
+  const box=document.createElement('div');box.innerHTML=markup();
+  while(box.firstElementChild)host.appendChild(box.firstElementChild);
+}
+function show(name){
+  if(name==='templates'){activateNative('templates');return}
+  document.querySelectorAll('.workspace').forEach(x=>x.classList.toggle('active',x.id==='workspace-'+name));
+  if(name==='welcome')refreshHeroes('welcome');
+  if(name==='college')refreshHeroes('college');
+}
+async function getHeroes(){
+  try{if(typeof window.getUnifiedAthletes==='function'){const r=await window.getUnifiedAthletes();if(Array.isArray(r))return r}}catch(e){}
+  try{if(typeof window.mediaGetAll==='function'){const r=await window.mediaGetAll();if(Array.isArray(r))return r}}catch(e){}
+  return[];
+}
+function heroBlob(r){return r&&(r.heroBlob||r.heroImage||r.blob||null)}
 function heroName(r){return [r.first||r.firstName||'',r.last||r.lastName||''].join(' ').trim()||r.name||'Hero Card'}
-let heroes=[];let welcomeImg=null;let collegeImg=null;let collegeLogoImg=null;let wp=1;let cp=1;
-async function refreshHeroes(kind){heroes=(await getHeroes()).filter(r=>heroBlob(r));const sel=document.getElementById(kind+'HeroSelect');if(!sel)return;const old=sel.value;sel.innerHTML='<option value="">Select a saved Hero Card</option>';heroes.forEach((r,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=heroName(r)+(r.year||r.classYear||r.graduationYear?' — Class of '+(r.year||r.classYear||r.graduationYear):'');sel.appendChild(o)});if(old&&sel.querySelector('option[value="'+old+'"]'))sel.value=old;document.getElementById(kind+'Status').textContent=heroes.length?'Choose a saved Hero Card.':'No saved Hero Cards found yet.';draw(kind)}
-function loadHero(kind,index){const r=heroes[Number(index)];if(!r){if(kind==='welcome')welcomeImg=null;else collegeImg=null;draw(kind);return}const blob=heroBlob(r);const url=URL.createObjectURL(blob);const img=new Image();img.onload=()=>{if(kind==='welcome'){welcomeImg=img;wp=1;document.getElementById('welcomeProjectName').value='Welcome Aboard — '+heroName(r)}else{collegeImg=img;cp=1;document.getElementById('collegeProjectName').value='College Announcement — '+heroName(r)}document.getElementById(kind+'Status').textContent='Using locked Hero Card: '+heroName(r);draw(kind);setTimeout(()=>URL.revokeObjectURL(url),60000)};img.src=url}
-function drawBase(ctx,img){ctx.clearRect(0,0,1080,1350);if(!img){ctx.fillStyle='#07152f';ctx.fillRect(0,0,1080,1350);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='600 34px Arial';ctx.fillText('Select a saved Hero Card',540,675);return false}const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height,s=Math.max(1080/iw,1350/ih),w=iw*s,h=ih*s;ctx.drawImage(img,(1080-w)/2,(1350-h)/2,w,h);return true}
-function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r)}
-function drawWelcome(){const c=document.getElementById('welcomeCanvas');if(!c)return;const ctx=c.getContext('2d');if(!drawBase(ctx,welcomeImg))return;const p=Math.max(0,Math.min(1,wp)),e=1-Math.pow(1-p,3),x=1180+(585-1180)*e,y=1420+(1062-1420)*e;ctx.save();ctx.translate(x,y);ctx.rotate(-11*Math.PI/180);ctx.shadowColor='rgba(0,0,0,.38)';ctx.shadowBlur=12;ctx.shadowOffsetY=7;rr(ctx,0,0,560,230,6);ctx.fillStyle='#ff6f18';ctx.fill();ctx.shadowColor='transparent';ctx.lineWidth=3;ctx.strokeStyle='#fff7ed';ctx.stroke();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.font='italic 900 72px Arial Narrow,Arial,sans-serif';ctx.fillText('WELCOME',280,78);ctx.font='italic 900 78px Arial Narrow,Arial,sans-serif';ctx.fillText('ABOARD',280,158);ctx.restore()}
-function drawCollege(){const c=document.getElementById('collegeCanvas');if(!c)return;const ctx=c.getContext('2d');if(!drawBase(ctx,collegeImg))return;if(!collegeLogoImg)return;const p=Math.max(0,Math.min(1,cp)),e=1-Math.pow(1-p,3),y=150+(915-150)*e,iw=collegeLogoImg.naturalWidth||collegeLogoImg.width,ih=collegeLogoImg.naturalHeight||collegeLogoImg.height,s=Math.min(1000/iw,260/ih),w=iw*s,h=ih*s;ctx.save();ctx.translate(540,y);ctx.shadowColor='rgba(0,0,0,.28)';ctx.shadowBlur=10;ctx.fillStyle='#fff';rr(ctx,-w/2-14,-h/2-10,w+28,h+20,5);ctx.fill();ctx.shadowColor='transparent';ctx.drawImage(collegeLogoImg,-w/2,-h/2,w,h);ctx.restore()}
+let heroes=[],welcomeImg=null,collegeImg=null,collegeLogoImg=null,wp=1,cp=1;
+async function refreshHeroes(kind){
+  heroes=(await getHeroes()).filter(r=>heroBlob(r));
+  const sel=document.getElementById(kind+'HeroSelect');if(!sel)return;
+  const old=sel.value;sel.innerHTML='<option value="">Select a saved Hero Card</option>';
+  heroes.forEach((r,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=heroName(r)+(r.year||r.classYear||r.graduationYear?' — Class of '+(r.year||r.classYear||r.graduationYear):'');sel.appendChild(o)});
+  if(old&&sel.querySelector('option[value="'+old+'"]'))sel.value=old;
+  document.getElementById(kind+'Status').textContent=heroes.length?'Choose a saved Hero Card.':'No saved Hero Cards found yet.';
+  draw(kind);
+}
+function loadHero(kind,index){
+  const r=heroes[Number(index)];
+  if(!r){if(kind==='welcome')welcomeImg=null;else collegeImg=null;draw(kind);return}
+  const blob=heroBlob(r),url=URL.createObjectURL(blob),img=new Image();
+  img.onload=()=>{
+    if(kind==='welcome'){welcomeImg=img;wp=1;document.getElementById('welcomeProjectName').value='Welcome Aboard — '+heroName(r)}
+    else{collegeImg=img;cp=1;document.getElementById('collegeProjectName').value='College Announcement — '+heroName(r)}
+    document.getElementById(kind+'Status').textContent='Using locked Hero Card: '+heroName(r);
+    draw(kind);setTimeout(()=>URL.revokeObjectURL(url),60000);
+  };
+  img.src=url;
+}
+function drawBase(ctx,img){
+  ctx.clearRect(0,0,1080,1350);
+  if(!img){ctx.fillStyle='#07152f';ctx.fillRect(0,0,1080,1350);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='600 34px Arial';ctx.fillText('Select a saved Hero Card',540,675);return false}
+  const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height,s=Math.max(1080/iw,1350/ih),w=iw*s,h=ih*s;
+  ctx.drawImage(img,(1080-w)/2,(1350-h)/2,w,h);return true;
+}
+function rr(ctx,x,y,w,h,r){ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,w,h,r);else ctx.rect(x,y,w,h)}
+function drawWelcome(){
+  const c=document.getElementById('welcomeCanvas');if(!c)return;const ctx=c.getContext('2d');if(!drawBase(ctx,welcomeImg))return;
+  const p=Math.max(0,Math.min(1,wp)),e=1-Math.pow(1-p,3),x=1180+(585-1180)*e,y=1420+(1062-1420)*e;
+  ctx.save();ctx.translate(x,y);ctx.rotate(-11*Math.PI/180);ctx.shadowColor='rgba(0,0,0,.38)';ctx.shadowBlur=12;ctx.shadowOffsetY=7;
+  rr(ctx,0,0,560,230,6);ctx.fillStyle='#ff6f18';ctx.fill();ctx.shadowColor='transparent';ctx.lineWidth=3;ctx.strokeStyle='#fff7ed';ctx.stroke();
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.font='italic 900 72px Arial Narrow,Arial,sans-serif';ctx.fillText('WELCOME',280,78);
+  ctx.font='italic 900 78px Arial Narrow,Arial,sans-serif';ctx.fillText('ABOARD',280,158);ctx.restore();
+}
+function drawCollege(){
+  const c=document.getElementById('collegeCanvas');if(!c)return;const ctx=c.getContext('2d');if(!drawBase(ctx,collegeImg))return;if(!collegeLogoImg)return;
+  const p=Math.max(0,Math.min(1,cp)),e=1-Math.pow(1-p,3),y=150+(915-150)*e,iw=collegeLogoImg.naturalWidth||collegeLogoImg.width,ih=collegeLogoImg.naturalHeight||collegeLogoImg.height,s=Math.min(1000/iw,260/ih),w=iw*s,h=ih*s;
+  ctx.save();ctx.translate(540,y);ctx.shadowColor='rgba(0,0,0,.28)';ctx.shadowBlur=10;ctx.fillStyle='#fff';rr(ctx,-w/2-14,-h/2-10,w+28,h+20,5);ctx.fill();ctx.shadowColor='transparent';ctx.drawImage(collegeLogoImg,-w/2,-h/2,w,h);ctx.restore();
+}
 function draw(kind){if(kind==='welcome')drawWelcome();else drawCollege()}
-function animate(kind){const has=kind==='welcome'?welcomeImg:collegeImg;if(!has)return;const start=performance.now();function f(now){const t=Math.min(1,(now-start)/720);if(kind==='welcome'){wp=t;drawWelcome()}else{cp=t;drawCollege()}if(t<1)requestAnimationFrame(f)}requestAnimationFrame(f)}
-function downloadCanvas(kind){const c=document.getElementById(kind+'Canvas');if(!c)return;c.toBlob(b=>{if(!b)return;const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(document.getElementById(kind+'ProjectName').value||kind)+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),60000)},'image/png')}
-async function save(kind){const c=document.getElementById(kind+'Canvas');if(!c)return;const b=await new Promise(r=>c.toBlob(r,'image/png'));if(!b)return;try{if(typeof window.mediaPut==='function')await window.mediaPut({id:kind+'_'+Date.now(),type:'creative',collection:kind,name:document.getElementById(kind+'ProjectName').value,blob:b,created:new Date().toISOString()});document.getElementById(kind+'Status').textContent=(kind==='welcome'?'Welcome Aboard':'College Announcement')+' saved.'}catch(e){document.getElementById(kind+'Status').textContent='Save failed: '+e.message}}
-function bind(){document.getElementById('welcomeHeroSelect').addEventListener('change',e=>loadHero('welcome',e.target.value));document.getElementById('collegeHeroSelect').addEventListener('change',e=>loadHero('college',e.target.value));document.getElementById('collegeLogo').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const u=URL.createObjectURL(f),i=new Image();i.onload=()=>{collegeLogoImg=i;drawCollege();setTimeout(()=>URL.revokeObjectURL(u),60000)};i.src=u});document.getElementById('welcomeBack').onclick=()=>show('templates');document.getElementById('collegeBack').onclick=()=>show('templates');document.getElementById('welcomePlay').onclick=()=>animate('welcome');document.getElementById('collegePlay').onclick=()=>animate('college');document.getElementById('welcomeExport').onclick=()=>downloadCanvas('welcome');document.getElementById('collegeExport').onclick=()=>downloadCanvas('college');document.getElementById('welcomeSave').onclick=()=>save('welcome');document.getElementById('collegeSave').onclick=()=>save('college')}
-function pruneAndAdd(){const list=document.getElementById('templateLibraryList');if(!list)return;[...list.children].forEach(r=>{if(r.classList.contains('csmsRecoveredRow'))return;const t=(r.textContent||'').toUpperCase();if(t.includes('WELCOME ABOARD')||t.includes('COLLEGE ANNOUNCEMENT'))r.remove()});function add(id,name,workspace){if(list.querySelector('[data-csms="'+id+'"]'))return;const r=document.createElement('div');r.className='csmsRecoveredRow';r.dataset.csms=id;r.innerHTML='<div class="t">T</div><div>'+name+' • Hero Cards • v1</div><div class="btns"><button class="create">Create From Template</button><button class="open">Open</button></div>';r.querySelectorAll('button').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();show(workspace)});list.appendChild(r)}add('welcome','WELCOME ABOARD — MASTER v1.0 🔒','welcome');add('college','COLLEGE ANNOUNCEMENT — MASTER v1.0 🔒','college')}
-function watch(){const list=document.getElementById('templateLibraryList');if(!list){setTimeout(watch,250);return}pruneAndAdd();new MutationObserver(()=>queueMicrotask(pruneAndAdd)).observe(list,{childList:true})}
-function init(){stripNativeRecoveredTemplates();style();ensureWorkspaces();bind();watch();drawWelcome();drawCollege();window.CSMSTemplateRecovery={version:VERSION,openWelcome:()=>show('welcome'),openCollege:()=>show('college')}}
+function animate(kind){
+  const has=kind==='welcome'?welcomeImg:collegeImg;if(!has)return;const start=performance.now();
+  function f(now){const t=Math.min(1,(now-start)/720);if(kind==='welcome'){wp=t;drawWelcome()}else{cp=t;drawCollege()}if(t<1)requestAnimationFrame(f)}
+  requestAnimationFrame(f);
+}
+function downloadCanvas(kind){
+  const c=document.getElementById(kind+'Canvas');if(!c)return;
+  c.toBlob(b=>{if(!b)return;const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(document.getElementById(kind+'ProjectName').value||kind)+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),60000)},'image/png');
+}
+async function save(kind){
+  const c=document.getElementById(kind+'Canvas');if(!c)return;
+  const b=await new Promise(r=>c.toBlob(r,'image/png'));if(!b)return;
+  try{
+    if(typeof window.mediaPut==='function')await window.mediaPut({id:kind+'_'+Date.now(),type:'creative',collection:kind,name:document.getElementById(kind+'ProjectName').value,blob:b,created:new Date().toISOString()});
+    document.getElementById(kind+'Status').textContent=(kind==='welcome'?'Welcome Aboard':'College Announcement')+' saved.';
+  }catch(e){document.getElementById(kind+'Status').textContent='Save failed: '+e.message}
+}
+function bind(){
+  document.getElementById('welcomeHeroSelect').addEventListener('change',e=>loadHero('welcome',e.target.value));
+  document.getElementById('collegeHeroSelect').addEventListener('change',e=>loadHero('college',e.target.value));
+  document.getElementById('collegeLogo').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const u=URL.createObjectURL(f),i=new Image();i.onload=()=>{collegeLogoImg=i;drawCollege();setTimeout(()=>URL.revokeObjectURL(u),60000)};i.src=u});
+  document.getElementById('welcomeBack').onclick=()=>show('templates');document.getElementById('collegeBack').onclick=()=>show('templates');
+  document.getElementById('welcomePlay').onclick=()=>animate('welcome');document.getElementById('collegePlay').onclick=()=>animate('college');
+  document.getElementById('welcomeExport').onclick=()=>downloadCanvas('welcome');document.getElementById('collegeExport').onclick=()=>downloadCanvas('college');
+  document.getElementById('welcomeSave').onclick=()=>save('welcome');document.getElementById('collegeSave').onclick=()=>save('college');
+}
+function pruneAndAdd(){
+  const list=document.getElementById('templateLibraryList');if(!list)return;
+  [...list.children].forEach(r=>{
+    if(r.classList.contains('csmsRecoveredRow'))return;
+    const t=(r.textContent||'').toUpperCase();
+    if(t.includes('WELCOME ABOARD')||t.includes('COLLEGE ANNOUNCEMENT'))r.remove();
+  });
+  function add(id,name,workspace){
+    if(list.querySelector('[data-csms="'+id+'"]'))return;
+    const r=document.createElement('div');r.className='csmsRecoveredRow';r.dataset.csms=id;
+    r.innerHTML='<div class="t">T</div><div>'+name+' • Hero Cards • v1</div><div class="btns"><button class="create">Create From Template</button><button class="open">Open</button></div>';
+    r.querySelectorAll('button').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();show(workspace)});
+    list.appendChild(r);
+  }
+  add('welcome','WELCOME ABOARD — MASTER v1.0 🔒','welcome');
+  add('college','COLLEGE ANNOUNCEMENT — MASTER v1.0 🔒','college');
+}
+function installNativeTemplateRoutingFix(){
+  document.addEventListener('click',e=>{
+    const list=document.getElementById('templateLibraryList');
+    if(!list||!list.contains(e.target))return;
+    const btn=e.target.closest&&e.target.closest('button');if(!btn)return;
+    const action=(btn.textContent||'').trim().toLowerCase();
+    if(action!=='open'&&action!=='create from template')return;
+    const row=btn.closest('.athleteItem')||btn.closest('.csmsRecoveredRow')||btn.closest('#templateLibraryList > div');
+    if(!row)return;
+    const text=(row.textContent||'').toUpperCase();
+    if(text.includes('CHRISTCHURCH HERO CARD')){
+      e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();launchHeroBuilder();return;
+    }
+    if(text.includes('REGATTA LINEUP')){
+      e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();activateNative('video');return;
+    }
+  },true);
+}
+function watch(){
+  const list=document.getElementById('templateLibraryList');if(!list){setTimeout(watch,250);return}
+  pruneAndAdd();new MutationObserver(()=>queueMicrotask(pruneAndAdd)).observe(list,{childList:true});
+}
+function init(){
+  stripNativeRecoveredTemplates();style();ensureWorkspaces();bind();installNativeTemplateRoutingFix();watch();drawWelcome();drawCollege();
+  window.CSMSTemplateRecovery={version:VERSION,openWelcome:()=>show('welcome'),openCollege:()=>show('college'),openHero:launchHeroBuilder,openLineup:()=>activateNative('video')};
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
