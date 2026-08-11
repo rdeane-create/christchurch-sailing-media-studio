@@ -1,0 +1,1 @@
+This path is reserved for the locked Hero header asset recovered from CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png. The approved source crop is x=0,y=0,w=1023,h=218. Do not edit manually.
