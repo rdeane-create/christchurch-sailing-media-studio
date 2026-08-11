@@ -2,15 +2,23 @@
 'use strict';
 const HEADER_FILES=['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js'];
 const RECOVERY_FILES=['recovery-exact-1.js','recovery-exact-2.js','recovery-exact-3.js'];
-const VERSION='20260811-approved-unit-v1';
+const VERSION='20260811-approved-unit-v2';
 
 async function fetchChunk(src){
   const r=await fetch(src+'?v='+VERSION,{cache:'no-store'});
   if(!r.ok)throw new Error('Could not fetch '+src+' ('+r.status+')');
   const text=await r.text();
-  const m=text.match(/\+'([A-Za-z0-9+/=]+)'\s*;?\s*$/);
-  if(!m)throw new Error('Could not parse '+src);
-  return m[1];
+
+  // Chunk files are one assignment ending with +'<base64>';.  Do not depend on
+  // whitespace or the variable name: extract the quoted payload directly.
+  const start=text.indexOf("+'");
+  if(start<0)throw new Error('Could not find payload start in '+src);
+  const payloadStart=start+2;
+  const end=text.lastIndexOf("'");
+  if(end<=payloadStart)throw new Error('Could not find payload end in '+src);
+  const payload=text.slice(payloadStart,end).trim();
+  if(!payload || !/^[A-Za-z0-9+/=]+$/.test(payload))throw new Error('Invalid payload in '+src);
+  return payload;
 }
 
 async function gunzipBase64(b64){
@@ -31,7 +39,7 @@ function adaptApprovedSource(source){
   source=source.replaceAll("showWorkspace('heroes')","showWorkspace('hero-approved')");
 
   // The approved header is already assembled by this loader. Prevent the
-  // recovered Hero renderer from trying to load three external scripts again.
+  // recovered Hero renderer from trying to load external header chunks again.
   const headerFn=/async function loadApprovedHeroHeader\(\)\{[\s\S]*?\n  \}\n\n  function loadHeroImage/;
   if(!headerFn.test(source))throw new Error('Approved Hero header function was not found in recovery package.');
   source=source.replace(headerFn,
