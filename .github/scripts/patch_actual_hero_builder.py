@@ -4,64 +4,105 @@ import re
 p=Path('index.html')
 t=p.read_text()
 original=t
-approved_stack='\\"Avenir Next Condensed\\",\\"Helvetica Neue Condensed\\",\\"Arial Narrow\\",sans-serif'
 
-def sub_once(pattern,repl,label,flags=0):
-    global t
-    ms=list(re.finditer(pattern,t,flags))
-    if len(ms)!=1:
-        raise SystemExit(f'{label}: expected exactly 1 match, found {len(ms)}')
-    t=re.sub(pattern,repl,t,count=1,flags=flags)
-    print('patched:',label)
+# The approved text geometry is already back in place and matches the locked
+# Wylder master. Do not alter it here. This patch only reconnects the native
+# Hero renderer to the exact approved header WebP assembled from the historical
+# chunk files and removes the synthetic header fade.
 
-# Roll back ONLY the incorrect visual-fidelity commit. Preserve the font stack
-# and all working Hero interaction code from the prior known-good state.
-layer_specs={
- 'firstName': "{id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'}",
- 'lastName': "{id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'}",
- 'graduationYear': "{id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'}",
- 'achievement': "{id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}",
-}
-for key,base in layer_specs.items():
-    pat=r"\{id:cId\('layer'\),type:'text',name:'[^']+',textKey:'"+re.escape(key)+r"'[^\n]*\}(,?)"
-    ms=list(re.finditer(pat,t))
-    if len(ms)!=1: raise SystemExit(f'Hero {key}: expected 1 match, found {len(ms)}')
-    comma=ms[0].group(1)
-    t=t[:ms[0].start()]+base+comma+t[ms[0].end():]
+loader=r'''  let __csmsApprovedHeroHeaderPromise=null;
+  function loadExactApprovedHeroHeader(){
+    if(window.__CSMS_APPROVED_HERO_HEADER_IMAGE&&window.__CSMS_APPROVED_HERO_HEADER_IMAGE.complete){
+      return Promise.resolve(window.__CSMS_APPROVED_HERO_HEADER_IMAGE);
+    }
+    if(__csmsApprovedHeroHeaderPromise)return __csmsApprovedHeroHeaderPromise;
+    __csmsApprovedHeroHeaderPromise=(async()=>{
+      window.__CSMS_HERO_HEADER_B64='';
+      const files=['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js'];
+      for(const file of files){
+        await new Promise((resolve,reject)=>{
+          const s=document.createElement('script');
+          s.src=file+'?v=approved-native-20260812';
+          s.async=false;
+          s.onload=()=>{s.remove();resolve();};
+          s.onerror=()=>{s.remove();reject(new Error('Could not load '+file));};
+          document.head.appendChild(s);
+        });
+      }
+      const b64=window.__CSMS_HERO_HEADER_B64||'';
+      if(!b64)throw new Error('Approved Hero header payload was empty.');
+      const img=new Image();
+      await new Promise((resolve,reject)=>{
+        img.onload=resolve;
+        img.onerror=()=>reject(new Error('Approved Hero header image could not be decoded.'));
+        img.src='data:image/webp;base64,'+b64;
+      });
+      window.__CSMS_APPROVED_HERO_HEADER_IMAGE=img;
+      window.__CSMS_APPROVED_HERO_HEADER_URI=img.src;
+      return img;
+    })().catch(err=>{
+      __csmsApprovedHeroHeaderPromise=null;
+      console.error('[CSMS exact Hero header]',err);
+      throw err;
+    });
+    return __csmsApprovedHeroHeaderPromise;
+  }
 
-locked="""const lockedType={
-      firstName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:58,letterSpacing:12,weight:'700'},
-      lastName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:162,letterSpacing:2,weight:'800'},
-      graduationYear:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:48,letterSpacing:10,weight:'700'},
-      achievement:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:30,letterSpacing:5,weight:'600'}
-    };"""
-sub_once(r"const lockedType=\{[\s\S]*?\n    \};",locked,'restore prior Hero locked typography')
+'''
+anchor='  function drawReferenceLayer(layer){\n'
+if t.count(anchor)!=1:
+    raise SystemExit(f'drawReferenceLayer anchor: expected 1 match, found {t.count(anchor)}')
+if 'function loadExactApprovedHeroHeader()' not in t:
+    t=t.replace(anchor,loader+anchor,1)
 
-fade_pattern=r"if\(isHeroCardDesign\(\)&&String\(layer\.role\|\|''\)\.toLowerCase\(\)==='header'\)\{[\s\S]*?ctx\.fillRect\(layer\.x,fadeTop,layer\.w,[^\n;]+\);\n    \}"
-fade="""if(isHeroCardDesign()&&String(layer.role||'').toLowerCase()==='header'){
-      const fadeTop=layer.y+layer.h-18;
-      const fade=ctx.createLinearGradient(0,fadeTop,0,fadeTop+132);
-      fade.addColorStop(0,'rgba(247,248,249,.96)');
-      fade.addColorStop(.28,'rgba(247,248,249,.62)');
-      fade.addColorStop(.62,'rgba(247,248,249,.22)');
-      fade.addColorStop(1,'rgba(247,248,249,0)');
-      ctx.fillStyle=fade;
-      ctx.fillRect(layer.x,fadeTop,layer.w,132);
-    }"""
-sub_once(fade_pattern,fade,'restore prior Hero header transition')
+# Special-case only the locked Hero header reference. Draw the approved WebP at
+# its natural aspect ratio, preserving its own transparency/fade exactly.
+header_draw=r'''  function drawReferenceLayer(layer){
+    if(isHeroCardDesign()&&String(layer?.role||'').toLowerCase()==='header'){
+      const exact=window.__CSMS_APPROVED_HERO_HEADER_IMAGE;
+      if(exact&&exact.complete&&exact.naturalWidth&&exact.naturalHeight){
+        ctx.save();
+        ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+        const drawW=1080;
+        const drawH=drawW*(exact.naturalHeight/exact.naturalWidth);
+        ctx.drawImage(exact,0,0,drawW,drawH);
+        ctx.restore();
+        return;
+      }
+      loadExactApprovedHeroHeader().then(()=>{
+        if(typeof renderCreativeStudio==='function')renderCreativeStudio();
+      }).catch(()=>{});
+    }
+'''
+pat=r"  function drawReferenceLayer\(layer\)\{\n"
+if len(list(re.finditer(pat,t)))!=1:
+    raise SystemExit('drawReferenceLayer function: expected exactly 1 match')
+t=re.sub(pat,header_draw,t,count=1)
 
-if t==original: raise SystemExit('No changes made')
+# Remove the hand-built synthetic fade. It is not part of the approved asset.
+fade_pat=r"\n    if\(isHeroCardDesign\(\)&&String\(layer\.role\|\|''\)\.toLowerCase\(\)==='header'\)\{[\s\S]*?\n    \}(?=\n    ctx\.restore\(\);)"
+ms=list(re.finditer(fade_pat,t))
+if len(ms)!=1:
+    raise SystemExit(f'synthetic Hero fade: expected 1 match, found {len(ms)}')
+t=re.sub(fade_pat,'',t,count=1)
+
+if t==original:
+    raise SystemExit('No changes made')
 p.write_text(t)
 
 checks=[
-  "fontSize:162,fontFamily:'"+approved_stack+"'",
-  "firstName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:58",
-  "ctx.fillRect(layer.x,fadeTop,layer.w,132);",
+  "const files=['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js'];",
+  "img.src='data:image/webp;base64,'+b64;",
+  "const drawH=drawW*(exact.naturalHeight/exact.naturalWidth);",
   'state.heroPhotoDrag={layerId:photo.id',
   "commitDesign('Hero photo position updated.');",
   '*1.14*Math.max(1,t.scale)',
-  "sourcePath:'assets/Reference/HERO_FOOTER_OVERLAY_v1.png'"
+  "sourcePath:'assets/Reference/HERO_FOOTER_OVERLAY_v1.png'",
+  "fontSize:162,fontFamily:'\\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif'"
 ]
 missing=[x for x in checks if x not in t]
-if missing: raise SystemExit('Rollback validation failed: '+repr(missing))
-print('PASS: incorrect visual-fidelity commit rolled back; working Hero interaction preserved.')
+if missing:
+    raise SystemExit('Exact-header validation failed: '+repr(missing))
+if "fade.addColorStop(.28,'rgba(247,248,249,.62)')" in t:
+    raise SystemExit('Synthetic Hero header fade still present after patch.')
+print('PASS: native Hero now uses exact approved header WebP; text geometry and interaction code preserved.')
