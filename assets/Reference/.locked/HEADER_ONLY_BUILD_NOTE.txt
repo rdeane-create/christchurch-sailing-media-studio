@@ -1,0 +1,7 @@
+RC5 header-only master build
+Source: CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png
+Canvas: 1023x1537 RGBA
+Locked header crop: x=0 y=0 w=1023 h=218
+All pixels below y=218 are transparent.
+Approved header RGBA SHA-256: 64f19bb679cb5948702198f4e58bea8752740592b39d385d7003a10aeabe6d8f
+Generated PNG SHA-256: f982ded5fe8b8a7f20a92bc6338a1f878e66331b625d889389acc5e1a827c698
