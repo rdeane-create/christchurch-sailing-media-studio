@@ -22,4 +22,4 @@ jobs:
           git add index.html
           git commit -m 'Restore Hero typography proportions and header fade'
           git push
-# visual-fidelity-run: 2026-08-12-1653
+# visual-fidelity-run: 2026-08-12-1655
