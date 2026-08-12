@@ -15274,10 +15274,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           sourceRect:null,
           visible:true,locked:true,role:'footer',opacity:1
         },
-        {id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
-        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
-        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
-        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}
+        {id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'Arial',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'Arial Narrow',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'Arial',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'Arial',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}
       ]
     };
   }
@@ -15333,10 +15333,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
     const approvedHeroType='\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif';
     const lockedType={
-      firstName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:58,letterSpacing:12,weight:'700'},
-      lastName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:162,letterSpacing:2,weight:'800'},
-      graduationYear:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:48,letterSpacing:10,weight:'700'},
-      achievement:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:30,letterSpacing:5,weight:'600'}
+      firstName:{fontFamily:'Arial',fontStyle:'italic',fontSize:58,letterSpacing:12,weight:'700'},
+      lastName:{fontFamily:'Arial Narrow',fontStyle:'italic',fontSize:162,letterSpacing:2,weight:'800'},
+      graduationYear:{fontFamily:'Arial',fontStyle:'italic',fontSize:48,letterSpacing:10,weight:'700'},
+      achievement:{fontFamily:'Arial',fontStyle:'italic',fontSize:30,letterSpacing:5,weight:'600'}
     };
     design.layers.forEach(layer=>{
       const spec=lockedType[String(layer?.textKey||'')];
@@ -17252,60 +17252,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.restore();
   }
 
-  let __csmsApprovedHeroHeaderPromise=null;
-  function loadExactApprovedHeroHeader(){
-    if(window.__CSMS_APPROVED_HERO_HEADER_IMAGE&&window.__CSMS_APPROVED_HERO_HEADER_IMAGE.complete){
-      return Promise.resolve(window.__CSMS_APPROVED_HERO_HEADER_IMAGE);
-    }
-    if(__csmsApprovedHeroHeaderPromise)return __csmsApprovedHeroHeaderPromise;
-    __csmsApprovedHeroHeaderPromise=(async()=>{
-      window.__CSMS_HERO_HEADER_B64='';
-      const files=['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js'];
-      for(const file of files){
-        await new Promise((resolve,reject)=>{
-          const s=document.createElement('script');
-          s.src=file+'?v=approved-native-20260812';
-          s.async=false;
-          s.onload=()=>{s.remove();resolve();};
-          s.onerror=()=>{s.remove();reject(new Error('Could not load '+file));};
-          document.head.appendChild(s);
-        });
-      }
-      const b64=window.__CSMS_HERO_HEADER_B64||'';
-      if(!b64)throw new Error('Approved Hero header payload was empty.');
-      const img=new Image();
-      await new Promise((resolve,reject)=>{
-        img.onload=resolve;
-        img.onerror=()=>reject(new Error('Approved Hero header image could not be decoded.'));
-        img.src='data:image/webp;base64,'+b64;
-      });
-      window.__CSMS_APPROVED_HERO_HEADER_IMAGE=img;
-      window.__CSMS_APPROVED_HERO_HEADER_URI=img.src;
-      return img;
-    })().catch(err=>{
-      __csmsApprovedHeroHeaderPromise=null;
-      console.error('[CSMS exact Hero header]',err);
-      throw err;
-    });
-    return __csmsApprovedHeroHeaderPromise;
-  }
-
   function drawReferenceLayer(layer){
-    if(isHeroCardDesign()&&String(layer?.role||'').toLowerCase()==='header'){
-      const exact=window.__CSMS_APPROVED_HERO_HEADER_IMAGE;
-      if(exact&&exact.complete&&exact.naturalWidth&&exact.naturalHeight){
-        ctx.save();
-        ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
-        const drawW=1080;
-        const drawH=drawW*(exact.naturalHeight/exact.naturalWidth);
-        ctx.drawImage(exact,0,0,drawW,drawH);
-        ctx.restore();
-        return;
-      }
-      loadExactApprovedHeroHeader().then(()=>{
-        if(typeof renderCreativeStudio==='function')renderCreativeStudio();
-      }).catch(()=>{});
-    }
     if(!layer.visible)return;
     const path=String(layer.sourcePath||'').trim();
     if(!path)return;
