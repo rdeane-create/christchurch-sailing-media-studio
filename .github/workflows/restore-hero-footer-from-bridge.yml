@@ -15,15 +15,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Patch and validate actual Hero Builder
         run: python3 .github/scripts/patch_actual_hero_builder.py
-      - name: Commit Hero visual fidelity repair
+      - name: Commit Hero rollback
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add index.html
           if git diff --cached --quiet; then
-            echo 'No Hero visual changes to commit.'
+            echo 'No Hero rollback changes to commit.'
             exit 0
           fi
-          git commit -m 'Restore Hero typography proportions and header fade'
+          git commit -m 'Roll back incorrect Hero visual fidelity patch'
           git push
-# visual-fidelity-run: 2026-08-12-1658
+# rollback-run: 2026-08-12-1700
