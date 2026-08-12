@@ -1,0 +1,36 @@
+name: Inspect current Hero code
+
+on:
+  push:
+    paths:
+      - '.github/workflows/inspect-hero-current.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture Hero anchors
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          t=Path('index.html').read_text()
+          needles=["name:'First Name'","name:'Last Name'","name:'Graduation Year'","name:'Achievement'",'function applyHeroCardLockPolicy','function drawReferenceLayer','HERO_APPROVED_REFERENCE_PATH','HERO_FOOTER_OVERLAY_v1.png']
+          out=[]
+          for n in needles:
+            i=t.find(n)
+            out.append('\n===== '+n+' @ '+str(i)+' =====\n')
+            if i>=0: out.append(t[max(0,i-800):min(len(t),i+2400)])
+          Path('.recovery/hero-current.txt').write_text(''.join(out))
+          PY
+      - name: Commit inspection
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add .recovery/hero-current.txt
+          git commit -m "Capture current Hero code anchors" || exit 0
+          git push
