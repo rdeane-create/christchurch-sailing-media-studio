@@ -1,0 +1,143 @@
+name: Patch Hero visual fidelity
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-hero-visual-fidelity.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-hero:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch only locked Hero typography and header fade
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text()
+          original = text
+
+          old_layers = """        {id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'Arial',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'Arial Narrow',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'Arial',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'Arial',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}"""
+
+          new_layers = """        {id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:60,y:992,w:560,h:58,fontSize:50,fontFamily:'Avenir Next Condensed,Arial Narrow,Helvetica Neue Condensed,Arial,sans-serif',fontStyle:'italic',letterSpacing:11,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1050,w:690,h:122,fontSize:116,fontFamily:'Avenir Next Condensed,Arial Narrow,Helvetica Neue Condensed,Arial,sans-serif',fontStyle:'italic',letterSpacing:1,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1198,w:650,h:42,fontSize:38,fontFamily:'Avenir Next Condensed,Arial Narrow,Helvetica Neue Condensed,Arial,sans-serif',fontStyle:'italic',letterSpacing:9,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1248,w:840,h:34,fontSize:28,fontFamily:'Avenir Next Condensed,Arial Narrow,Helvetica Neue Condensed,Arial,sans-serif',fontStyle:'italic',letterSpacing:4,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}"""
+
+          if old_layers not in text:
+              raise SystemExit('Guard failed: exact Hero typography source block not found; index.html left unchanged.')
+          text = text.replace(old_layers, new_layers, 1)
+
+          old_header_tail = """    if(headerLayer){
+      headerLayer.x=0;
+      headerLayer.y=0;
+      headerLayer.w=1080;
+      headerLayer.h=209;
+      headerLayer.sourcePath=HERO_APPROVED_REFERENCE_PATH;
+      headerLayer.sourceRect={x:0,y:0,w:HERO_REFERENCE_SIZE.w,h:218};
+    }
+    const footerLayer=design.layers.find(layer=>{"""
+
+          new_header_tail = """    if(headerLayer){
+      headerLayer.x=0;
+      headerLayer.y=0;
+      headerLayer.w=1080;
+      headerLayer.h=209;
+      headerLayer.sourcePath=HERO_APPROVED_REFERENCE_PATH;
+      headerLayer.sourceRect={x:0,y:0,w:HERO_REFERENCE_SIZE.w,h:218};
+    }
+    const heroTextStyle={
+      firstName:{x:60,y:992,w:560,h:58,fontSize:50,fontFamily:'Avenir Next Condensed,Arial Narrow,Helvetica Neue Condensed,Arial,sans-serif',fontStyle:'italic',letterSpacing:11,align:'left',color:'#ffffff',weight:'600'},
+      lastName:{x:56,y:1050,w:690,h:122,fontSize:116,fontFamily:'Avenir Next Condensed,Arial Narrow,Helvetica Neue Condensed,Arial,sans-serif',fontStyle:'italic',letterSpacing:1,align:'left',color:'#ffffff',weight:'700'},
+      graduationYear:{x:60,y:1198,w:650,h:42,fontSize:38,fontFamily:'Avenir Next Condensed,Arial Narrow,Helvetica Neue Condensed,Arial,sans-serif',fontStyle:'italic',letterSpacing:9,align:'left',color:'#f04b1a',weight:'700'},
+      achievement:{x:60,y:1248,w:840,h:34,fontSize:28,fontFamily:'Avenir Next Condensed,Arial Narrow,Helvetica Neue Condensed,Arial,sans-serif',fontStyle:'italic',letterSpacing:4,align:'left',color:'#ffffff',weight:'600'}
+    };
+    design.layers.forEach(layer=>{
+      const style=heroTextStyle[String(layer?.textKey||'')];
+      if(style&&layer.type==='text')Object.assign(layer,style);
+    });
+    const footerLayer=design.layers.find(layer=>{"""
+
+          if old_header_tail not in text:
+              raise SystemExit('Guard failed: Hero lock-policy anchor not found; index.html left unchanged.')
+          text = text.replace(old_header_tail, new_header_tail, 1)
+
+          old_draw = """    ctx.save();
+    ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+    ctx.drawImage(img,srcRect.x,srcRect.y,srcRect.w,srcRect.h,layer.x,layer.y,layer.w,layer.h);
+    ctx.restore();
+  }
+
+  function drawLogoLayer(layer){"""
+
+          new_draw = """    ctx.save();
+    ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+    ctx.drawImage(img,srcRect.x,srcRect.y,srcRect.w,srcRect.h,layer.x,layer.y,layer.w,layer.h);
+    if(String(layer.role||'').toLowerCase()==='header'){
+      const fadeStart=layer.y+Math.max(0,layer.h-18);
+      const fadeEnd=Math.min(canvas.height,layer.y+layer.h+116);
+      const fade=ctx.createLinearGradient(0,fadeStart,0,fadeEnd);
+      fade.addColorStop(0,'rgba(248,249,250,0.96)');
+      fade.addColorStop(0.28,'rgba(248,249,250,0.68)');
+      fade.addColorStop(0.62,'rgba(248,249,250,0.28)');
+      fade.addColorStop(1,'rgba(248,249,250,0)');
+      ctx.fillStyle=fade;
+      ctx.fillRect(layer.x,fadeStart,layer.w,Math.max(1,fadeEnd-fadeStart));
+    }
+    ctx.restore();
+  }
+
+  function drawLogoLayer(layer){"""
+
+          if old_draw not in text:
+              raise SystemExit('Guard failed: reference-layer renderer anchor not found; index.html left unchanged.')
+          text = text.replace(old_draw, new_draw, 1)
+
+          if text == original:
+              raise SystemExit('No patch was applied.')
+
+          path.write_text(text)
+          print('PASS: patched Hero typography defaults, enforced style on saved Hero designs, and added header-to-photo fade.')
+          PY
+
+      - name: Validate targeted patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          text=Path('index.html').read_text()
+          checks={
+            'condensed hero font': "fontFamily:'Avenir Next Condensed,Arial Narrow,Helvetica Neue Condensed,Arial,sans-serif'" in text,
+            'surname corrected from 162px': "fontSize:116" in text,
+            'hero style enforcement': "const heroTextStyle={" in text,
+            'header gradient': "fade.addColorStop(0.62,'rgba(248,249,250,0.28)')" in text,
+            'approved hero reference retained': "HERO_APPROVED_REFERENCE_PATH='assets/Reference/CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png'" in text,
+            'approved footer retained': "sourcePath:'assets/Reference/HERO_FOOTER_OVERLAY_v1.png'" in text,
+          }
+          failed=[k for k,v in checks.items() if not v]
+          for k,v in checks.items(): print(('PASS' if v else 'FAIL')+': '+k)
+          if failed: raise SystemExit('Validation failed: '+', '.join(failed))
+          PY
+
+      - name: Commit Hero visual fidelity patch
+        shell: bash
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add index.html
+          if git diff --cached --quiet; then
+            echo 'No index.html change to commit.'
+            exit 0
+          fi
+          git commit -m 'Restore Hero typography and header fade fidelity'
+          git push
