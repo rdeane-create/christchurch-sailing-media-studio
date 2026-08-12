@@ -1,4 +1,4 @@
-name: Patch native Hero renderer
+name: Finish native Hero movement range
 
 on:
   push:
@@ -9,110 +9,59 @@ permissions:
   contents: write
 
 jobs:
-  patch-native-hero:
+  finish-native-hero:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Patch only the native Hero code in index.html
+      - name: Expand native Hero movement controls
         shell: bash
         run: |
           python3 - <<'PY'
           import pathlib
+          p=pathlib.Path('index.html')
+          t=p.read_text()
+          original=t
 
-          path=pathlib.Path('index.html')
-          text=path.read_text()
-          original=text
-
-          def replace_once(old,new,label):
-              global text
-              count=text.count(old)
+          pairs=[
+            ('<input id="heroBuilderOffsetX" type="range" min="-100" max="100" value="0">',
+             '<input id="heroBuilderOffsetX" type="range" min="-1800" max="1800" step="1" value="0">',
+             'horizontal crop range'),
+            ('<input id="heroBuilderOffsetY" type="range" min="-100" max="100" value="0">',
+             '<input id="heroBuilderOffsetY" type="range" min="-1800" max="1800" step="1" value="0">',
+             'vertical crop range'),
+            ('g.font=`italic 900 ${firstSize}px Arial`;',
+             'g.font=`italic 900 ${firstSize}px "Avenir Next Condensed","Helvetica Neue Condensed","Arial Narrow",sans-serif`;',
+             'remaining approved first-name font')
+          ]
+          for old,new,label in pairs:
+              count=t.count(old)
               if count != 1:
                   raise SystemExit(f'{label}: expected exactly 1 match, found {count}')
-              text=text.replace(old,new,1)
+              t=t.replace(old,new,1)
               print('patched:',label)
 
-          replace_once(
-              '#heroCanvas{aspect-ratio:2/3 !important;object-fit:contain;cursor:grab;touch-action:none}',
-              '#heroCanvas{aspect-ratio:4/5 !important;object-fit:contain;cursor:grab;touch-action:none;border:0!important;outline:0!important}',
-              'Hero display aspect ratio and canvas border'
-          )
-
-          replace_once(
-              "  function normalizePhotoTransform(transform){\n    return {\n      scale:Number.isFinite(transform?.scale)?Math.max(1,Math.min(3,transform.scale)):1,\n      cropX:Number.isFinite(transform?.cropX)?Math.max(-100,Math.min(100,transform.cropX)):0,\n      cropY:Number.isFinite(transform?.cropY)?Math.max(-100,Math.min(100,transform.cropY)):0,",
-              "  function normalizePhotoTransform(transform){\n    return {\n      scale:Number.isFinite(transform?.scale)?Math.max(1,Math.min(4,transform.scale)):1,\n      cropX:Number.isFinite(transform?.cropX)?Math.max(-1800,Math.min(1800,transform.cropX)):0,\n      cropY:Number.isFinite(transform?.cropY)?Math.max(-1800,Math.min(1800,transform.cropY)):0,",
-              'Hero transform persistence range'
-          )
-
-          replace_once(
-              "  function heroBaseScale(){\n    if(!heroSourceImage)return 1;\n    const img=heroSourceImage.img;\n    return Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight);\n  }",
-              "  function heroBaseScale(){\n    if(!heroSourceImage)return 1;\n    const img=heroSourceImage.img;\n    return Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight)*1.12;\n  }",
-              'Hero default crop overscan'
-          )
-
-          replace_once(
-              '<input id="heroBuilderScale" type="range" min="1" max="3" step="0.01" value="1">',
-              '<input id="heroBuilderScale" type="range" min="1" max="4" step="0.01" value="1">',
-              'Hero zoom range'
-          )
-
-          replace_once(
-              "\n    // Locked border\n    g.strokeStyle='rgba(255,255,255,.94)';g.lineWidth=4;\n    drawRoundedRect(g,18,18,HERO_W-36,HERO_H-36,28);g.stroke();",
-              "",
-              'Remove unwanted Hero border'
-          )
-
-          # The approved Hero styles use these exact typography calls. Replace only those known calls.
-          typography=[
-              ("s=>`900 ${s}px Arial`","s=>`900 ${s}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`"),
-              ("g.font=`900 ${firstSize}px Arial`;","g.font=`900 ${firstSize}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`;"),
-              ("s=>`italic 900 ${s}px Arial`","s=>`italic 900 ${s}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`"),
-              ("g.font=`italic 900 ${lastSize}px Arial`;","g.font=`italic 900 ${lastSize}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`;")
-          ]
-          for old,new in typography:
-              count=text.count(old)
-              if count < 1:
-                  raise SystemExit(f'Hero typography: missing expected token {old!r}')
-              text=text.replace(old,new)
-              print('patched typography token',old,'count',count)
-
-          marker="    drawPhotoLayer(g);\n\n    const first=(e.first.value||'FIRST').toUpperCase();"
-          if text.count(marker)!=1:
-              raise SystemExit(f'Hero top fade anchor: expected 1 match, found {text.count(marker)}')
-          text=text.replace(marker,"    drawPhotoLayer(g);\n\n    if(e.design.value==='approved'){\n      const topFade=g.createLinearGradient(0,170,0,330);\n      topFade.addColorStop(0,'rgba(245,246,247,.72)');\n      topFade.addColorStop(.32,'rgba(245,246,247,.30)');\n      topFade.addColorStop(1,'rgba(245,246,247,0)');\n      g.fillStyle=topFade;g.fillRect(0,165,HERO_W,170);\n    }\n\n    const first=(e.first.value||'FIRST').toUpperCase();",1)
-          print('patched: Hero top gradient transition')
-
-          if text == original:
-              raise SystemExit('No changes were made.')
-          path.write_text(text)
+          if t==original: raise SystemExit('No changes made')
+          p.write_text(t)
           PY
 
-      - name: Validate native Hero patch
+      - name: Validate movement controls
         shell: bash
         run: |
           python3 - <<'PY'
           import pathlib
           t=pathlib.Path('index.html').read_text()
-          assert '#heroCanvas{aspect-ratio:4/5 !important' in t
-          assert 'Math.min(4,transform.scale)' in t
-          assert 'Math.max(-1800,Math.min(1800,transform.cropX))' in t
-          assert 'Math.max(-1800,Math.min(1800,transform.cropY))' in t
-          assert 'Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight)*1.12' in t
-          assert '// Locked border' not in t
-          assert "const topFade=g.createLinearGradient(0,170,0,330);" in t
-          assert 'Avenir Next Condensed' in t
-          print('PASS: native Hero renderer patched and validated.')
+          assert 'id="heroBuilderOffsetX" type="range" min="-1800" max="1800"' in t
+          assert 'id="heroBuilderOffsetY" type="range" min="-1800" max="1800"' in t
+          assert 'g.font=`italic 900 ${firstSize}px "Avenir Next Condensed"' in t
+          print('PASS: native Hero drag and slider movement now share the full pixel range.')
           PY
 
-      - name: Commit native Hero repair
+      - name: Commit final native Hero movement fix
         shell: bash
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add index.html
-          if git diff --cached --quiet; then
-            echo 'Native Hero renderer is already patched.'
-            exit 0
-          fi
-          git commit -m 'Fix native Hero drag border gradient and typography'
+          git commit -m 'Expand native Hero drag and slider movement'
           git push
