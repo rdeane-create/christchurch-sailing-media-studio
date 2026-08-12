@@ -20,5 +20,6 @@ jobs:
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add index.html
-          git commit -m 'Fix actual Hero Builder visuals and direct photo drag'
+          git commit -m 'Restore Hero typography proportions and header fade'
           git push
+# visual-fidelity-run: 2026-08-12-1653
