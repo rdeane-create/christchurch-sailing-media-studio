@@ -1,0 +1,485 @@
+
+===== name:'First Name' @ 1868014 =====
+ode:'original-pixels-only',operations:['crop','proportional-scale','reposition','mask','opacity','rotation','fit-fill']},history:[],visible:true,locked:true,role:'hero-portrait'
+        },
+        {
+          id:cId('layer'),type:'reference',name:'Approved header lockup',
+          x:0,y:0,w:1080,h:209,
+          sourcePath:HERO_APPROVED_REFERENCE_PATH,
+          sourceRect:{x:0,y:0,w:HERO_REFERENCE_SIZE.w,h:218},
+          visible:true,locked:true,role:'header'
+        },
+        {
+          id:cId('layer'),type:'reference',name:'Approved footer treatment',
+          x:0,y:0,w:1080,h:1350,
+          sourcePath:'assets/Reference/HERO_FOOTER_OVERLAY_v1.png',
+          sourceRect:null,
+          visible:true,locked:true,role:'footer',opacity:1
+        },
+        {id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'Arial',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'Arial Narrow',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'Arial',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'Arial',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}
+      ]
+    };
+  }
+
+  function isHeroCardDesign(design=activeDesign()){
+    return String(design?.templateId||'')===HERO_CARD_TEMPLATE_ID;
+  }
+
+  function isHeroCardEditableTextLayer(layer){
+    if(!layer||layer.type!=='text')return false;
+    return HERO_CARD_TEXT_KEYS.includes(String(layer.textKey||''));
+  }
+
+  function isHeroCardEditablePhotoLayer(layer){
+    if(!layer||layer.type!=='photo')return false;
+    return String(layer.role||'')==='hero-portrait' || String(layer.name||'').toLowerCase().includes('hero portrait');
+  }
+
+  function enforceHeroCardFooterTreatment(design){
+    if(!design||!Array.isArray(design.layers)||!isHeroCardDesign(design))return;
+    const photoLayer=design.layers.find(layer=>isHeroCardEditablePhotoLayer(layer));
+    if(photoLayer){
+      photoLayer.x=0;
+      photoLayer.y=0;
+      photoLayer.w=1080;
+      photoLayer.h=1350;
+      photoLayer.transform=normalizePhotoTransform(photoLayer.transform);
+      photoLayer.transform.fitMode='fill';
+      photoLayer.transform.mask='none';
+    }
+    const headerLayer=design.layers.find(layer=>layer&&layer.type==='reference'&&String(layer.role||'').toLowerCase()==='header');
+    if(headerLayer){
+      headerLayer.x=0;
+      headerLayer.y=0;
+      headerLayer.w=1080;
+      headerLayer.h=209;
+      headerLayer.sourcePath=HERO_APPROVED_REFERENCE_PATH;
+      headerLaye
+===== name:'Last Name' @ 1868277 =====
+ lockup',
+          x:0,y:0,w:1080,h:209,
+          sourcePath:HERO_APPROVED_REFERENCE_PATH,
+          sourceRect:{x:0,y:0,w:HERO_REFERENCE_SIZE.w,h:218},
+          visible:true,locked:true,role:'header'
+        },
+        {
+          id:cId('layer'),type:'reference',name:'Approved footer treatment',
+          x:0,y:0,w:1080,h:1350,
+          sourcePath:'assets/Reference/HERO_FOOTER_OVERLAY_v1.png',
+          sourceRect:null,
+          visible:true,locked:true,role:'footer',opacity:1
+        },
+        {id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'Arial',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'Arial Narrow',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'Arial',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'Arial',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}
+      ]
+    };
+  }
+
+  function isHeroCardDesign(design=activeDesign()){
+    return String(design?.templateId||'')===HERO_CARD_TEMPLATE_ID;
+  }
+
+  function isHeroCardEditableTextLayer(layer){
+    if(!layer||layer.type!=='text')return false;
+    return HERO_CARD_TEXT_KEYS.includes(String(layer.textKey||''));
+  }
+
+  function isHeroCardEditablePhotoLayer(layer){
+    if(!layer||layer.type!=='photo')return false;
+    return String(layer.role||'')==='hero-portrait' || String(layer.name||'').toLowerCase().includes('hero portrait');
+  }
+
+  function enforceHeroCardFooterTreatment(design){
+    if(!design||!Array.isArray(design.layers)||!isHeroCardDesign(design))return;
+    const photoLayer=design.layers.find(layer=>isHeroCardEditablePhotoLayer(layer));
+    if(photoLayer){
+      photoLayer.x=0;
+      photoLayer.y=0;
+      photoLayer.w=1080;
+      photoLayer.h=1350;
+      photoLayer.transform=normalizePhotoTransform(photoLayer.transform);
+      photoLayer.transform.fitMode='fill';
+      photoLayer.transform.mask='none';
+    }
+    const headerLayer=design.layers.find(layer=>layer&&layer.type==='reference'&&String(layer.role||'').toLowerCase()==='header');
+    if(headerLayer){
+      headerLayer.x=0;
+      headerLayer.y=0;
+      headerLayer.w=1080;
+      headerLayer.h=209;
+      headerLayer.sourcePath=HERO_APPROVED_REFERENCE_PATH;
+      headerLayer.sourceRect={x:0,y:0,w:HERO_REFERENCE_SIZE.w,h:218};
+    }
+    const footerLayer=design.layers.find(layer=>{
+      if(!layer||layer.type!=='reference')return false;
+      if(String(layer.role||'').toLowerCase()==='footer')return true;
+      return String(layer.n
+===== name:'Graduation Year' @ 1868546 =====
+ame:'Approved footer treatment',
+          x:0,y:0,w:1080,h:1350,
+          sourcePath:'assets/Reference/HERO_FOOTER_OVERLAY_v1.png',
+          sourceRect:null,
+          visible:true,locked:true,role:'footer',opacity:1
+        },
+        {id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'Arial',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'Arial Narrow',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'Arial',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'Arial',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}
+      ]
+    };
+  }
+
+  function isHeroCardDesign(design=activeDesign()){
+    return String(design?.templateId||'')===HERO_CARD_TEMPLATE_ID;
+  }
+
+  function isHeroCardEditableTextLayer(layer){
+    if(!layer||layer.type!=='text')return false;
+    return HERO_CARD_TEXT_KEYS.includes(String(layer.textKey||''));
+  }
+
+  function isHeroCardEditablePhotoLayer(layer){
+    if(!layer||layer.type!=='photo')return false;
+    return String(layer.role||'')==='hero-portrait' || String(layer.name||'').toLowerCase().includes('hero portrait');
+  }
+
+  function enforceHeroCardFooterTreatment(design){
+    if(!design||!Array.isArray(design.layers)||!isHeroCardDesign(design))return;
+    const photoLayer=design.layers.find(layer=>isHeroCardEditablePhotoLayer(layer));
+    if(photoLayer){
+      photoLayer.x=0;
+      photoLayer.y=0;
+      photoLayer.w=1080;
+      photoLayer.h=1350;
+      photoLayer.transform=normalizePhotoTransform(photoLayer.transform);
+      photoLayer.transform.fitMode='fill';
+      photoLayer.transform.mask='none';
+    }
+    const headerLayer=design.layers.find(layer=>layer&&layer.type==='reference'&&String(layer.role||'').toLowerCase()==='header');
+    if(headerLayer){
+      headerLayer.x=0;
+      headerLayer.y=0;
+      headerLayer.w=1080;
+      headerLayer.h=209;
+      headerLayer.sourcePath=HERO_APPROVED_REFERENCE_PATH;
+      headerLayer.sourceRect={x:0,y:0,w:HERO_REFERENCE_SIZE.w,h:218};
+    }
+    const footerLayer=design.layers.find(layer=>{
+      if(!layer||layer.type!=='reference')return false;
+      if(String(layer.role||'').toLowerCase()==='footer')return true;
+      return String(layer.name||'').toLowerCase().includes('footer');
+    });
+    if(!footerLayer)return;
+    footerLayer.x=0;
+    footerLayer.y=0;
+    footerLayer.w=1080;
+    footerLayer.h=1350;
+    footerLayer.opacity=1;
+    footerLayer.sourcePath='assets/Reference/HERO_FOOTER_OVERLAY_v1.png';
+===== name:'Achievement' @ 1868832 =====
+textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'Arial',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'Arial Narrow',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'Arial',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'Arial',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}
+      ]
+    };
+  }
+
+  function isHeroCardDesign(design=activeDesign()){
+    return String(design?.templateId||'')===HERO_CARD_TEMPLATE_ID;
+  }
+
+  function isHeroCardEditableTextLayer(layer){
+    if(!layer||layer.type!=='text')return false;
+    return HERO_CARD_TEXT_KEYS.includes(String(layer.textKey||''));
+  }
+
+  function isHeroCardEditablePhotoLayer(layer){
+    if(!layer||layer.type!=='photo')return false;
+    return String(layer.role||'')==='hero-portrait' || String(layer.name||'').toLowerCase().includes('hero portrait');
+  }
+
+  function enforceHeroCardFooterTreatment(design){
+    if(!design||!Array.isArray(design.layers)||!isHeroCardDesign(design))return;
+    const photoLayer=design.layers.find(layer=>isHeroCardEditablePhotoLayer(layer));
+    if(photoLayer){
+      photoLayer.x=0;
+      photoLayer.y=0;
+      photoLayer.w=1080;
+      photoLayer.h=1350;
+      photoLayer.transform=normalizePhotoTransform(photoLayer.transform);
+      photoLayer.transform.fitMode='fill';
+      photoLayer.transform.mask='none';
+    }
+    const headerLayer=design.layers.find(layer=>layer&&layer.type==='reference'&&String(layer.role||'').toLowerCase()==='header');
+    if(headerLayer){
+      headerLayer.x=0;
+      headerLayer.y=0;
+      headerLayer.w=1080;
+      headerLayer.h=209;
+      headerLayer.sourcePath=HERO_APPROVED_REFERENCE_PATH;
+      headerLayer.sourceRect={x:0,y:0,w:HERO_REFERENCE_SIZE.w,h:218};
+    }
+    const footerLayer=design.layers.find(layer=>{
+      if(!layer||layer.type!=='reference')return false;
+      if(String(layer.role||'').toLowerCase()==='footer')return true;
+      return String(layer.name||'').toLowerCase().includes('footer');
+    });
+    if(!footerLayer)return;
+    footerLayer.x=0;
+    footerLayer.y=0;
+    footerLayer.w=1080;
+    footerLayer.h=1350;
+    footerLayer.opacity=1;
+    footerLayer.sourcePath='assets/Reference/HERO_FOOTER_OVERLAY_v1.png';
+    footerLayer.sourceRect=null;
+
+    const approvedHeroType='\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif';
+    const lockedType={
+      firstName:{fontFamily:'Arial',fontStyle:'italic',fontSize:58,letterSpacing:12,weight:'700'},
+      lastName:{
+===== function applyHeroCardLockPolicy @ 1871679 =====
+oterLayer.sourcePath='assets/Reference/HERO_FOOTER_OVERLAY_v1.png';
+    footerLayer.sourceRect=null;
+
+    const approvedHeroType='\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif';
+    const lockedType={
+      firstName:{fontFamily:'Arial',fontStyle:'italic',fontSize:58,letterSpacing:12,weight:'700'},
+      lastName:{fontFamily:'Arial Narrow',fontStyle:'italic',fontSize:162,letterSpacing:2,weight:'800'},
+      graduationYear:{fontFamily:'Arial',fontStyle:'italic',fontSize:48,letterSpacing:10,weight:'700'},
+      achievement:{fontFamily:'Arial',fontStyle:'italic',fontSize:30,letterSpacing:5,weight:'600'}
+    };
+    design.layers.forEach(layer=>{
+      const spec=lockedType[String(layer?.textKey||'')];
+      if(spec)Object.assign(layer,spec);
+    });
+  }
+
+  function applyHeroCardLockPolicy(design){
+    if(!design||!isHeroCardDesign(design)||!Array.isArray(design.layers))return;
+    enforceHeroCardFooterTreatment(design);
+    design.layers.forEach(layer=>{
+      const editableText=isHeroCardEditableTextLayer(layer);
+      const editablePhoto=isHeroCardEditablePhotoLayer(layer);
+      layer.locked=!(editableText||editablePhoto);
+    });
+  }
+
+  function normalizePhotoTransform(transform){
+    return {
+      scale:Number.isFinite(transform?.scale)?Math.max(1,Math.min(4,transform.scale)):1,
+      cropX:Number.isFinite(transform?.cropX)?Math.max(-1800,Math.min(1800,transform.cropX)):0,
+      cropY:Number.isFinite(transform?.cropY)?Math.max(-1800,Math.min(1800,transform.cropY)):0,
+      rotation:Number.isFinite(transform?.rotation)?Math.max(-180,Math.min(180,transform.rotation)):0,
+      opacity:Number.isFinite(transform?.opacity)?Math.max(0.1,Math.min(1,transform.opacity)):1,
+      fitMode:transform?.fitMode==='fit'?'fit':'fill',
+      mask:transform?.mask==='circle'?'circle':transform?.mask==='none'?'none':'rounded'
+    };
+  }
+
+  function inferLayerRole(layer){
+    const name=String(layer?.name||'').toLowerCase();
+    const textKey=String(layer?.textKey||'').toLowerCase();
+    if(layer?.type==='photo')return 'background photo';
+    if(layer?.type==='logo')return name.includes('sponsor')?'sponsor logo':'official logo';
+    if(name.includes('headline')||textKey==='headline')return 'headline';
+    if(name.includes('event')||textKey==='event')return 'event title';
+    if(name.includes('support')||textKey==='support')return 'supporting copy';
+    if(name.includes('date')||textKey==='date')return 'date';
+    if(name.includes('time')||textKey==='report')return 'time';
+    if(name.includes('location')||textKey==='location')return 'location';
+    if(name.includes('detail')||textKey==='details'||textKey==='dinner')return 'event details';
+    if(name.includes('cta')||textKey==='cta1'||textKey==='cta2')return 'CTA';
+    if(name.includes('banner'))return 'banner';
+    if(name.includes('frame'))return 'frame';
+    if(name.includes('line'))return 'decorative line';
+    if(name.includes('footer'))return 'footer';
+    return layer?.type==='text'?'supporting copy':layer?.type||'layer';
+  }
+
+  function normalizeLayer(layer){
+    const base={
+      id:layer?.id||cId('layer'),
+      type:layer?.type||'shape',
+      name:layer?.name||'La
+===== function drawReferenceLayer @ 1973134 =====
+H,cy-srcH/2));
+
+    ctx.save();
+    ctx.globalAlpha=t.opacity;
+    const centerX=layer.x+layer.w/2;
+    const centerY=layer.y+layer.h/2;
+    ctx.translate(centerX,centerY);
+    ctx.rotate((t.rotation*Math.PI)/180);
+
+    if(t.mask==='rounded'){
+      drawRoundedRect(ctx,-layer.w/2,-layer.h/2,layer.w,layer.h,22);
+      ctx.clip();
+    }else if(t.mask==='circle'){
+      ctx.beginPath();
+      ctx.arc(0,0,Math.min(layer.w,layer.h)/2,0,Math.PI*2);
+      ctx.clip();
+    }
+
+    if(t.fitMode==='fit'){
+      const fitScale=Math.min(layer.w/srcW,layer.h/srcH);
+      const dw=srcW*fitScale;
+      const dh=srcH*fitScale;
+      ctx.drawImage(img,sx,sy,srcW,srcH,-dw/2,-dh/2,dw,dh);
+    }else{
+      ctx.drawImage(img,sx,sy,srcW,srcH,-layer.w/2,-layer.h/2,layer.w,layer.h);
+    }
+    ctx.restore();
+  }
+
+  function drawReferenceLayer(layer){
+    if(!layer.visible)return;
+    const path=String(layer.sourcePath||'').trim();
+    if(!path)return;
+    const cache=state.imageCache.get(`path:${path}`);
+    const img=cache?.img||null;
+    if(!img){
+      resolvePathImage(path).catch(()=>{});
+      return;
+    }
+    const srcRect=(layer.sourceRect&&Number.isFinite(layer.sourceRect.x)&&Number.isFinite(layer.sourceRect.y)&&Number.isFinite(layer.sourceRect.w)&&Number.isFinite(layer.sourceRect.h))
+      ?{
+        x:Math.max(0,Math.min(img.naturalWidth-1,layer.sourceRect.x)),
+        y:Math.max(0,Math.min(img.naturalHeight-1,layer.sourceRect.y)),
+        w:Math.max(1,Math.min(img.naturalWidth-layer.sourceRect.x,layer.sourceRect.w)),
+        h:Math.max(1,Math.min(img.naturalHeight-layer.sourceRect.y,layer.sourceRect.h))
+      }
+      :{x:0,y:0,w:img.naturalWidth,h:img.naturalHeight};
+    ctx.save();
+    ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+    ctx.drawImage(img,srcRect.x,srcRect.y,srcRect.w,srcRect.h,layer.x,layer.y,layer.w,layer.h);
+    ctx.restore();
+  }
+
+  function drawLogoLayer(layer){
+    if(!layer.visible)return;
+    ctx.save();
+    ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+    if(layer.assetId){
+      const cache=state.imageCache.get(layer.assetId);
+      if(cache?.img){ctx.drawImage(cache.img,layer.x,layer.y,layer.w,layer.h);ctx.restore();return;}
+      resolveAssetImage(layer.assetId).catch(()=>{});
+    }
+    if(typeof officialPursueBadge!=='undefined'&&officialPursueBadge.complete&&officialPursueBadge.naturalWidth){
+      ctx.drawImage(officialPursueBadge,layer.x,layer.y,layer.w,layer.h);
+      ctx.restore();
+      return;
+    }
+    ctx.fillStyle='#ff6f18';
+    drawRoundedRect(ctx,layer.x,layer.y,layer.w,layer.h,layer.w/2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawTextLayer(layer){
+    if(!layer.visible)return;
+    ctx.save();
+    ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+    ctx.fillStyle=layer.color||'#ffffff';
+    const fontStyle=layer.fontStyle==='italic'?'italic':'normal';
+    ctx.font=`${fontStyle} ${layer.weight||'700'} ${layer.fontSize||42}px ${layer.fontFamily||'Arial'}`;
+    ctx.textBaseline='top';
+    const lines=String(layer.text||'').split(/\n+/);
+    const lineHeight=(layer.fontSize||42)*(Number.isFinite(layer.lineHeight)?layer.lineHeight:1.18);
+    const letterSpaci
+===== HERO_APPROVED_REFERENCE_PATH @ 1823492 =====
+_KEY='christchurch_creative_active_design_v1';
+  const EXPORT_HISTORY_KEY='christchurch_creative_export_history_v1';
+  const PHOTO_ASSET_KEY='christchurch_creative_photo_assets_v1';
+  const PHOTO_AUDIT_KEY='christchurch_creative_photo_audit_v1';
+  const INTEGRITY_RESULT_KEY='christchurch_creative_integrity_results_v1';
+  const DESIGN_PREF_KEY='christchurch_creative_design_preferences_v1';
+  const DESIGN_MEMORY_KEY='christchurch_creative_design_memory_v1';
+  const TEMPLATE_LAUNCH_ID_KEY='csms_template_launch_id';
+  const TEMPLATE_LAUNCH_NAME_KEY='csms_template_launch_name';
+  const TEMPLATE_LAUNCH_MODE_KEY='csms_template_launch_mode';
+  const HERO_CARD_TEMPLATE_ID='christchurch_hero_card_template';
+  const HERO_CARD_TEXT_KEYS=['firstName','lastName','graduationYear','achievement'];
+  const HERO_APPROVED_REFERENCE_PATH='assets/Reference/CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png';
+  const HERO_REFERENCE_SIZE={w:1023,h:1537};
+
+  const ASSET_DB='ChristchurchCreativeStudioAssetsV2';
+  const ASSET_STORE='creativeAssets';
+
+  const CREATIVE_DIRECTOR_RULE='Real Christchurch photographs are documentary assets. Never regenerate, repaint, retouch, relight, sharpen, stylize, face-edit, object-edit, or otherwise alter source pixels. Use only non-destructive placement operations.';
+  const OPENAI_PHOTO_IMMUTABLE_RULE='Real Christchurch photographs are immutable documentary assets. Never regenerate, repaint, retouch, relight, sharpen, blur, stylize, face-edit, object-edit, background-edit, or otherwise alter source pixels. Only select, crop, proportionally scale, reposition, rotate, mask, or adjust opacity.';
+  const PHOTO_INTEGRITY_BLOCK_MESSAGE='Photo Integrity Protection prevents generative or destructive changes to real photographs. Only crop, proportional scale, reposition, rotate, mask and opacity are permitted.';
+  const AI_PROVIDER_ENDPOINT='http://127.0.0.1:8765';
+  const AI_PROVIDER_TIMEOUT_MS=120000;
+  const AI_PROVIDER_TEST_TIMEOUT_MS=130000;
+  const ALLOWED_PHOTO_METADATA_OPS=['cropPhoto','scalePhotoProportionally','repositionPhoto','rotatePhoto','maskPhoto','setPhotoOpacity','setPhotoFitMode'];
+  const ALLOWED_AI_PHOTO_ACTIONS=['selectExistingPhoto','insertPhotoLayer','replacePhotoWithExistingAsset','cropPhoto','scalePhotoProportionally','repositionPhoto','rotatePhoto','maskPhoto','setPhotoOpacity','lockPhotoLayer','unlockPhotoLayer'];
+  const PROHIBITED_ACTION_PATTERN=/regenerat|repaint|retouch|relight|sharpen|blur|remove object|add object|alter face|alter body|alter clothing|alter boat|alter sail|replace background|styliz|generative fill|image-to-image|synthetic/i;
+  const ROLE_SYSTEM_PROMPTS={
+    creative_director:'Balance hierarchy, pacing, brand strength and conversion goals in one coherent direction.',
+    graphic_designer:'Prioritize composition, spacing, alignment, readable hierarchy, and polished typography.',
+    brand_guardian:'Protect Christchurch identity, logo treatment, approved palette, and consistency.',
+    copywriter:'Write concise, motivating, audience-specific sports copy with strong clarity.',
+    social_media_strategist:'Optimize for platform behavior, thumb-stop impact, and CTA conversion.',
+    photography_director:
+===== HERO_FOOTER_OVERLAY_v1.png @ 1867851 =====
+NCE_SIZE.w,h:HERO_REFERENCE_SIZE.h-218},
+          transform:{scale:1,cropX:0,cropY:0,rotation:0,opacity:1,fitMode:'fill',mask:'none'},
+          photoIntegrity:{mode:'original-pixels-only',operations:['crop','proportional-scale','reposition','mask','opacity','rotation','fit-fill']},history:[],visible:true,locked:true,role:'hero-portrait'
+        },
+        {
+          id:cId('layer'),type:'reference',name:'Approved header lockup',
+          x:0,y:0,w:1080,h:209,
+          sourcePath:HERO_APPROVED_REFERENCE_PATH,
+          sourceRect:{x:0,y:0,w:HERO_REFERENCE_SIZE.w,h:218},
+          visible:true,locked:true,role:'header'
+        },
+        {
+          id:cId('layer'),type:'reference',name:'Approved footer treatment',
+          x:0,y:0,w:1080,h:1350,
+          sourcePath:'assets/Reference/HERO_FOOTER_OVERLAY_v1.png',
+          sourceRect:null,
+          visible:true,locked:true,role:'footer',opacity:1
+        },
+        {id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'Arial',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'Arial Narrow',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'Arial',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'Arial',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}
+      ]
+    };
+  }
+
+  function isHeroCardDesign(design=activeDesign()){
+    return String(design?.templateId||'')===HERO_CARD_TEMPLATE_ID;
+  }
+
+  function isHeroCardEditableTextLayer(layer){
+    if(!layer||layer.type!=='text')return false;
+    return HERO_CARD_TEXT_KEYS.includes(String(layer.textKey||''));
+  }
+
+  function isHeroCardEditablePhotoLayer(layer){
+    if(!layer||layer.type!=='photo')return false;
+    return String(layer.role||'')==='hero-portrait' || String(layer.name||'').toLowerCase().includes('hero portrait');
+  }
+
+  function enforceHeroCardFooterTreatment(design){
+    if(!design||!Array.isArray(design.layers)||!isHeroCardDesign(design))return;
+    const photoLayer=design.layers.find(layer=>isHeroCardEditablePhotoLayer(layer));
+    if(photoLayer){
+      photoLayer.x=0;
+      photoLayer.y=0;
+      photoLayer.w=1080;
+      photoLayer.h=1350;
+      photoLayer.transform=normalizePhotoTransform(photoLayer.transform);
+      photoLayer.transform.fitMode='fill';
+      photoLayer.transform.mask='none';
+    }
+    const headerLayer=design.layers.find(layer=>layer&&layer.type==='reference'&&String(layer.role||'').toLowerCase()==='header');
+    if(headerLayer){
+      hea
