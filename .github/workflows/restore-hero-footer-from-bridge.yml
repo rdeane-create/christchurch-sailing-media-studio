@@ -1,4 +1,4 @@
-name: Inspect current Hero Builder renderer
+name: Patch actual Hero Builder renderer
 
 on:
   push:
@@ -9,40 +9,21 @@ permissions:
   contents: write
 
 jobs:
-  inspect-hero-builder:
+  patch-hero-builder:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Extract current Hero anchors without changing app
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          t=Path('index.html').read_text()
-          out=[]
-          def grab(label,pattern,flags=0):
-              ms=list(re.finditer(pattern,t,flags))
-              out.append(f'===== {label} | matches={len(ms)} =====')
-              for i,m in enumerate(ms[:8],1):
-                  s=max(0,m.start()-350); e=min(len(t),m.end()+700)
-                  out.append(f'--- match {i} ---\n'+t[s:e])
-          grab('FIRST NAME',r"textKey:'firstName'[^\n]{0,700}")
-          grab('LAST NAME',r"textKey:'lastName'[^\n]{0,700}")
-          grab('GRAD YEAR',r"textKey:'graduationYear'[^\n]{0,700}")
-          grab('ACHIEVEMENT',r"textKey:'achievement'[^\n]{0,700}")
-          grab('LOCKED TYPE',r"const lockedType=\{[\s\S]{0,1800}?\n\s*\};")
-          grab('APPROVED TYPE',r"const approvedHeroType[^\n]{0,400}")
-          grab('HEADER ROLE',r"String\(layer\.role\|\|''\)\.toLowerCase\(\)==='header'[\s\S]{0,1400}")
-          grab('REFERENCE DRAW',r"function drawReferenceLayer\(layer\)[\s\S]{0,3000}?function drawLogoLayer")
-          Path('.recovery/hero-current-snippets.txt').write_text('\n\n'.join(out))
-          print('Wrote diagnostic snippets; index.html was not modified.')
-          PY
-      - name: Commit diagnostic snippets
+      - name: Patch and validate actual Hero Builder
+        run: python3 .github/scripts/patch_actual_hero_builder.py
+      - name: Commit Hero visual fidelity repair
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add .recovery/hero-current-snippets.txt
-          git commit -m 'Capture current Hero renderer anchors'
+          git add index.html
+          if git diff --cached --quiet; then
+            echo 'No Hero visual changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Restore Hero typography proportions and header fade'
           git push
-# inspect-run: 2026-08-12-1657
+# visual-fidelity-run: 2026-08-12-1658
