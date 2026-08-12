@@ -1,0 +1,332 @@
+===== FIRST NAME | matches=1 =====
+
+--- match 1 ---
+       },
+        {
+          id:cId('layer'),type:'reference',name:'Approved footer treatment',
+          x:0,y:0,w:1080,h:1350,
+          sourcePath:'assets/Reference/HERO_FOOTER_OVERLAY_v1.png',
+          sourceRect:null,
+          visible:true,locked:true,role:'footer',opacity:1
+        },
+        {id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'
+
+===== LAST NAME | matches=1 =====
+
+--- match 1 ---
+irst Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting 
+
+===== GRAD YEAR | matches=1 =====
+
+--- match 1 ---
+ame',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'},
+        {id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}
+      ]
+    };
+  }
+
+  function isHeroCardDesign(design=activeDesign()){
+    return String(design?.templateId||'')===HERO_CARD_TEMPLATE_ID;
+  }
+
+  function isHeroCardEditableTextLayer(layer){
+    if(!layer||layer.type!=='text')return false;
+    return HERO_CARD_TEXT_KEYS.includes(String(layer.textKey||''));
+  }
+
+  function isHeroCardEditablePhotoLayer(lay
+
+===== ACHIEVEMENT | matches=1 =====
+
+--- match 1 ---
+graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},
+        {id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}
+      ]
+    };
+  }
+
+  function isHeroCardDesign(design=activeDesign()){
+    return String(design?.templateId||'')===HERO_CARD_TEMPLATE_ID;
+  }
+
+  function isHeroCardEditableTextLayer(layer){
+    if(!layer||layer.type!=='text')return false;
+    return HERO_CARD_TEXT_KEYS.includes(String(layer.textKey||''));
+  }
+
+  function isHeroCardEditablePhotoLayer(layer){
+    if(!layer||layer.type!=='photo')return false;
+    return String(layer.role||'')==='hero-portrait' || String(layer.name||'').toLowerCase().includes('hero portrait');
+  }
+
+  function enforceHeroCardFooterTreatment(design){
+    if(!design||!Array.isArray(design.layers)||!isHeroCardDesign(design))return;
+    const photoLayer=design.laye
+
+===== LOCKED TYPE | matches=1 =====
+
+--- match 1 ---
+return;
+    footerLayer.x=0;
+    footerLayer.y=0;
+    footerLayer.w=1080;
+    footerLayer.h=1350;
+    footerLayer.opacity=1;
+    footerLayer.sourcePath='assets/Reference/HERO_FOOTER_OVERLAY_v1.png';
+    footerLayer.sourceRect=null;
+
+    const approvedHeroType='\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif';
+    const lockedType={
+      firstName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:58,letterSpacing:12,weight:'700'},
+      lastName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:162,letterSpacing:2,weight:'800'},
+      graduationYear:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:48,letterSpacing:10,weight:'700'},
+      achievement:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:30,letterSpacing:5,weight:'600'}
+    };
+    design.layers.forEach(layer=>{
+      const spec=lockedType[String(layer?.textKey||'')];
+      if(spec)Object.assign(layer,spec);
+    });
+  }
+
+  function applyHeroCardLockPolicy(design){
+    if(!design||!isHeroCardDesign(design)||!Array.isArray(design.layers))return;
+    enforceHeroCardFooterTreatment(design);
+    design.layers.forEach(layer=>{
+      const editableText=isHeroCardEditableTextLayer(layer);
+      const editablePhoto=isHeroCardEditablePhotoLayer(layer);
+      layer.locked=!(editableText||editablePhoto);
+    });
+  }
+
+  function normalizePhotoTransform(transform){
+    return {
+      scale:Number.isFinite(transform?.scale)?Math.max(1,Math.min(4,transform.scale)):1,
+      cropX:
+
+===== APPROVED TYPE | matches=1 =====
+
+--- match 1 ---
+')return true;
+      return String(layer.name||'').toLowerCase().includes('footer');
+    });
+    if(!footerLayer)return;
+    footerLayer.x=0;
+    footerLayer.y=0;
+    footerLayer.w=1080;
+    footerLayer.h=1350;
+    footerLayer.opacity=1;
+    footerLayer.sourcePath='assets/Reference/HERO_FOOTER_OVERLAY_v1.png';
+    footerLayer.sourceRect=null;
+
+    const approvedHeroType='\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif';
+    const lockedType={
+      firstName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:58,letterSpacing:12,weight:'700'},
+      lastName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:162,letterSpacing:2,weight:'800'},
+      graduationYear:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:48,letterSpacing:10,weight:'700'},
+      achievement:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:30,letterSpacing:5,weight:'600'}
+    };
+    design.layers.forEach(layer=>{
+      const spec=lockedType[String(layer?.textKey||'')];
+      if(spec)Object.assign(layer,spec);
+    });
+  }
+
+  function applyHeroCardLockPolicy(design){
+    if(!design||!isHeroCardDesign(design)||
+
+===== HEADER ROLE | matches=2 =====
+
+--- match 1 ---
+hotoLayer){
+      photoLayer.x=0;
+      photoLayer.y=0;
+      photoLayer.w=1080;
+      photoLayer.h=1350;
+      photoLayer.transform=normalizePhotoTransform(photoLayer.transform);
+      photoLayer.transform.fitMode='fill';
+      photoLayer.transform.mask='none';
+    }
+    const headerLayer=design.layers.find(layer=>layer&&layer.type==='reference'&&String(layer.role||'').toLowerCase()==='header');
+    if(headerLayer){
+      headerLayer.x=0;
+      headerLayer.y=0;
+      headerLayer.w=1080;
+      headerLayer.h=209;
+      headerLayer.sourcePath=HERO_APPROVED_REFERENCE_PATH;
+      headerLayer.sourceRect={x:0,y:0,w:HERO_REFERENCE_SIZE.w,h:218};
+    }
+    const footerLayer=design.layers.find(layer=>{
+      if(!layer||layer.type!=='reference')return false;
+      if(String(layer.role||'').toLowerCase()==='footer')return true;
+      return String(layer.name||'').toLowerCase().includes('footer');
+    });
+    if(!footerLayer)return;
+    footerLayer.x=0;
+    footerLayer.y=0;
+    footerLayer.w=1080;
+    footerLayer.h=1350;
+    footerLayer.opacity=1;
+    footerLayer.sourcePath='assets/Reference/HERO_FOOTER_OVERLAY_v1.png';
+    footerLayer.sourceRect=null;
+
+    const approvedHeroType='\"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif';
+    const lockedType={
+      firstName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:58,letterSpacing:12,weight:'700'},
+      lastName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:162,letterSpacing:2,weight:'800'},
+      graduationYear:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:48,letterSpacing:10,weight:'700'},
+      achievement:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:30,letterSpacing:5,weight:'600'}
+    };
+    design.layers.forEach(layer=>{
+      const spec=lockedType[String(layer?.textKey||'')];
+      if(spec)Object.assign(layer,spec);
+    });
+  }
+
+  function applyHeroCardLockPolicy(design){
+    if(!design||!isHeroCardDesign(design)||!Array.isArray(design.layers))return;
+    enforceHeroCardFooterTreatment(design);
+    design.layers.forEach(layer=>{
+      const editableText=isHeroCardEditableTextLayer(layer);
+      const editablePhoto=isHeroCardEditablePhotoLayer(layer);
+      layer.locked=!(editableText||editablePhoto);
+    });
+  }
+
+  function normalizePhotoTransform(transform){
+    return {
+      scale:Number.isFinite(transform?.scale)?Math.max(1,Math.min(4,transform.scale)):1,
+      cropX:Number.isFinite(transform?.cropX)?Math.max(-1800,Math.min(1
+
+--- match 2 ---
+Math.max(1,Math.min(img.naturalHeight-layer.sourceRect.y,layer.sourceRect.h))
+      }
+      :{x:0,y:0,w:img.naturalWidth,h:img.naturalHeight};
+    ctx.save();
+    ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+    ctx.drawImage(img,srcRect.x,srcRect.y,srcRect.w,srcRect.h,layer.x,layer.y,layer.w,layer.h);
+    if(isHeroCardDesign()&&String(layer.role||'').toLowerCase()==='header'){
+      const fadeTop=layer.y+layer.h-18;
+      const fade=ctx.createLinearGradient(0,fadeTop,0,fadeTop+132);
+      fade.addColorStop(0,'rgba(247,248,249,.96)');
+      fade.addColorStop(.28,'rgba(247,248,249,.62)');
+      fade.addColorStop(.62,'rgba(247,248,249,.22)');
+      fade.addColorStop(1,'rgba(247,248,249,0)');
+      ctx.fillStyle=fade;
+      ctx.fillRect(layer.x,fadeTop,layer.w,132);
+    }
+    ctx.restore();
+  }
+
+  function drawLogoLayer(layer){
+    if(!layer.visible)return;
+    ctx.save();
+    ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+    if(layer.assetId){
+      const cache=state.imageCache.get(layer.assetId);
+      if(cache?.img){ctx.drawImage(cache.img,layer.x,layer.y,layer.w,layer.h);ctx.restore();return;}
+      resolveAssetImage(layer.assetId).catch(()=>{});
+    }
+    if(typeof officialPursueBadge!=='undefined'&&officialPursueBadge.complete&&officialPursueBadge.naturalWidth){
+      ctx.drawImage(officialPursueBadge,layer.x,layer.y,layer.w,layer.h);
+      ctx.restore();
+      return;
+    }
+    ctx.fillStyle='#ff6f18';
+    drawRoundedRect(ctx,layer.x,layer.y,layer.w,layer.h,layer.w/2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawTextLayer(layer){
+    if(!layer.visible)return;
+    ctx.save();
+    ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+    ctx.fillStyle=layer.color||'#ffffff';
+    const fontStyle=layer.fontStyle==='italic'?'italic':'normal';
+    ctx.font=`${fontStyle} ${layer.weight||'700'} ${layer.fontSize||42}px ${layer.fontFamily||'Arial'}`;
+    ctx.textBaseline='top';
+    const lines=String(layer.text||'').split(/\n+/);
+    const lineHeight=(layer.fontSize||42)*(Number.isFinite(layer.lineHeight)?layer.lineHeight:1.18);
+    const letterSpacing=Number.isFinite(layer.letterSpacing)?layer.letterSpacing:0;
+    const align=layer.align||'left';
+    ctx.textAlign=align;
+    const x=align==='left'?layer.x:align==='center'?layer.x+layer.w/2:layer.x+layer.w;
+    lines.forEach((line,index)=>{
+      const y=layer.y+(index*lineHeight);
+      if(Math.abs(letterSpacing)<0.1||line.length<2){
+        ctx.fillT
+
+===== REFERENCE DRAW | matches=1 =====
+
+--- match 1 ---
+   ctx.clip();
+    }
+
+    if(t.fitMode==='fit'){
+      const fitScale=Math.min(layer.w/srcW,layer.h/srcH);
+      const dw=srcW*fitScale;
+      const dh=srcH*fitScale;
+      ctx.drawImage(img,sx,sy,srcW,srcH,-dw/2,-dh/2,dw,dh);
+    }else{
+      ctx.drawImage(img,sx,sy,srcW,srcH,-layer.w/2,-layer.h/2,layer.w,layer.h);
+    }
+    ctx.restore();
+  }
+
+  function drawReferenceLayer(layer){
+    if(!layer.visible)return;
+    const path=String(layer.sourcePath||'').trim();
+    if(!path)return;
+    const cache=state.imageCache.get(`path:${path}`);
+    const img=cache?.img||null;
+    if(!img){
+      resolvePathImage(path).catch(()=>{});
+      return;
+    }
+    const srcRect=(layer.sourceRect&&Number.isFinite(layer.sourceRect.x)&&Number.isFinite(layer.sourceRect.y)&&Number.isFinite(layer.sourceRect.w)&&Number.isFinite(layer.sourceRect.h))
+      ?{
+        x:Math.max(0,Math.min(img.naturalWidth-1,layer.sourceRect.x)),
+        y:Math.max(0,Math.min(img.naturalHeight-1,layer.sourceRect.y)),
+        w:Math.max(1,Math.min(img.naturalWidth-layer.sourceRect.x,layer.sourceRect.w)),
+        h:Math.max(1,Math.min(img.naturalHeight-layer.sourceRect.y,layer.sourceRect.h))
+      }
+      :{x:0,y:0,w:img.naturalWidth,h:img.naturalHeight};
+    ctx.save();
+    ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+    ctx.drawImage(img,srcRect.x,srcRect.y,srcRect.w,srcRect.h,layer.x,layer.y,layer.w,layer.h);
+    if(isHeroCardDesign()&&String(layer.role||'').toLowerCase()==='header'){
+      const fadeTop=layer.y+layer.h-18;
+      const fade=ctx.createLinearGradient(0,fadeTop,0,fadeTop+132);
+      fade.addColorStop(0,'rgba(247,248,249,.96)');
+      fade.addColorStop(.28,'rgba(247,248,249,.62)');
+      fade.addColorStop(.62,'rgba(247,248,249,.22)');
+      fade.addColorStop(1,'rgba(247,248,249,0)');
+      ctx.fillStyle=fade;
+      ctx.fillRect(layer.x,fadeTop,layer.w,132);
+    }
+    ctx.restore();
+  }
+
+  function drawLogoLayer(layer){
+    if(!layer.visible)return;
+    ctx.save();
+    ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+    if(layer.assetId){
+      const cache=state.imageCache.get(layer.assetId);
+      if(cache?.img){ctx.drawImage(cache.img,layer.x,layer.y,layer.w,layer.h);ctx.restore();return;}
+      resolveAssetImage(layer.assetId).catch(()=>{});
+    }
+    if(typeof officialPursueBadge!=='undefined'&&officialPursueBadge.complete&&officialPursueBadge.naturalWidth){
+      ctx.drawImage(officialPursueBadge,layer.x,layer.y,layer.w,layer.h);
+      ctx.restore();
+      return;
+    }
+    ctx.fillStyle='#ff6f18';
+    drawRoundedRect(ctx,layer.x,layer.y,layer.w,layer.h,layer.w/2);
+    ctx.fill
