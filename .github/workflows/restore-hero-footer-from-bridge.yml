@@ -1,4 +1,4 @@
-name: Build native RC5 Hero locked assets from approved uploads
+name: Fix RC5 Hero upload and gradient
 
 on:
   push:
@@ -9,88 +9,137 @@ permissions:
   contents: write
 
 jobs:
-  build-hero-assets:
+  fix-hero:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install image verifier
+      - name: Install image tools
         run: python3 -m pip install --quiet pillow
 
-      - name: Build exact header-only master and verify footer
+      - name: Repair photo storage migration and build smooth gradient
         shell: bash
         run: |
           python3 - <<'PY'
-          import hashlib, pathlib
+          import pathlib
           from PIL import Image
 
-          root = pathlib.Path('assets/Reference')
-          src_master = root / 'CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED(1).png'
-          dst_master = root / 'CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png'
-          footer = root / 'HERO_FOOTER_OVERLAY_v1.png'
+          index = pathlib.Path('index.html')
+          text = index.read_text()
 
-          EXPECTED_MASTER_FILE_SHA = 'ade1907e4d610e0f08967c51476b97eada1c7bc188876299d957a75d953c7086'
-          EXPECTED_HEADER_PIXEL_SHA = '64f19bb679cb5948702198f4e58bea8752740592b39d385d7003a10aeabe6d8f'
-          EXPECTED_FOOTER_FILE_SHA = '43e4e717e30cc151960d8aeb7e01dd3ee6150001b411f095a7240aac3237eeba'
-          EXPECTED_FOOTER_PIXEL_SHA = 'bf18bf9bf12fe46871b36b583d1bc063fbef67784a6182ea31d0930166bfa916'
+          old = """  function openCreativeAssetDB(){
+    return new Promise((resolve,reject)=>{
+      const req=indexedDB.open(ASSET_DB,1);
+      req.onupgradeneeded=()=>{
+        const db=req.result;
+        if(!db.objectStoreNames.contains(ASSET_STORE))db.createObjectStore(ASSET_STORE,{keyPath:'id'});
+      };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+  }
+"""
 
-          def file_sha(path):
-              return hashlib.sha256(path.read_bytes()).hexdigest()
+          new = """  function openCreativeAssetDB(){
+    return new Promise((resolve,reject)=>{
+      // v2 repairs older browser databases that were created without the
+      // creativeAssets object store. Existing data in other databases is untouched.
+      const req=indexedDB.open(ASSET_DB,2);
+      req.onupgradeneeded=()=>{
+        const db=req.result;
+        if(!db.objectStoreNames.contains(ASSET_STORE))db.createObjectStore(ASSET_STORE,{keyPath:'id'});
+      };
+      req.onsuccess=()=>{
+        const db=req.result;
+        if(db.objectStoreNames.contains(ASSET_STORE)){
+          resolve(db);
+          return;
+        }
+        const nextVersion=Math.max(2,Number(db.version||1)+1);
+        db.close();
+        const repair=indexedDB.open(ASSET_DB,nextVersion);
+        repair.onupgradeneeded=()=>{
+          const repairDb=repair.result;
+          if(!repairDb.objectStoreNames.contains(ASSET_STORE))repairDb.createObjectStore(ASSET_STORE,{keyPath:'id'});
+        };
+        repair.onsuccess=()=>resolve(repair.result);
+        repair.onerror=()=>reject(repair.error);
+      };
+      req.onerror=()=>reject(req.error);
+    });
+  }
+"""
 
-          if not src_master.exists():
-              raise SystemExit(f'Missing approved uploaded master: {src_master}')
-          if file_sha(src_master) != EXPECTED_MASTER_FILE_SHA:
-              raise SystemExit(f'Approved master file checksum mismatch: {file_sha(src_master)}')
+          if old not in text:
+              if new not in text:
+                  raise SystemExit('Could not locate openCreativeAssetDB for guarded patch.')
+          else:
+              text = text.replace(old, new, 1)
+              index.write_text(text)
+              print('Patched IndexedDB creativeAssets migration.')
 
-          approved = Image.open(src_master).convert('RGBA')
-          if approved.size != (1023, 1537):
-              raise SystemExit(f'Approved master dimensions mismatch: {approved.size}')
+          # Build the requested clean footer treatment: full-size transparent PNG
+          # with a smooth navy fade only. No texture, stripes, frame, or hard edge.
+          w, h = 1080, 1350
+          navy = (3, 18, 39)
+          top = 560
+          mid = 890
+          bottom = h - 1
+          im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+          px = im.load()
+          for y in range(h):
+              if y <= top:
+                  alpha = 0
+              elif y <= mid:
+                  t = (y-top)/(mid-top)
+                  # Gentle ease-in so the portrait remains visually full-bleed.
+                  alpha = round(120*(t*t))
+              else:
+                  t = (y-mid)/(bottom-mid)
+                  # Smoothly deepen to navy behind the name/class text.
+                  alpha = round(120 + (125*(1-(1-t)*(1-t))))
+              alpha = max(0, min(245, alpha))
+              for x in range(w):
+                  px[x,y] = (*navy, alpha)
 
-          header = approved.crop((0, 0, 1023, 218))
-          header_pixel_sha = hashlib.sha256(header.tobytes()).hexdigest()
-          if header_pixel_sha != EXPECTED_HEADER_PIXEL_SHA:
-              raise SystemExit(f'Approved header pixel checksum mismatch: {header_pixel_sha}')
-
-          # RC5 production master is a locked header source only. Everything below
-          # the exact approved 218px header is transparent so the editable athlete
-          # photo, name, year, and footer can render exactly once.
-          native = Image.new('RGBA', (1023, 1537), (0, 0, 0, 0))
-          native.paste(header, (0, 0))
-          native.save(dst_master, 'PNG', optimize=True)
-
-          verify = Image.open(dst_master).convert('RGBA')
-          if verify.size != (1023, 1537):
-              raise SystemExit(f'Native master dimensions mismatch: {verify.size}')
-          verify_header = verify.crop((0, 0, 1023, 218))
-          if hashlib.sha256(verify_header.tobytes()).hexdigest() != EXPECTED_HEADER_PIXEL_SHA:
-              raise SystemExit('Native master header changed during write.')
-          if any(px[3] for px in verify.crop((0, 218, 1023, 1537)).getdata()):
-              raise SystemExit('Native master contains non-transparent pixels below locked header.')
-
-          if not footer.exists():
-              raise SystemExit(f'Missing approved footer: {footer}')
-          if file_sha(footer) != EXPECTED_FOOTER_FILE_SHA:
-              raise SystemExit(f'Footer file checksum mismatch: {file_sha(footer)}')
-          footer_im = Image.open(footer).convert('RGBA')
-          if footer_im.size != (1080, 1350):
-              raise SystemExit(f'Footer dimensions mismatch: {footer_im.size}')
-          footer_pixel_sha = hashlib.sha256(footer_im.tobytes()).hexdigest()
-          if footer_pixel_sha != EXPECTED_FOOTER_PIXEL_SHA:
-              raise SystemExit(f'Footer pixel checksum mismatch: {footer_pixel_sha}')
-
-          print('VERIFIED native RC5 header-only master:', dst_master, dst_master.stat().st_size, 'bytes')
-          print('VERIFIED exact RC5 footer:', footer, footer.stat().st_size, 'bytes')
+          footer = pathlib.Path('assets/Reference/HERO_FOOTER_OVERLAY_v1.png')
+          footer.parent.mkdir(parents=True, exist_ok=True)
+          im.save(footer, 'PNG', optimize=True)
+          check = Image.open(footer).convert('RGBA')
+          if check.size != (1080,1350):
+              raise SystemExit(f'Gradient footer dimensions incorrect: {check.size}')
+          if check.getpixel((540,0))[3] != 0:
+              raise SystemExit('Gradient footer must be transparent at the top.')
+          if check.getpixel((540,1349))[3] < 235:
+              raise SystemExit('Gradient footer is not dark enough at the bottom.')
+          print('Built smooth transparent-to-navy Hero footer gradient.')
           PY
 
-      - name: Commit exact native RC5 asset composition
+      - name: Validate targeted changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          from PIL import Image
+          text=pathlib.Path('index.html').read_text()
+          assert "indexedDB.open(ASSET_DB,2)" in text
+          assert "repair.onupgradeneeded" in text
+          footer=Image.open('assets/Reference/HERO_FOOTER_OVERLAY_v1.png').convert('RGBA')
+          assert footer.size==(1080,1350)
+          assert footer.getpixel((540,100))[3]==0
+          assert footer.getpixel((540,1349))[3]>=235
+          print('PASS: upload DB migration and smooth gradient validated.')
+          PY
+
+      - name: Commit focused Hero repair
         shell: bash
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add assets/Reference/CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png
+          git add index.html assets/Reference/HERO_FOOTER_OVERLAY_v1.png
           if git diff --cached --quiet; then
-            echo 'Native RC5 asset composition already correct.'
+            echo 'Hero upload and gradient are already correct.'
             exit 0
           fi
-          git commit -m 'Use approved header-only master for editable RC5 Hero cards'
+          git commit -m 'Fix Hero photo upload and smooth footer gradient'
           git push
