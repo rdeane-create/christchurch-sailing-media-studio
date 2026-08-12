@@ -2,7 +2,7 @@
 'use strict';
 const HEADER_FILES=['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js'];
 const RECOVERY_FILES=['recovery-exact-1.js','recovery-exact-2.js','recovery-exact-3.js'];
-const VERSION='20260812-approved-unit-v5';
+const VERSION='20260812-approved-unit-v6';
 
 async function fetchPayloadChunk(src){
   const r=await fetch(src+'?v='+VERSION,{cache:'no-store'});
@@ -34,8 +34,6 @@ async function gunzipBase64(b64){
 }
 
 function adaptApprovedSource(source){
-  // Keep the approved package's original "heroes" route intact. The native
-  // fallback workspace is moved aside after the approved package loads.
   const headerFn=/async function loadApprovedHeroHeader\(\)\{[\s\S]*?\n  \}\n\n  function loadHeroImage/;
   if(!headerFn.test(source))throw new Error('Approved Hero header function was not found in recovery package.');
   source=source.replace(headerFn,
@@ -46,33 +44,33 @@ function adaptApprovedSource(source){
   return source;
 }
 
-function resolveHeroWorkspaceCollision(){
-  const heroes=[...document.querySelectorAll('[id="workspace-heroes"]')];
-  if(!heroes.length)return false;
-  const recovered=heroes.find(el=>el.classList.contains('csmsRecoveredWorkspace'))||heroes[heroes.length-1];
-  heroes.forEach((el,index)=>{
-    if(el===recovered)return;
-    el.id='workspace-heroes-native'+(index?'-'+index:'');
-    el.classList.remove('active');
-    el.style.display='none';
-    el.setAttribute('aria-hidden','true');
-  });
-  recovered.id='workspace-heroes';
-  recovered.style.removeProperty('display');
-  recovered.removeAttribute('aria-hidden');
-  return true;
+function moveNativeHeroAsideBeforeRecovery(){
+  const existing=document.getElementById('workspace-heroes');
+  if(!existing)return null;
+  existing.id='workspace-heroes-native';
+  existing.classList.remove('active');
+  existing.style.display='none';
+  existing.setAttribute('aria-hidden','true');
+  return existing;
 }
 
-function keepApprovedHeroPrimary(){
-  resolveHeroWorkspaceCollision();
-  setTimeout(resolveHeroWorkspaceCollision,0);
-  setTimeout(resolveHeroWorkspaceCollision,50);
-  setTimeout(resolveHeroWorkspaceCollision,250);
+function ensureApprovedHeroPrimary(){
+  const approved=document.getElementById('workspace-heroes');
+  const native=document.getElementById('workspace-heroes-native');
+  if(native){
+    native.classList.remove('active');
+    native.style.display='none';
+    native.setAttribute('aria-hidden','true');
+  }
+  if(approved){
+    approved.style.removeProperty('display');
+    approved.removeAttribute('aria-hidden');
+  }
+  return !!approved;
 }
 
 (async()=>{
   try{
-    // Recovery chunk files are treated strictly as data, never executed as JS.
     const header=await joinPayload(HEADER_FILES);
     if(!header.startsWith('UklGR'))throw new Error('Approved Hero header payload is not a WebP image.');
     window.__CSMS_APPROVED_HERO_HEADER_URI='data:image/webp;base64,'+header;
@@ -80,14 +78,20 @@ function keepApprovedHeroPrimary(){
     const packed=await joinPayload(RECOVERY_FILES);
     if(!packed.startsWith('H4sI'))throw new Error('Approved recovery package payload is not gzip data.');
 
+    // Critical ordering: remove the native fallback from the canonical Hero
+    // workspace ID BEFORE the approved package initializes. The approved code
+    // can then create and own workspace-heroes exactly as originally authored.
+    moveNativeHeroAsideBeforeRecovery();
+
     let source=await gunzipBase64(packed);
     source=adaptApprovedSource(source);
     (0,eval)(source);
-    keepApprovedHeroPrimary();
 
-    // Protect the approved Hero route if later Studio startup code re-renders
-    // workspaces or activates the native fallback after recovery initializes.
-    document.addEventListener('click',()=>setTimeout(resolveHeroWorkspaceCollision,0),true);
+    if(!ensureApprovedHeroPrimary())throw new Error('Approved Hero workspace was not created.');
+    setTimeout(ensureApprovedHeroPrimary,0);
+    setTimeout(ensureApprovedHeroPrimary,100);
+    setTimeout(ensureApprovedHeroPrimary,500);
+    document.addEventListener('click',()=>setTimeout(ensureApprovedHeroPrimary,0),true);
 
     console.info('[CSMS approved template recovery]',{
       ok:true,
