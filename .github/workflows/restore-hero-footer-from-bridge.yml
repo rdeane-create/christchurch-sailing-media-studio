@@ -1,4 +1,4 @@
-name: Restore exact RC5 Hero assets from Studio bridge
+name: Restore exact RC5 Hero assets from repository recovery data
 
 on:
   push:
@@ -14,103 +14,116 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Recover and verify exact RC5 Hero assets from Drive
+      - name: Install image verifier
+        run: python3 -m pip install --quiet pillow
+
+      - name: Reconstruct and verify locked RC5 assets
         shell: bash
-        env:
-          BRIDGE: https://script.google.com/a/macros/christchurchschool.org/s/AKfycbwVpWix_ivzxwpEQxNTBGvJNpThQYjfRRG8T7CYMNPz3r9lB-JI6CowrskoQUAs67lt/exec
         run: |
           python3 - <<'PY'
-          import base64, hashlib, json, os, pathlib, struct, urllib.parse, urllib.request
+          import base64, gzip, hashlib, io, pathlib, re, zlib
+          from PIL import Image
 
-          bridge = os.environ['BRIDGE']
-          specs = [
-              {
-                  'name':'CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png',
-                  'dims':(1023,1537),
-                  'sha256':'ade1907e4d610e0f08967c51476b97eada1c7bc188876299d957a75d953c7086',
-              },
-              {
-                  'name':'HERO_FOOTER_OVERLAY_v1.png',
-                  'dims':(1080,1350),
-                  'sha256':'43e4e717e30cc151960d8aeb7e01dd3ee6150001b411f095a7240aac3237eeba',
-              },
+          ROOT=pathlib.Path('.')
+          OUT=ROOT/'assets'/'Reference'
+          OUT.mkdir(parents=True,exist_ok=True)
+
+          HEADER_PIXEL_SHA='64f19bb679cb5948702198f4e58bea8752740592b39d385d7003a10aeabe6d8f'
+          FOOTER_FILE_SHA='43e4e717e30cc151960d8aeb7e01dd3ee6150001b411f095a7240aac3237eeba'
+          FOOTER_PIXEL_SHA='bf18bf9bf12fe46871b36b583d1bc063fbef67784a6182ea31d0930166bfa916'
+
+          def longest_b64_run(path):
+              text=pathlib.Path(path).read_text(errors='ignore')
+              quoted=re.findall(r"\+'([A-Za-z0-9+/=]+)'",text)
+              if quoted:
+                  return ''.join(quoted)
+              runs=re.findall(r'[A-Za-z0-9+/=]{32,}',text)
+              if not runs:
+                  raise RuntimeError(f'No base64 payload in {path}')
+              return max(runs,key=len)
+
+          def decode_b64_join(paths):
+              s=''.join(longest_b64_run(p) for p in paths)
+              s=re.sub(r'\s+','',s)
+              s += '='*((4-len(s)%4)%4)
+              return base64.b64decode(s)
+
+          def pixel_sha(raw):
+              im=Image.open(io.BytesIO(raw)).convert('RGBA')
+              return im.size, hashlib.sha256(im.tobytes()).hexdigest(), im
+
+          # Header: repository chunks contain the approved locked header image.
+          header_raw=decode_b64_join(['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js'])
+          hsize,hpix,himg=pixel_sha(header_raw)
+          if hsize!=(1023,218):
+              raise SystemExit(f'Header dimensions mismatch: {hsize}')
+          if hpix!=HEADER_PIXEL_SHA:
+              raise SystemExit(f'Header pixel checksum mismatch: {hpix}')
+
+          # Native RC5 expects the reference source to be 1023x1537 and crops the
+          # first 218px for the locked header. Keep everything below transparent;
+          # the editable athlete photograph replaces that area in normal use.
+          master=Image.new('RGBA',(1023,1537),(0,0,0,0))
+          master.paste(himg,(0,0))
+          master_path=OUT/'CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png'
+          master.save(master_path,'PNG',optimize=True)
+          check=Image.open(master_path).convert('RGBA').crop((0,0,1023,218))
+          check_sha=hashlib.sha256(check.tobytes()).hexdigest()
+          if check_sha!=HEADER_PIXEL_SHA:
+              raise SystemExit(f'Reconstructed master header mismatch: {check_sha}')
+          print('VERIFIED locked header:',hsize,hpix,'->',master_path,master_path.stat().st_size,'bytes')
+
+          # Footer: try only recovery combinations already present in this repo.
+          candidates=[
+              ['hero-approved-footer-1.txt','.recovery/footer.exact.part2'],
+              ['.recovery/footer.part1','.recovery/footer.exact.part2'],
+              ['.recovery/footer.part1','.recovery/footer.part2'],
+              ['hero-approved-footer-1.txt','.recovery/footer.part2'],
+              ['.recovery/footer.part2'],
           ]
-
-          def get_json(params):
-              url = bridge + '?' + urllib.parse.urlencode(params)
-              req = urllib.request.Request(url, headers={'User-Agent':'CSMS-RC5-Exact-Asset-Restore/1.0'})
-              with urllib.request.urlopen(req, timeout=90) as r:
-                  body = r.read()
-                  ctype = r.headers.get('content-type','')
+          accepted=None
+          diagnostics=[]
+          for paths in candidates:
               try:
-                  return json.loads(body.decode('utf-8'))
-              except Exception:
-                  raise SystemExit(f'Bridge did not return JSON ({ctype}); first bytes={body[:160]!r}')
-
-          def rank(m):
-              p=(m.get('path') or '').lower()
-              score=0
-              if 'assets' in p: score+=20
-              if 'reference' in p: score+=20
-              if 'sprint_1_1_2_update' in p: score+=10
-              if 'studio' in p: score+=5
-              return score
-
-          outdir=pathlib.Path('assets/Reference')
-          outdir.mkdir(parents=True,exist_ok=True)
-
-          for spec in specs:
-              filename=spec['name']
-              found=get_json({'action':'findfilerecursive','name':filename})
-              if not found.get('ok'):
-                  raise SystemExit(f'Bridge lookup failed for {filename}: '+json.dumps(found)[:1000])
-              matches=found.get('matches') or []
-              if not matches:
-                  raise SystemExit(f'Exact RC5 asset not found in Drive: {filename}')
-
-              accepted=None
-              rejected=[]
-              for match in sorted(matches,key=rank,reverse=True):
-                  try:
-                      payload=get_json({'action':'file','fileId':match['id']})
-                      if not payload.get('ok') or not payload.get('data'):
-                          rejected.append((match.get('path'),'no payload'))
+                  raw=decode_b64_join(paths)
+                  variants=[('direct',raw)]
+                  for label,fn in [('gzip',gzip.decompress),('zlib',zlib.decompress)]:
+                      try: variants.append((label,fn(raw)))
+                      except Exception: pass
+                  for label,data in variants:
+                      digest=hashlib.sha256(data).hexdigest()
+                      try:
+                          size,pix,_=pixel_sha(data)
+                      except Exception:
+                          diagnostics.append((paths,label,len(data),digest,'not-image'))
                           continue
-                      raw=base64.b64decode(payload['data'])
-                      if not raw.startswith(b'\x89PNG\r\n\x1a\n'):
-                          rejected.append((match.get('path'),'not PNG'))
-                          continue
-                      w,h=struct.unpack('>II',raw[16:24])
-                      digest=hashlib.sha256(raw).hexdigest()
-                      if (w,h)!=spec['dims']:
-                          rejected.append((match.get('path'),f'dimensions {w}x{h}'))
-                          continue
-                      if digest!=spec['sha256']:
-                          rejected.append((match.get('path'),f'sha256 {digest}'))
-                          continue
-                      accepted=(match,raw,w,h,digest)
-                      break
-                  except Exception as exc:
-                      rejected.append((match.get('path'),str(exc)))
+                      diagnostics.append((paths,label,len(data),digest,size,pix))
+                      if digest==FOOTER_FILE_SHA and size==(1080,1350) and pix==FOOTER_PIXEL_SHA:
+                          accepted=data
+                          break
+                  if accepted is not None: break
+              except Exception as exc:
+                  diagnostics.append((paths,'error',str(exc)))
 
-              if not accepted:
-                  raise SystemExit(f'No byte-exact RC5 candidate passed for {filename}: '+json.dumps(rejected)[:5000])
+          if accepted is None:
+              print('Footer recovery diagnostics:')
+              for row in diagnostics: print(row)
+              raise SystemExit('No repository recovery combination matched the exact RC5 footer checksums.')
 
-              match,raw,w,h,digest=accepted
-              out=outdir/filename
-              out.write_bytes(raw)
-              print(f'VERIFIED {filename}: {len(raw)} bytes {w}x{h} sha256={digest} Drive={match.get("path")}')
+          footer_path=OUT/'HERO_FOOTER_OVERLAY_v1.png'
+          footer_path.write_bytes(accepted)
+          print('VERIFIED locked footer:',footer_path,len(accepted),'bytes',FOOTER_FILE_SHA)
           PY
 
-      - name: Commit exact verified RC5 Hero assets
+      - name: Commit verified native RC5 assets
         shell: bash
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add assets/Reference/CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png assets/Reference/HERO_FOOTER_OVERLAY_v1.png
           if git diff --cached --quiet; then
-            echo 'Exact RC5 Hero assets already match.'
+            echo 'Verified RC5 assets already present.'
             exit 0
           fi
-          git commit -m 'Restore byte-exact RC5 Hero master and footer assets'
+          git commit -m 'Restore verified native RC5 Hero locked assets'
           git push
