@@ -1,4 +1,4 @@
-name: Restore exact RC5 Hero assets from repository recovery data
+name: Build native RC5 Hero locked assets from approved uploads
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  restore-hero-assets:
+  build-hero-assets:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,111 +17,80 @@ jobs:
       - name: Install image verifier
         run: python3 -m pip install --quiet pillow
 
-      - name: Reconstruct and verify locked RC5 assets
+      - name: Build exact header-only master and verify footer
         shell: bash
         run: |
           python3 - <<'PY'
-          import base64, gzip, hashlib, io, pathlib, re, zlib
+          import hashlib, pathlib
           from PIL import Image
 
-          ROOT=pathlib.Path('.')
-          OUT=ROOT/'assets'/'Reference'
-          OUT.mkdir(parents=True,exist_ok=True)
+          root = pathlib.Path('assets/Reference')
+          src_master = root / 'CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED(1).png'
+          dst_master = root / 'CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png'
+          footer = root / 'HERO_FOOTER_OVERLAY_v1.png'
 
-          HEADER_PIXEL_SHA='64f19bb679cb5948702198f4e58bea8752740592b39d385d7003a10aeabe6d8f'
-          FOOTER_FILE_SHA='43e4e717e30cc151960d8aeb7e01dd3ee6150001b411f095a7240aac3237eeba'
-          FOOTER_PIXEL_SHA='bf18bf9bf12fe46871b36b583d1bc063fbef67784a6182ea31d0930166bfa916'
+          EXPECTED_MASTER_FILE_SHA = 'ade1907e4d610e0f08967c51476b97eada1c7bc188876299d957a75d953c7086'
+          EXPECTED_HEADER_PIXEL_SHA = '64f19bb679cb5948702198f4e58bea8752740592b39d385d7003a10aeabe6d8f'
+          EXPECTED_FOOTER_FILE_SHA = '43e4e717e30cc151960d8aeb7e01dd3ee6150001b411f095a7240aac3237eeba'
+          EXPECTED_FOOTER_PIXEL_SHA = 'bf18bf9bf12fe46871b36b583d1bc063fbef67784a6182ea31d0930166bfa916'
 
-          def payload_runs(path):
-              text=pathlib.Path(path).read_text(errors='ignore')
-              runs=re.findall(r'[A-Za-z0-9+/=]{64,}',text)
-              if not runs:
-                  raise RuntimeError(f'No base64 payload in {path}')
-              return runs
+          def file_sha(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
 
-          def decode_b64_join(paths):
-              pieces=[]
-              for p in paths:
-                  pieces.extend(payload_runs(p))
-              s=''.join(pieces)
-              if 'UklGR' in s:
-                  s=s[s.index('UklGR'):]
-              s += '='*((4-len(s)%4)%4)
-              return base64.b64decode(s)
+          if not src_master.exists():
+              raise SystemExit(f'Missing approved uploaded master: {src_master}')
+          if file_sha(src_master) != EXPECTED_MASTER_FILE_SHA:
+              raise SystemExit(f'Approved master file checksum mismatch: {file_sha(src_master)}')
 
-          def pixel_sha(raw):
-              im=Image.open(io.BytesIO(raw)).convert('RGBA')
-              return im.size, hashlib.sha256(im.tobytes()).hexdigest(), im
+          approved = Image.open(src_master).convert('RGBA')
+          if approved.size != (1023, 1537):
+              raise SystemExit(f'Approved master dimensions mismatch: {approved.size}')
 
-          header_paths=['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js']
-          header_raw=decode_b64_join(header_paths)
-          print('Header assembled bytes:',len(header_raw),'magic:',header_raw[:12])
-          hsize,hpix,himg=pixel_sha(header_raw)
-          if hsize!=(1023,218):
-              raise SystemExit(f'Header dimensions mismatch: {hsize}')
-          if hpix!=HEADER_PIXEL_SHA:
-              raise SystemExit(f'Header pixel checksum mismatch: {hpix}')
+          header = approved.crop((0, 0, 1023, 218))
+          header_pixel_sha = hashlib.sha256(header.tobytes()).hexdigest()
+          if header_pixel_sha != EXPECTED_HEADER_PIXEL_SHA:
+              raise SystemExit(f'Approved header pixel checksum mismatch: {header_pixel_sha}')
 
-          master=Image.new('RGBA',(1023,1537),(0,0,0,0))
-          master.paste(himg,(0,0))
-          master_path=OUT/'CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png'
-          master.save(master_path,'PNG',optimize=True)
-          check=Image.open(master_path).convert('RGBA').crop((0,0,1023,218))
-          check_sha=hashlib.sha256(check.tobytes()).hexdigest()
-          if check_sha!=HEADER_PIXEL_SHA:
-              raise SystemExit(f'Reconstructed master header mismatch: {check_sha}')
-          print('VERIFIED locked header:',hsize,hpix,'->',master_path,master_path.stat().st_size,'bytes')
+          # RC5 production master is a locked header source only. Everything below
+          # the exact approved 218px header is transparent so the editable athlete
+          # photo, name, year, and footer can render exactly once.
+          native = Image.new('RGBA', (1023, 1537), (0, 0, 0, 0))
+          native.paste(header, (0, 0))
+          native.save(dst_master, 'PNG', optimize=True)
 
-          candidates=[
-              ['hero-approved-footer-1.txt','.recovery/footer.exact.part2'],
-              ['.recovery/footer.part1','.recovery/footer.exact.part2'],
-              ['.recovery/footer.part1','.recovery/footer.part2'],
-              ['hero-approved-footer-1.txt','.recovery/footer.part2'],
-              ['.recovery/footer.part2'],
-          ]
-          accepted=None
-          diagnostics=[]
-          for paths in candidates:
-              try:
-                  raw=decode_b64_join(paths)
-                  variants=[('direct',raw)]
-                  for label,fn in [('gzip',gzip.decompress),('zlib',zlib.decompress)]:
-                      try: variants.append((label,fn(raw)))
-                      except Exception: pass
-                  for label,data in variants:
-                      digest=hashlib.sha256(data).hexdigest()
-                      try:
-                          size,pix,_=pixel_sha(data)
-                      except Exception:
-                          diagnostics.append((paths,label,len(data),digest,'not-image',data[:12]))
-                          continue
-                      diagnostics.append((paths,label,len(data),digest,size,pix))
-                      if digest==FOOTER_FILE_SHA and size==(1080,1350) and pix==FOOTER_PIXEL_SHA:
-                          accepted=data
-                          break
-                  if accepted is not None: break
-              except Exception as exc:
-                  diagnostics.append((paths,'error',str(exc)))
+          verify = Image.open(dst_master).convert('RGBA')
+          if verify.size != (1023, 1537):
+              raise SystemExit(f'Native master dimensions mismatch: {verify.size}')
+          verify_header = verify.crop((0, 0, 1023, 218))
+          if hashlib.sha256(verify_header.tobytes()).hexdigest() != EXPECTED_HEADER_PIXEL_SHA:
+              raise SystemExit('Native master header changed during write.')
+          if any(px[3] for px in verify.crop((0, 218, 1023, 1537)).getdata()):
+              raise SystemExit('Native master contains non-transparent pixels below locked header.')
 
-          if accepted is None:
-              print('Footer recovery diagnostics:')
-              for row in diagnostics: print(row)
-              raise SystemExit('No repository recovery combination matched the exact RC5 footer checksums.')
+          if not footer.exists():
+              raise SystemExit(f'Missing approved footer: {footer}')
+          if file_sha(footer) != EXPECTED_FOOTER_FILE_SHA:
+              raise SystemExit(f'Footer file checksum mismatch: {file_sha(footer)}')
+          footer_im = Image.open(footer).convert('RGBA')
+          if footer_im.size != (1080, 1350):
+              raise SystemExit(f'Footer dimensions mismatch: {footer_im.size}')
+          footer_pixel_sha = hashlib.sha256(footer_im.tobytes()).hexdigest()
+          if footer_pixel_sha != EXPECTED_FOOTER_PIXEL_SHA:
+              raise SystemExit(f'Footer pixel checksum mismatch: {footer_pixel_sha}')
 
-          footer_path=OUT/'HERO_FOOTER_OVERLAY_v1.png'
-          footer_path.write_bytes(accepted)
-          print('VERIFIED locked footer:',footer_path,len(accepted),'bytes',FOOTER_FILE_SHA)
+          print('VERIFIED native RC5 header-only master:', dst_master, dst_master.stat().st_size, 'bytes')
+          print('VERIFIED exact RC5 footer:', footer, footer.stat().st_size, 'bytes')
           PY
 
-      - name: Commit verified native RC5 assets
+      - name: Commit exact native RC5 asset composition
         shell: bash
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add assets/Reference/CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png assets/Reference/HERO_FOOTER_OVERLAY_v1.png
+          git add assets/Reference/CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png
           if git diff --cached --quiet; then
-            echo 'Verified RC5 assets already present.'
+            echo 'Native RC5 asset composition already correct.'
             exit 0
           fi
-          git commit -m 'Restore verified native RC5 Hero locked assets'
+          git commit -m 'Use approved header-only master for editable RC5 Hero cards'
           git push
