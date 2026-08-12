@@ -17252,7 +17252,60 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.restore();
   }
 
+  let __csmsApprovedHeroHeaderPromise=null;
+  function loadExactApprovedHeroHeader(){
+    if(window.__CSMS_APPROVED_HERO_HEADER_IMAGE&&window.__CSMS_APPROVED_HERO_HEADER_IMAGE.complete){
+      return Promise.resolve(window.__CSMS_APPROVED_HERO_HEADER_IMAGE);
+    }
+    if(__csmsApprovedHeroHeaderPromise)return __csmsApprovedHeroHeaderPromise;
+    __csmsApprovedHeroHeaderPromise=(async()=>{
+      window.__CSMS_HERO_HEADER_B64='';
+      const files=['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js'];
+      for(const file of files){
+        await new Promise((resolve,reject)=>{
+          const s=document.createElement('script');
+          s.src=file+'?v=approved-native-20260812';
+          s.async=false;
+          s.onload=()=>{s.remove();resolve();};
+          s.onerror=()=>{s.remove();reject(new Error('Could not load '+file));};
+          document.head.appendChild(s);
+        });
+      }
+      const b64=window.__CSMS_HERO_HEADER_B64||'';
+      if(!b64)throw new Error('Approved Hero header payload was empty.');
+      const img=new Image();
+      await new Promise((resolve,reject)=>{
+        img.onload=resolve;
+        img.onerror=()=>reject(new Error('Approved Hero header image could not be decoded.'));
+        img.src='data:image/webp;base64,'+b64;
+      });
+      window.__CSMS_APPROVED_HERO_HEADER_IMAGE=img;
+      window.__CSMS_APPROVED_HERO_HEADER_URI=img.src;
+      return img;
+    })().catch(err=>{
+      __csmsApprovedHeroHeaderPromise=null;
+      console.error('[CSMS exact Hero header]',err);
+      throw err;
+    });
+    return __csmsApprovedHeroHeaderPromise;
+  }
+
   function drawReferenceLayer(layer){
+    if(isHeroCardDesign()&&String(layer?.role||'').toLowerCase()==='header'){
+      const exact=window.__CSMS_APPROVED_HERO_HEADER_IMAGE;
+      if(exact&&exact.complete&&exact.naturalWidth&&exact.naturalHeight){
+        ctx.save();
+        ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
+        const drawW=1080;
+        const drawH=drawW*(exact.naturalHeight/exact.naturalWidth);
+        ctx.drawImage(exact,0,0,drawW,drawH);
+        ctx.restore();
+        return;
+      }
+      loadExactApprovedHeroHeader().then(()=>{
+        if(typeof renderCreativeStudio==='function')renderCreativeStudio();
+      }).catch(()=>{});
+    }
     if(!layer.visible)return;
     const path=String(layer.sourcePath||'').trim();
     if(!path)return;
@@ -17273,16 +17326,6 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.save();
     ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;
     ctx.drawImage(img,srcRect.x,srcRect.y,srcRect.w,srcRect.h,layer.x,layer.y,layer.w,layer.h);
-    if(isHeroCardDesign()&&String(layer.role||'').toLowerCase()==='header'){
-      const fadeTop=layer.y+layer.h-18;
-      const fade=ctx.createLinearGradient(0,fadeTop,0,fadeTop+132);
-      fade.addColorStop(0,'rgba(247,248,249,.96)');
-      fade.addColorStop(.28,'rgba(247,248,249,.62)');
-      fade.addColorStop(.62,'rgba(247,248,249,.22)');
-      fade.addColorStop(1,'rgba(247,248,249,0)');
-      ctx.fillStyle=fade;
-      ctx.fillRect(layer.x,fadeTop,layer.w,132);
-    }
     ctx.restore();
   }
 
