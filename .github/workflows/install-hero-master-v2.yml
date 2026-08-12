@@ -1,0 +1,62 @@
+name: Install Hero Master v2
+
+on:
+  push:
+    paths:
+      - 'hero-card-master-v2.js'
+      - '.github/workflows/install-hero-master-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate standalone Hero module
+        run: |
+          node --check hero-card-master-v2.js
+          test -s assets/Reference/CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png
+          test -s assets/Reference/HERO_FOOTER_OVERLAY_v1.png
+          grep -q "heroMasterCanvasV2" hero-card-master-v2.js
+          grep -q "heroBlob" hero-card-master-v2.js
+          grep -q "ChristchurchMediaStudio" hero-card-master-v2.js
+
+      - name: Install module into Studio
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          t=p.read_text()
+          marker='<script src="hero-card-master-v2.js?v=20260812-2"></script>'
+          # Remove any prior v2 loader so there is exactly one production install.
+          import re
+          t=re.sub(r'\s*<script src="hero-card-master-v2\.js\?v=[^"]+"></script>\s*','\n',t)
+          if '</body>' not in t:
+              raise SystemExit('Install guard failed: </body> not found.')
+          t=t.replace('</body>',marker+'\n</body>',1)
+          if t.count('hero-card-master-v2.js')!=1:
+              raise SystemExit('Install validation failed: Hero v2 loader count is not exactly one.')
+          p.write_text(t)
+          print('PASS: Hero Master v2 installed exactly once in index.html')
+          PY
+
+      - name: Validate live Studio install
+        run: |
+          grep -q '<script src="hero-card-master-v2.js?v=20260812-2"></script>' index.html
+          node --check hero-card-master-v2.js
+
+      - name: Commit production install
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add index.html hero-card-master-v2.js
+          if git diff --cached --quiet; then
+            echo 'Hero Master v2 already installed.'
+            exit 0
+          fi
+          git commit -m 'Install clean Hero Card master v2 in Studio'
+          git push
