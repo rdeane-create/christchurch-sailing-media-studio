@@ -1,4 +1,4 @@
-name: Fix RC5 Hero upload and gradient
+name: Patch native Hero renderer
 
 on:
   push:
@@ -9,81 +9,116 @@ permissions:
   contents: write
 
 jobs:
-  fix-hero:
+  patch-native-hero:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install image tools
-        run: python3 -m pip install --quiet pillow
-
-      - name: Repair photo storage migration and build smooth gradient
+      - name: Patch only the native Hero code in index.html
         shell: bash
         run: |
           python3 - <<'PY'
           import pathlib
-          from PIL import Image
-          index=pathlib.Path('index.html')
-          text=index.read_text()
-          old="  function openCreativeAssetDB(){\n    return new Promise((resolve,reject)=>{\n      const req=indexedDB.open(ASSET_DB,1);\n      req.onupgradeneeded=()=>{\n        const db=req.result;\n        if(!db.objectStoreNames.contains(ASSET_STORE))db.createObjectStore(ASSET_STORE,{keyPath:'id'});\n      };\n      req.onsuccess=()=>resolve(req.result);\n      req.onerror=()=>reject(req.error);\n    });\n  }\n"
-          new="  function openCreativeAssetDB(){\n    return new Promise((resolve,reject)=>{\n      const req=indexedDB.open(ASSET_DB,2);\n      req.onupgradeneeded=()=>{\n        const db=req.result;\n        if(!db.objectStoreNames.contains(ASSET_STORE))db.createObjectStore(ASSET_STORE,{keyPath:'id'});\n      };\n      req.onsuccess=()=>{\n        const db=req.result;\n        if(db.objectStoreNames.contains(ASSET_STORE)){resolve(db);return;}\n        const nextVersion=Math.max(2,Number(db.version||1)+1);\n        db.close();\n        const repair=indexedDB.open(ASSET_DB,nextVersion);\n        repair.onupgradeneeded=()=>{\n          const repairDb=repair.result;\n          if(!repairDb.objectStoreNames.contains(ASSET_STORE))repairDb.createObjectStore(ASSET_STORE,{keyPath:'id'});\n        };\n        repair.onsuccess=()=>resolve(repair.result);\n        repair.onerror=()=>reject(repair.error);\n      };\n      req.onerror=()=>reject(req.error);\n    });\n  }\n"
-          if old in text:
+
+          path=pathlib.Path('index.html')
+          text=path.read_text()
+          original=text
+
+          def replace_once(old,new,label):
+              global text
+              count=text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 match, found {count}')
               text=text.replace(old,new,1)
-              index.write_text(text)
-              print('Patched creativeAssets IndexedDB migration.')
-          elif new in text:
-              print('IndexedDB migration already patched.')
-          else:
-              raise SystemExit('Could not locate guarded creative asset database function.')
-          w,h=1080,1350
-          navy=(3,18,39)
-          top,mid,bottom=560,890,h-1
-          im=Image.new('RGBA',(w,h),(0,0,0,0))
-          px=im.load()
-          for y in range(h):
-              if y<=top: alpha=0
-              elif y<=mid:
-                  t=(y-top)/(mid-top)
-                  alpha=round(120*(t*t))
-              else:
-                  t=(y-mid)/(bottom-mid)
-                  alpha=round(120+(125*(1-(1-t)*(1-t))))
-              alpha=max(0,min(245,alpha))
-              for x in range(w): px[x,y]=(*navy,alpha)
-          footer=pathlib.Path('assets/Reference/HERO_FOOTER_OVERLAY_v1.png')
-          im.save(footer,'PNG',optimize=True)
-          check=Image.open(footer).convert('RGBA')
-          assert check.size==(1080,1350)
-          assert check.getpixel((540,100))[3]==0
-          assert check.getpixel((540,1349))[3]>=235
-          print('Built clean smooth Hero footer gradient.')
+              print('patched:',label)
+
+          # The deployed Hero canvas is 1080x1350 (4:5), not 2:3.
+          replace_once(
+              '#heroCanvas{aspect-ratio:2/3 !important;object-fit:contain;cursor:grab;touch-action:none}',
+              '#heroCanvas{aspect-ratio:4/5 !important;object-fit:contain;cursor:grab;touch-action:none;border:0!important;outline:0!important}',
+              'Hero display aspect ratio and canvas border'
+          )
+
+          # Save/reopen must preserve the same large pixel offsets that the native drag handler already produces.
+          replace_once(
+              "  function normalizePhotoTransform(scale=1,x=0,y=0){\n    const s=Math.max(1,Math.min(3,+scale||1));\n    const nx=Math.max(-100,Math.min(100,+x||0));\n    const ny=Math.max(-100,Math.min(100,+y||0));\n    return {scale:s,x:nx,y:ny};\n  }",
+              "  function normalizePhotoTransform(scale=1,x=0,y=0){\n    const s=Math.max(1,Math.min(4,+scale||1));\n    const nx=Math.max(-1800,Math.min(1800,+x||0));\n    const ny=Math.max(-1800,Math.min(1800,+y||0));\n    return {scale:s,x:nx,y:ny};\n  }",
+              'Hero transform persistence range'
+          )
+
+          # Give the native grab-and-drag crop useful movement even at its default 100% control value.
+          replace_once(
+              "  function heroBaseScale(){\n    if(!heroSourceImage)return 1;\n    const img=heroSourceImage.img;\n    return Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight);\n  }",
+              "  function heroBaseScale(){\n    if(!heroSourceImage)return 1;\n    const img=heroSourceImage.img;\n    return Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight)*1.12;\n  }",
+              'Hero default crop overscan'
+          )
+
+          replace_once(
+              '<input id="heroBuilderScale" type="range" min="1" max="3" step="0.01" value="1">',
+              '<input id="heroBuilderScale" type="range" min="1" max="4" step="0.01" value="1">',
+              'Hero zoom range'
+          )
+
+          # The visible white rounded frame was being drawn by the native renderer after the card itself.
+          replace_once(
+              "\n    // Locked border\n    g.strokeStyle='rgba(255,255,255,.94)';g.lineWidth=4;\n    drawRoundedRect(g,18,18,HERO_W-36,HERO_H-36,28);g.stroke();",
+              "",
+              'Remove unwanted Hero border'
+          )
+
+          # Use the approved condensed/italic sports typography family in the native approved renderer.
+          replacements={
+            "s=>`900 ${s}px Arial`":"s=>`900 ${s}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`",
+            "g.font=`900 ${firstSize}px Arial`;":"g.font=`900 ${firstSize}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`;",
+            "s=>`italic 900 ${s}px Arial`":"s=>`italic 900 ${s}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`",
+            "g.font=`italic 900 ${lastSize}px Arial`;":"g.font=`italic 900 ${lastSize}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`;"
+          }
+          for old,new in replacements.items():
+              count=text.count(old)
+              if count < 1:
+                  raise SystemExit(f'Hero typography: missing expected token {old!r}')
+              text=text.replace(old,new)
+              print('patched typography token',old,'count',count)
+
+          # Make the approved upper treatment fade into the portrait instead of reading as a hard flat band.
+          marker="    drawPhotoLayer(g);\n\n    const first=(e.first.value||'FIRST').toUpperCase();"
+          if text.count(marker)!=1:
+              raise SystemExit(f'Hero top fade anchor: expected 1 match, found {text.count(marker)}')
+          replacement="    drawPhotoLayer(g);\n\n    if(e.design.value==='approved'){\n      const topFade=g.createLinearGradient(0,170,0,330);\n      topFade.addColorStop(0,'rgba(245,246,247,.72)');\n      topFade.addColorStop(.32,'rgba(245,246,247,.30)');\n      topFade.addColorStop(1,'rgba(245,246,247,0)');\n      g.fillStyle=topFade;g.fillRect(0,165,HERO_W,170);\n    }\n\n    const first=(e.first.value||'FIRST').toUpperCase();"
+          text=text.replace(marker,replacement,1)
+          print('patched: Hero top gradient transition')
+
+          if text == original:
+              raise SystemExit('No changes were made.')
+          path.write_text(text)
           PY
 
-      - name: Validate targeted changes
+      - name: Validate native Hero patch
         shell: bash
         run: |
           python3 - <<'PY'
           import pathlib
-          from PIL import Image
-          text=pathlib.Path('index.html').read_text()
-          assert "indexedDB.open(ASSET_DB,2)" in text
-          assert "repair.onupgradeneeded" in text
-          footer=Image.open('assets/Reference/HERO_FOOTER_OVERLAY_v1.png').convert('RGBA')
-          assert footer.size==(1080,1350)
-          assert footer.getpixel((540,100))[3]==0
-          assert footer.getpixel((540,1349))[3]>=235
-          print('PASS: upload migration and smooth gradient validated.')
+          t=pathlib.Path('index.html').read_text()
+          assert '#heroCanvas{aspect-ratio:4/5 !important' in t
+          assert 'Math.min(4,+scale||1)' in t
+          assert 'Math.max(-1800,Math.min(1800,+x||0))' in t
+          assert 'Math.max(-1800,Math.min(1800,+y||0))' in t
+          assert 'Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight)*1.12' in t
+          assert '// Locked border' not in t
+          assert "const topFade=g.createLinearGradient(0,170,0,330);" in t
+          assert 'Avenir Next Condensed' in t
+          print('PASS: native Hero renderer patched and validated.')
           PY
 
-      - name: Commit focused Hero repair
+      - name: Commit native Hero repair
         shell: bash
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add index.html assets/Reference/HERO_FOOTER_OVERLAY_v1.png
+          git add index.html
           if git diff --cached --quiet; then
-            echo 'Hero upload and gradient are already correct.'
+            echo 'Native Hero renderer is already patched.'
             exit 0
           fi
-          git commit -m 'Fix Hero photo upload and smooth footer gradient'
+          git commit -m 'Fix native Hero drag border gradient and typography'
           git push
