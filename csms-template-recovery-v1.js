@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260812-studio-bootstrap-v1';
+const VERSION='20260812-studio-bootstrap-v2';
 function load(src){
   return new Promise((resolve,reject)=>{
     const s=document.createElement('script');
@@ -15,7 +15,8 @@ function load(src){
   try{
     await load('csms-template-recovery-core-v1.js');
     await load('hero-card-rebuild-v1.js');
-    console.info('[CSMS bootstrap]',{ok:true,version:VERSION,recoveryCore:true,heroRebuild:true});
+    await load('hero-card-compat-v1.js');
+    console.info('[CSMS bootstrap]',{ok:true,version:VERSION,recoveryCore:true,heroRebuild:true,heroCompatibility:true});
   }catch(err){
     console.error('[CSMS bootstrap]',err);
     const banner=document.createElement('div');
