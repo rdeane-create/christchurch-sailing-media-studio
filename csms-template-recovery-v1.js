@@ -2,17 +2,27 @@
 'use strict';
 const HEADER_FILES=['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js'];
 const RECOVERY_FILES=['recovery-exact-1.js','recovery-exact-2.js','recovery-exact-3.js'];
-const VERSION='20260811-approved-unit-v3';
+const VERSION='20260812-approved-unit-v4';
 
-function loadScript(src){
-  return new Promise((resolve,reject)=>{
-    const s=document.createElement('script');
-    s.src=src+'?v='+VERSION;
-    s.async=false;
-    s.onload=()=>{s.remove();resolve();};
-    s.onerror=()=>{s.remove();reject(new Error('Could not load '+src));};
-    document.head.appendChild(s);
-  });
+async function fetchPayloadChunk(src){
+  const r=await fetch(src+'?v='+VERSION,{cache:'no-store'});
+  if(!r.ok)throw new Error('Could not fetch '+src+' ('+r.status+')');
+  const text=await r.text();
+  const marker="+'";
+  const start=text.indexOf(marker);
+  if(start<0)throw new Error('Payload marker not found in '+src);
+  let payload=text.slice(start+marker.length);
+  const close=payload.indexOf("';");
+  if(close>=0)payload=payload.slice(0,close);
+  payload=payload.replace(/[^A-Za-z0-9+/=]/g,'');
+  if(!payload)throw new Error('Payload is empty in '+src);
+  return payload;
+}
+
+async function joinPayload(files){
+  let out='';
+  for(const f of files)out+=await fetchPayloadChunk(f);
+  return out;
 }
 
 async function gunzipBase64(b64){
@@ -41,19 +51,13 @@ function adaptApprovedSource(source){
 
 (async()=>{
   try{
-    // Load the original approved header chunks exactly as authored. They
-    // concatenate their payload into this variable; no parsing is involved.
-    window.__CSMS_HERO_HEADER_B64='';
-    for(const f of HEADER_FILES)await loadScript(f);
-    const header=window.__CSMS_HERO_HEADER_B64||'';
-    if(!header)throw new Error('Approved Hero header did not load.');
+    // Recovery chunk files are treated strictly as data, never executed as JS.
+    const header=await joinPayload(HEADER_FILES);
+    if(!header.startsWith('UklGR'))throw new Error('Approved Hero header payload is not a WebP image.');
     window.__CSMS_APPROVED_HERO_HEADER_URI='data:image/webp;base64,'+header;
 
-    // Load the original approved recovery package chunks exactly as authored.
-    window.__CSMS_RECOVERY_GZ='';
-    for(const f of RECOVERY_FILES)await loadScript(f);
-    const packed=window.__CSMS_RECOVERY_GZ||'';
-    if(!packed)throw new Error('Approved recovery package did not load.');
+    const packed=await joinPayload(RECOVERY_FILES);
+    if(!packed.startsWith('H4sI'))throw new Error('Approved recovery package payload is not gzip data.');
 
     let source=await gunzipBase64(packed);
     source=adaptApprovedSource(source);
