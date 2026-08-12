@@ -143,7 +143,7 @@
   .athleteItem img{width:42px;height:52px;object-fit:cover;border-radius:7px}
   .athleteItem span{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .tiny{padding:7px 9px;font-size:12px}
-  #heroCanvas{aspect-ratio:2/3 !important;object-fit:contain;cursor:grab;touch-action:none}
+  #heroCanvas{aspect-ratio:4/5 !important;object-fit:contain;cursor:grab;touch-action:none;border:0!important;outline:0!important}
   #previewTitleBtn{min-height:44px}
   .titleTag{font-size:11px;letter-spacing:.16em;text-transform:uppercase}
   .brandGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -2867,7 +2867,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           <div class="control"><label for="heroBuilderGraduationYearInput">Graduation Year</label><input id="heroBuilderGraduationYearInput" type="text" placeholder="Class of 2027"></div>
           <div class="control"><label for="heroBuilderOptionalTextInput">Optional Text Line</label><input id="heroBuilderOptionalTextInput" type="text" placeholder="Optional"></div>
           <h3>Photo Position</h3>
-          <div class="control"><label for="heroBuilderScale">Scale</label><input id="heroBuilderScale" type="range" min="1" max="3" step="0.01" value="1"></div>
+          <div class="control"><label for="heroBuilderScale">Scale</label><input id="heroBuilderScale" type="range" min="1" max="4" step="0.01" value="1"></div>
           <div class="control"><label for="heroBuilderOffsetX">Horizontal Position</label><input id="heroBuilderOffsetX" type="range" min="-100" max="100" value="0"></div>
           <div class="control"><label for="heroBuilderOffsetY">Vertical Position</label><input id="heroBuilderOffsetY" type="range" min="-100" max="100" value="0"></div>
           <button id="heroBuilderResetCropBtn" class="secondary" type="button">Reset Crop</button>
@@ -4572,7 +4572,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function heroBaseScale(){
     if(!heroSourceImage)return 1;
     const img=heroSourceImage.img;
-    return Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight);
+    return Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight)*1.12;
   }
 
   function fitFullPortrait(){
@@ -4653,15 +4653,15 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       g.translate(54,1002);
       g.transform(1,0,-0.13,1,0,0);
 
-      const firstSize=fitHeroText(g,first,maxWidth,124,72,s=>`900 ${s}px Arial`);
-      g.font=`900 ${firstSize}px Arial`;
+      const firstSize=fitHeroText(g,first,maxWidth,124,72,s=>`900 ${s}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`);
+      g.font=`900 ${firstSize}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`;
       g.fillStyle='rgba(5,18,40,.42)';
       g.fillText(first,4,5);
       g.fillStyle='#f8fafc';
       g.fillText(first,0,0);
 
-      const lastSize=fitHeroText(g,last,maxWidth,158,88,s=>`italic 900 ${s}px Arial`);
-      g.font=`italic 900 ${lastSize}px Arial`;
+      const lastSize=fitHeroText(g,last,maxWidth,158,88,s=>`italic 900 ${s}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`);
+      g.font=`italic 900 ${lastSize}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`;
       g.fillStyle='rgba(5,18,40,.38)';
       g.fillText(last,5,firstSize+28);
       g.fillStyle='#ff6f18';
@@ -4679,8 +4679,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     }
 
     if(style==='stacked'){
-      const firstSize=fitHeroText(g,first,maxWidth,122,70,s=>`900 ${s}px Arial`);
-      g.font=`900 ${firstSize}px Arial`;
+      const firstSize=fitHeroText(g,first,maxWidth,122,70,s=>`900 ${s}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`);
+      g.font=`900 ${firstSize}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`;
       g.fillStyle='rgba(5,18,40,.42)';
       g.fillText(first,63,1008);
       g.fillStyle='#f8fafc';
@@ -4689,8 +4689,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       g.save();
       g.translate(58,1125);
       g.rotate(-0.018);
-      const lastSize=fitHeroText(g,last,maxWidth,158,88,s=>`italic 900 ${s}px Arial`);
-      g.font=`italic 900 ${lastSize}px Arial`;
+      const lastSize=fitHeroText(g,last,maxWidth,158,88,s=>`italic 900 ${s}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`);
+      g.font=`italic 900 ${lastSize}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`;
       g.fillStyle='rgba(5,18,40,.38)';
       g.fillText(last,5,6);
       g.fillStyle='#ff6f18';
@@ -4712,7 +4712,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     g.translate(54,994);
     g.rotate(-0.008);
 
-    const firstSize=fitHeroText(g,first,maxWidth,120,70,s=>`italic 900 ${s}px Arial`);
+    const firstSize=fitHeroText(g,first,maxWidth,120,70,s=>`italic 900 ${s}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`);
     g.font=`italic 900 ${firstSize}px Arial`;
     g.fillStyle='rgba(5,18,40,.36)';
     g.fillText(first,4,5);
@@ -4720,8 +4720,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     g.fillText(first,0,0);
 
     const lastY=firstSize*.90+18;
-    const lastSize=fitHeroText(g,last,maxWidth,166,92,s=>`italic 900 ${s}px Arial`);
-    g.font=`italic 900 ${lastSize}px Arial`;
+    const lastSize=fitHeroText(g,last,maxWidth,166,92,s=>`italic 900 ${s}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`);
+    g.font=`italic 900 ${lastSize}px \"Avenir Next Condensed\",\"Helvetica Neue Condensed\",\"Arial Narrow\",sans-serif`;
     g.fillStyle='rgba(5,18,40,.34)';
     g.fillText(last,5,lastY+6);
     g.fillStyle='#ff6f18';
@@ -4893,6 +4893,14 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
     drawPhotoLayer(g);
 
+    if(e.design.value==='approved'){
+      const topFade=g.createLinearGradient(0,170,0,330);
+      topFade.addColorStop(0,'rgba(245,246,247,.72)');
+      topFade.addColorStop(.32,'rgba(245,246,247,.30)');
+      topFade.addColorStop(1,'rgba(245,246,247,0)');
+      g.fillStyle=topFade;g.fillRect(0,165,HERO_W,170);
+    }
+
     const first=(e.first.value||'FIRST').toUpperCase();
     const last=(e.last.value||'LAST').toUpperCase();
     const year=e.year.value||'YEAR';
@@ -4901,9 +4909,6 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     else if(e.design.value==='broadcast')drawBroadcastHero(g,first,last,year);
     else drawApprovedHero(g,first,last,year);
 
-    // Locked border
-    g.strokeStyle='rgba(255,255,255,.94)';g.lineWidth=4;
-    drawRoundedRect(g,18,18,HERO_W-36,HERO_H-36,28);g.stroke();
 
     drawHeroGuide(g);
 
@@ -15338,9 +15343,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   function normalizePhotoTransform(transform){
     return {
-      scale:Number.isFinite(transform?.scale)?Math.max(1,Math.min(3,transform.scale)):1,
-      cropX:Number.isFinite(transform?.cropX)?Math.max(-100,Math.min(100,transform.cropX)):0,
-      cropY:Number.isFinite(transform?.cropY)?Math.max(-100,Math.min(100,transform.cropY)):0,
+      scale:Number.isFinite(transform?.scale)?Math.max(1,Math.min(4,transform.scale)):1,
+      cropX:Number.isFinite(transform?.cropX)?Math.max(-1800,Math.min(1800,transform.cropX)):0,
+      cropY:Number.isFinite(transform?.cropY)?Math.max(-1800,Math.min(1800,transform.cropY)):0,
       rotation:Number.isFinite(transform?.rotation)?Math.max(-180,Math.min(180,transform.rotation)):0,
       opacity:Number.isFinite(transform?.opacity)?Math.max(0.1,Math.min(1,transform.opacity)):1,
       fitMode:transform?.fitMode==='fit'?'fit':'fill',
