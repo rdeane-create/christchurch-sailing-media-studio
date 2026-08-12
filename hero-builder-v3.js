@@ -1,0 +1,142 @@
+(()=>{
+'use strict';
+/*
+  Christchurch Hero Builder v3
+  Clean rebuild from approved visual master.
+  No dependency on the legacy Creative Studio Hero renderer or Hero v2.
+*/
+const VERSION='3.0.0';
+const W=1023,H=1537;
+const DB_NAME='ChristchurchMediaStudio',STORE='media';
+const HEADER_SRC='assets/HeroV3/hero-header-master.png';
+const ORANGE='#e83b08';
+const NAVY='#01101d';
+const FONT='"Avenir Next Condensed","Helvetica Neue Condensed","Arial Narrow",sans-serif';
+
+const state={
+  active:false,installed:false,dragging:false,lastX:0,lastY:0,
+  projectName:'Hero Card — Untitled',firstName:'WYLDER',lastName:'SMITH',year:'CLASS OF 2027',optional:'',
+  scale:1,offsetX:0,offsetY:0,photoFile:null,photoImg:null,headerImg:null,canvas:null,ctx:null
+};
+const q=id=>document.getElementById(id);
+const ui=()=>({
+  builder:q('heroCardBuilder'),wrap:q('heroBuilderCanvasWrap'),status:q('heroBuilderStatus'),project:q('heroBuilderProjectName'),upload:q('heroBuilderUploadPhotoBtn'),
+  saved:q('heroBuilderSavedHeroes'),save:q('heroBuilderSaveBtn'),saveBottom:q('heroBuilderSaveBottomBtn'),exportBottom:q('heroBuilderExportBottomBtn'),
+  next:q('heroBuilderCreateNextBtn'),nextBottom:q('heroBuilderCreateNextBottomBtn'),back:q('heroBuilderBackTemplatesBtn'),first:q('heroBuilderFirstNameInput'),last:q('heroBuilderLastNameInput'),
+  year:q('heroBuilderGraduationYearInput'),optional:q('heroBuilderOptionalTextInput'),scale:q('heroBuilderScale'),x:q('heroBuilderOffsetX'),y:q('heroBuilderOffsetY'),reset:q('heroBuilderResetCropBtn')
+});
+const status=msg=>{const e=ui().status;if(e)e.textContent=msg;};
+
+function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Unable to load '+src));i.src=src+'?v='+VERSION;});}
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function getAll(){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readonly');const r=tx.objectStore(STORE).getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error);});}
+async function put(rec){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(rec);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+
+function ensureCanvas(){
+  const e=ui();if(!e.wrap)return;
+  if(!state.canvas){
+    const c=document.createElement('canvas');
+    c.id='heroBuilderV3Canvas';c.width=W;c.height=H;c.tabIndex=0;
+    c.style.width='min(100%,511px)';c.style.height='auto';c.style.aspectRatio=`${W}/${H}`;c.style.display='block';c.style.margin='0 auto';
+    c.style.background='#fff';c.style.border='0';c.style.borderRadius='0';c.style.boxShadow='0 18px 50px rgba(7,21,47,.22)';c.style.cursor='grab';c.style.touchAction='none';
+    state.canvas=c;state.ctx=c.getContext('2d',{alpha:false});
+    bindCanvasDrag(c);
+  }
+  ['creativeCanvas','heroMasterCanvasV2'].forEach(id=>{const old=q(id);if(old)old.style.display='none';});
+  if(state.canvas.parentElement!==e.wrap){e.wrap.replaceChildren(state.canvas);}
+}
+
+function bindCanvasDrag(c){
+  const point=ev=>{const r=c.getBoundingClientRect();return {x:(ev.clientX-r.left)*(W/r.width),y:(ev.clientY-r.top)*(H/r.height)};};
+  c.addEventListener('pointerdown',ev=>{if(!state.photoImg)return;ev.preventDefault();const p=point(ev);state.dragging=true;state.lastX=p.x;state.lastY=p.y;c.setPointerCapture(ev.pointerId);c.style.cursor='grabbing';});
+  c.addEventListener('pointermove',ev=>{if(!state.dragging)return;ev.preventDefault();const p=point(ev);state.offsetX+=p.x-state.lastX;state.offsetY+=p.y-state.lastY;state.lastX=p.x;state.lastY=p.y;syncCropFields();render();});
+  const stop=ev=>{if(!state.dragging)return;state.dragging=false;c.style.cursor='grab';try{c.releasePointerCapture(ev.pointerId);}catch(_){};};
+  c.addEventListener('pointerup',stop);c.addEventListener('pointercancel',stop);c.addEventListener('lostpointercapture',()=>{state.dragging=false;c.style.cursor='grab';});
+  c.addEventListener('wheel',ev=>{if(!state.photoImg)return;ev.preventDefault();state.scale=Math.max(1,Math.min(4,state.scale+(ev.deltaY<0?.05:-.05)));syncCropFields();render();},{passive:false});
+}
+
+function drawPhoto(){
+  const img=state.photoImg,ctx=state.ctx;if(!img)return;
+  const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;
+  const base=Math.max(W/iw,H/ih),s=base*Math.max(1,state.scale),dw=iw*s,dh=ih*s;
+  ctx.drawImage(img,(W-dw)/2+state.offsetX,(H-dh)/2+state.offsetY,dw,dh);
+}
+
+function drawBottomTreatment(){
+  const ctx=state.ctx;
+  /* Master-derived fade: begins above the name block and reaches sampled master navy at the base. */
+  const g=ctx.createLinearGradient(0,875,0,H);
+  g.addColorStop(0,'rgba(1,16,29,0)');
+  g.addColorStop(.12,'rgba(1,16,29,.06)');
+  g.addColorStop(.30,'rgba(1,16,29,.24)');
+  g.addColorStop(.50,'rgba(1,16,29,.53)');
+  g.addColorStop(.72,'rgba(1,16,29,.80)');
+  g.addColorStop(1,'rgba(1,14,25,.98)');
+  ctx.fillStyle=g;ctx.fillRect(0,875,W,H-875);
+  /* Fine diagonal master texture. */
+  ctx.save();ctx.beginPath();ctx.rect(0,930,W,H-930);ctx.clip();ctx.strokeStyle='rgba(255,255,255,.035)';ctx.lineWidth=1;
+  for(let x=-H;x<W+H;x+=7){ctx.beginPath();ctx.moveTo(x,H);ctx.lineTo(x+H,0);ctx.stroke();}
+  ctx.restore();
+}
+
+function tracked(text,x,baseline,font,spacing,color,maxWidth){
+  const ctx=state.ctx,s=String(text||'').toUpperCase();if(!s)return;
+  ctx.save();ctx.font=font;ctx.fillStyle=color;ctx.textBaseline='alphabetic';
+  const widths=[...s].map(ch=>ctx.measureText(ch).width);const natural=widths.reduce((a,b)=>a+b,0)+Math.max(0,s.length-1)*spacing;
+  const sx=maxWidth&&natural>maxWidth?maxWidth/natural:1;ctx.translate(x,0);ctx.scale(sx,1);let px=0;
+  [...s].forEach((ch,i)=>{ctx.fillText(ch,px,baseline);px+=widths[i]+spacing;});ctx.restore();
+}
+
+function render(){
+  if(!state.ctx)return;const ctx=state.ctx;
+  ctx.fillStyle='#f4f6f7';ctx.fillRect(0,0,W,H);
+  drawPhoto();
+  if(state.headerImg)ctx.drawImage(state.headerImg,0,0,W,218);
+  drawBottomTreatment();
+  /* Exact master coordinate contract measured from approved 1023×1537 reference. */
+  tracked(state.firstName,68,1173,`italic 600 47px ${FONT}`,15,'#fff',273);
+  tracked(state.lastName,48,1359,`italic 800 188px ${FONT}`,0,'#fff',399);
+  ctx.fillStyle=ORANGE;ctx.fillRect(51,1381,372,5);
+  tracked(state.year,52,1437,`italic 700 39px ${FONT}`,9,ORANGE,371);
+  if(String(state.optional||'').trim())tracked(state.optional,52,1491,`italic 650 31px ${FONT}`,5,'#fff',700);
+}
+
+function syncFields(){const e=ui();if(e.project)e.project.value=state.projectName;if(e.first)e.first.value=state.firstName;if(e.last)e.last.value=state.lastName;if(e.year)e.year.value=state.year;if(e.optional)e.optional.value=state.optional;syncCropFields();}
+function syncCropFields(){const e=ui();if(e.scale)e.scale.value=String(state.scale);if(e.x)e.x.value=String(Math.round(state.offsetX));if(e.y)e.y.value=String(Math.round(state.offsetY));}
+function reset(){state.projectName='Hero Card — Untitled';state.firstName='WYLDER';state.lastName='SMITH';state.year='CLASS OF 2027';state.optional='';state.scale=1;state.offsetX=0;state.offsetY=0;state.photoFile=null;state.photoImg=null;syncFields();render();status('Hero Builder v3 ready. Upload a photo, then drag directly on the card to position it.');}
+
+function choosePhoto(){const inp=document.createElement('input');inp.type='file';inp.accept='image/png,image/jpeg,image/webp';inp.onchange=()=>{const f=inp.files?.[0];if(!f)return;const url=URL.createObjectURL(f);const img=new Image();img.onload=()=>{state.photoFile=f;state.photoImg=img;state.scale=1;state.offsetX=0;state.offsetY=0;URL.revokeObjectURL(url);syncCropFields();render();status('Photo loaded. Drag the photo directly, use the sliders, or scroll over the card to zoom.');};img.onerror=()=>{URL.revokeObjectURL(url);status('Photo could not be loaded.');};img.src=url;};inp.click();}
+function canvasBlob(){return new Promise(res=>state.canvas.toBlob(res,'image/png'));}
+
+async function saveHero(){
+  const blob=await canvasBlob(),all=await getAll(),f=state.firstName.trim(),l=state.lastName.trim();
+  const existing=all.find(r=>(r.type==='athlete'||r.recordType==='athlete')&&String(r.first||r.firstName||'').toLowerCase()===f.toLowerCase()&&String(r.last||r.lastName||'').toLowerCase()===l.toLowerCase());
+  const now=new Date().toISOString();
+  const rec={...(existing||{}),id:existing?.id||`athlete_${Date.now()}`,type:'athlete',recordType:'athlete',first:f,last:l,year:state.year.trim(),firstName:f,lastName:l,graduationYear:state.year.trim(),optional:state.optional.trim(),projectName:state.projectName,originalFile:state.photoFile||existing?.originalFile||null,heroBlob:blob,crop:{scale:state.scale,x:state.offsetX,y:state.offsetY},heroMasterVersion:VERSION,created:existing?.created||now,updated:now};
+  await put(rec);await refreshSaved();status(`${f||'Hero'} ${l||''} saved.`.trim());
+}
+function exportHero(){state.canvas.toBlob(blob=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=[state.firstName,state.lastName,'Hero'].filter(Boolean).join('_').replace(/\s+/g,'_')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2500);status('PNG exported at the master’s native 1023×1537 size.');},'image/png');}
+async function refreshSaved(){const e=ui();if(!e.saved)return;const all=(await getAll()).filter(r=>r.type==='athlete'||r.recordType==='athlete');e.saved.innerHTML='<option value="">Saved Hero Cards</option>';for(const r of all){const o=document.createElement('option');o.value=r.id;o.textContent=`${r.first||r.firstName||''} ${r.last||r.lastName||''}`.trim();e.saved.appendChild(o);}}
+async function loadSaved(id){if(!id)return;const r=(await getAll()).find(x=>x.id===id);if(!r)return;state.projectName=r.projectName||'Hero Card';state.firstName=r.first||r.firstName||'';state.lastName=r.last||r.lastName||'';state.year=r.year||r.graduationYear||'';state.optional=r.optional||'';state.scale=Number(r.crop?.scale||1);state.offsetX=Number(r.crop?.x||0);state.offsetY=Number(r.crop?.y||0);const f=r.originalFile;state.photoFile=f||null;if(f instanceof Blob){const url=URL.createObjectURL(f);const img=new Image();img.onload=()=>{state.photoImg=img;URL.revokeObjectURL(url);syncFields();render();};img.src=url;}else{state.photoImg=null;syncFields();render();}}
+
+function capture(el,type,fn){if(!el)return;const key='heroV3'+type;if(el.dataset[key])return;el.dataset[key]='1';el.addEventListener(type,ev=>{if(!state.active)return;ev.stopImmediatePropagation();fn(ev);},true);}
+function bind(){const e=ui();
+  capture(e.upload,'click',ev=>{ev.preventDefault();choosePhoto();});capture(e.project,'input',()=>{state.projectName=e.project.value;});
+  capture(e.first,'input',()=>{state.firstName=e.first.value;render();});capture(e.last,'input',()=>{state.lastName=e.last.value;render();});capture(e.year,'input',()=>{state.year=e.year.value;render();});capture(e.optional,'input',()=>{state.optional=e.optional.value;render();});
+  capture(e.scale,'input',()=>{state.scale=Math.max(1,Number(e.scale.value)||1);render();});capture(e.x,'input',()=>{state.offsetX=Number(e.x.value)||0;render();});capture(e.y,'input',()=>{state.offsetY=Number(e.y.value)||0;render();});
+  capture(e.reset,'click',ev=>{ev.preventDefault();state.scale=1;state.offsetX=0;state.offsetY=0;syncCropFields();render();});
+  [e.save,e.saveBottom].forEach(b=>capture(b,'click',ev=>{ev.preventDefault();saveHero().catch(err=>{console.error(err);status('Save failed: '+err.message);});}));
+  capture(e.exportBottom,'click',ev=>{ev.preventDefault();exportHero();});[e.next,e.nextBottom].forEach(b=>capture(b,'click',ev=>{ev.preventDefault();reset();}));capture(e.saved,'change',()=>loadSaved(e.saved.value).catch(console.error));
+}
+
+async function activate(){
+  state.active=true;ensureCanvas();bind();syncFields();
+  if(!state.headerImg){status('Loading new locked master header…');try{state.headerImg=await loadImage(HEADER_SRC);}catch(err){console.error(err);status(err.message);return;}}
+  try{await Promise.all([document.fonts.load(`800 188px ${FONT}`),document.fonts.load(`600 47px ${FONT}`)]);}catch(_){}
+  render();refreshSaved().catch(()=>{});status('Hero Builder v3 ready. New master-driven renderer active. Drag directly on the photo to position it.');
+}
+function deactivate(){state.active=false;}
+function watch(){const tick=()=>{const e=ui(),w=q('workspace-creative');const on=!!(e.builder&&!e.builder.hidden&&w&&w.classList.contains('hero-builder-mode'));if(on&&!state.active)activate();else if(!on&&state.active)deactivate();};new MutationObserver(tick).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['hidden','class']});setInterval(tick,700);tick();}
+function init(){if(state.installed)return;state.installed=true;const style=document.createElement('style');style.textContent='#workspace-creative.hero-builder-mode #creativeCanvas,#workspace-creative.hero-builder-mode #heroMasterCanvasV2{display:none!important}#heroBuilderV3Canvas{display:block!important}';document.head.appendChild(style);watch();console.info('Christchurch Hero Builder v3 installed',VERSION);}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
