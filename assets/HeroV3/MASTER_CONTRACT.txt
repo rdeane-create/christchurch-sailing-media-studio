@@ -1,0 +1,9 @@
+HERO BUILDER V3 MASTER CONTRACT
+Source: CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED(1).png
+Canvas: 1023 x 1537
+Header: exact source pixels x=0..1022, y=0..217
+First name bbox: x=68..340, y=1136..1172
+Last name bbox: x=48..446, y=1192..1358
+Orange rule bbox: x=51..422, y=1381..1385
+Class line bbox: x=52..422, y=1412..1436
+Editable: photo, first name, last name, class year, optional text, crop.
