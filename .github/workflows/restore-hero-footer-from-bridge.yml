@@ -32,19 +32,20 @@ jobs:
           FOOTER_FILE_SHA='43e4e717e30cc151960d8aeb7e01dd3ee6150001b411f095a7240aac3237eeba'
           FOOTER_PIXEL_SHA='bf18bf9bf12fe46871b36b583d1bc063fbef67784a6182ea31d0930166bfa916'
 
-          def longest_b64_run(path):
+          def payload_runs(path):
               text=pathlib.Path(path).read_text(errors='ignore')
-              quoted=re.findall(r"\+'([A-Za-z0-9+/=]+)'",text)
-              if quoted:
-                  return ''.join(quoted)
-              runs=re.findall(r'[A-Za-z0-9+/=]{32,}',text)
+              runs=re.findall(r'[A-Za-z0-9+/=]{64,}',text)
               if not runs:
                   raise RuntimeError(f'No base64 payload in {path}')
-              return max(runs,key=len)
+              return runs
 
           def decode_b64_join(paths):
-              s=''.join(longest_b64_run(p) for p in paths)
-              s=re.sub(r'\s+','',s)
+              pieces=[]
+              for p in paths:
+                  pieces.extend(payload_runs(p))
+              s=''.join(pieces)
+              if 'UklGR' in s:
+                  s=s[s.index('UklGR'):]
               s += '='*((4-len(s)%4)%4)
               return base64.b64decode(s)
 
@@ -52,17 +53,15 @@ jobs:
               im=Image.open(io.BytesIO(raw)).convert('RGBA')
               return im.size, hashlib.sha256(im.tobytes()).hexdigest(), im
 
-          # Header: repository chunks contain the approved locked header image.
-          header_raw=decode_b64_join(['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js'])
+          header_paths=['hero-approved-header-1.js','hero-approved-header-2.js','hero-approved-header-3.js']
+          header_raw=decode_b64_join(header_paths)
+          print('Header assembled bytes:',len(header_raw),'magic:',header_raw[:12])
           hsize,hpix,himg=pixel_sha(header_raw)
           if hsize!=(1023,218):
               raise SystemExit(f'Header dimensions mismatch: {hsize}')
           if hpix!=HEADER_PIXEL_SHA:
               raise SystemExit(f'Header pixel checksum mismatch: {hpix}')
 
-          # Native RC5 expects the reference source to be 1023x1537 and crops the
-          # first 218px for the locked header. Keep everything below transparent;
-          # the editable athlete photograph replaces that area in normal use.
           master=Image.new('RGBA',(1023,1537),(0,0,0,0))
           master.paste(himg,(0,0))
           master_path=OUT/'CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png'
@@ -73,7 +72,6 @@ jobs:
               raise SystemExit(f'Reconstructed master header mismatch: {check_sha}')
           print('VERIFIED locked header:',hsize,hpix,'->',master_path,master_path.stat().st_size,'bytes')
 
-          # Footer: try only recovery combinations already present in this repo.
           candidates=[
               ['hero-approved-footer-1.txt','.recovery/footer.exact.part2'],
               ['.recovery/footer.part1','.recovery/footer.exact.part2'],
@@ -95,7 +93,7 @@ jobs:
                       try:
                           size,pix,_=pixel_sha(data)
                       except Exception:
-                          diagnostics.append((paths,label,len(data),digest,'not-image'))
+                          diagnostics.append((paths,label,len(data),digest,'not-image',data[:12]))
                           continue
                       diagnostics.append((paths,label,len(data),digest,size,pix))
                       if digest==FOOTER_FILE_SHA and size==(1080,1350) and pix==FOOTER_PIXEL_SHA:
