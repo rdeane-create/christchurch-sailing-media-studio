@@ -1,7 +1,29 @@
 (function(){
 'use strict';
-// RC5 production uses the native Hero Builder in index.html. The historical
-// recovery bundle is intentionally disabled because its chunk files are data
-// fragments, not standalone JavaScript, and executing them breaks Studio startup.
-console.info('[CSMS] Native RC5 template system active; legacy recovery loader disabled.');
+// Keep the legacy recovery bundle disabled. RC5 uses the native Studio plus
+// the rebuilt Hero composer below.
+const VERSION='20260812-hero-loader-v1';
+function load(src){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=src+'?v='+VERSION;
+    s.async=false;
+    s.onload=()=>{s.remove();resolve();};
+    s.onerror=()=>{s.remove();reject(new Error('Could not load '+src));};
+    document.head.appendChild(s);
+  });
+}
+(async()=>{
+  try{
+    await load('hero-card-rebuild-v1.js');
+    await load('hero-card-compat-v1.js');
+    console.info('[CSMS] Native RC5 active with rebuilt Hero composer; legacy recovery remains disabled.');
+  }catch(err){
+    console.error('[CSMS Hero loader]',err);
+    const banner=document.createElement('div');
+    banner.style.cssText='margin:12px 24px;padding:12px 14px;border-radius:10px;background:#fff1f0;color:#9f1d16;border:1px solid #ffc9c5;font-weight:700';
+    banner.textContent='Hero module load error: '+(err&&err.message?err.message:String(err));
+    (document.querySelector('main')||document.body).prepend(banner);
+  }
+})();
 })();
