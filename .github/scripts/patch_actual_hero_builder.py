@@ -16,16 +16,22 @@ def sub_once(pattern,repl,label,flags=0):
     print('patched:',label)
 
 # Patch only the four locked Hero text-layer definitions. Match by textKey so
-# prior spacing/property edits do not defeat the guard.
+# prior spacing/property edits do not defeat the guard. Preserve whether the
+# source line ends with a comma so the final array item remains valid JS.
 layer_specs={
- 'firstName': "{id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:60,y:992,w:560,h:58,fontSize:50,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:11,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'headline'},",
- 'lastName': "{id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1050,w:690,h:122,fontSize:116,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:1,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'},",
- 'graduationYear': "{id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1198,w:650,h:42,fontSize:38,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:9,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'},",
- 'achievement': "{id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1248,w:840,h:34,fontSize:28,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:4,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'},",
+ 'firstName': "{id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:60,y:992,w:560,h:58,fontSize:50,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:11,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'headline'}",
+ 'lastName': "{id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1050,w:690,h:122,fontSize:116,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:1,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'}",
+ 'graduationYear': "{id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1198,w:650,h:42,fontSize:38,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:9,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'}",
+ 'achievement': "{id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1248,w:840,h:34,fontSize:28,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:4,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}",
 }
-for key,repl in layer_specs.items():
-    pat=r"\{id:cId\('layer'\),type:'text',name:'[^']+',textKey:'"+re.escape(key)+r"'[^\n]*\},"
-    sub_once(pat,repl,f'Hero {key} locked layer')
+for key,base_repl in layer_specs.items():
+    pat=r"\{id:cId\('layer'\),type:'text',name:'[^']+',textKey:'"+re.escape(key)+r"'[^\n]*\}(,?)"
+    matches=list(re.finditer(pat,t))
+    if len(matches)!=1:
+        raise SystemExit(f'Hero {key} locked layer: expected exactly 1 match, found {len(matches)}')
+    comma=matches[0].group(1)
+    t=t[:matches[0].start()]+base_repl+comma+t[matches[0].end():]
+    print('patched:',f'Hero {key} locked layer')
 
 # Normalize saved Hero cards too. Replace exactly one lockedType object inside
 # the Hero lock-policy path, irrespective of the values left by earlier passes.
