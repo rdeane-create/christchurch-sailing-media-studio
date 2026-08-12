@@ -23,96 +23,40 @@ jobs:
           python3 - <<'PY'
           import pathlib
           from PIL import Image
-
-          index = pathlib.Path('index.html')
-          text = index.read_text()
-
-          old = """  function openCreativeAssetDB(){
-    return new Promise((resolve,reject)=>{
-      const req=indexedDB.open(ASSET_DB,1);
-      req.onupgradeneeded=()=>{
-        const db=req.result;
-        if(!db.objectStoreNames.contains(ASSET_STORE))db.createObjectStore(ASSET_STORE,{keyPath:'id'});
-      };
-      req.onsuccess=()=>resolve(req.result);
-      req.onerror=()=>reject(req.error);
-    });
-  }
-"""
-
-          new = """  function openCreativeAssetDB(){
-    return new Promise((resolve,reject)=>{
-      // v2 repairs older browser databases that were created without the
-      // creativeAssets object store. Existing data in other databases is untouched.
-      const req=indexedDB.open(ASSET_DB,2);
-      req.onupgradeneeded=()=>{
-        const db=req.result;
-        if(!db.objectStoreNames.contains(ASSET_STORE))db.createObjectStore(ASSET_STORE,{keyPath:'id'});
-      };
-      req.onsuccess=()=>{
-        const db=req.result;
-        if(db.objectStoreNames.contains(ASSET_STORE)){
-          resolve(db);
-          return;
-        }
-        const nextVersion=Math.max(2,Number(db.version||1)+1);
-        db.close();
-        const repair=indexedDB.open(ASSET_DB,nextVersion);
-        repair.onupgradeneeded=()=>{
-          const repairDb=repair.result;
-          if(!repairDb.objectStoreNames.contains(ASSET_STORE))repairDb.createObjectStore(ASSET_STORE,{keyPath:'id'});
-        };
-        repair.onsuccess=()=>resolve(repair.result);
-        repair.onerror=()=>reject(repair.error);
-      };
-      req.onerror=()=>reject(req.error);
-    });
-  }
-"""
-
-          if old not in text:
-              if new not in text:
-                  raise SystemExit('Could not locate openCreativeAssetDB for guarded patch.')
-          else:
-              text = text.replace(old, new, 1)
+          index=pathlib.Path('index.html')
+          text=index.read_text()
+          old="  function openCreativeAssetDB(){\n    return new Promise((resolve,reject)=>{\n      const req=indexedDB.open(ASSET_DB,1);\n      req.onupgradeneeded=()=>{\n        const db=req.result;\n        if(!db.objectStoreNames.contains(ASSET_STORE))db.createObjectStore(ASSET_STORE,{keyPath:'id'});\n      };\n      req.onsuccess=()=>resolve(req.result);\n      req.onerror=()=>reject(req.error);\n    });\n  }\n"
+          new="  function openCreativeAssetDB(){\n    return new Promise((resolve,reject)=>{\n      const req=indexedDB.open(ASSET_DB,2);\n      req.onupgradeneeded=()=>{\n        const db=req.result;\n        if(!db.objectStoreNames.contains(ASSET_STORE))db.createObjectStore(ASSET_STORE,{keyPath:'id'});\n      };\n      req.onsuccess=()=>{\n        const db=req.result;\n        if(db.objectStoreNames.contains(ASSET_STORE)){resolve(db);return;}\n        const nextVersion=Math.max(2,Number(db.version||1)+1);\n        db.close();\n        const repair=indexedDB.open(ASSET_DB,nextVersion);\n        repair.onupgradeneeded=()=>{\n          const repairDb=repair.result;\n          if(!repairDb.objectStoreNames.contains(ASSET_STORE))repairDb.createObjectStore(ASSET_STORE,{keyPath:'id'});\n        };\n        repair.onsuccess=()=>resolve(repair.result);\n        repair.onerror=()=>reject(repair.error);\n      };\n      req.onerror=()=>reject(req.error);\n    });\n  }\n"
+          if old in text:
+              text=text.replace(old,new,1)
               index.write_text(text)
-              print('Patched IndexedDB creativeAssets migration.')
-
-          # Build the requested clean footer treatment: full-size transparent PNG
-          # with a smooth navy fade only. No texture, stripes, frame, or hard edge.
-          w, h = 1080, 1350
-          navy = (3, 18, 39)
-          top = 560
-          mid = 890
-          bottom = h - 1
-          im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-          px = im.load()
+              print('Patched creativeAssets IndexedDB migration.')
+          elif new in text:
+              print('IndexedDB migration already patched.')
+          else:
+              raise SystemExit('Could not locate guarded creative asset database function.')
+          w,h=1080,1350
+          navy=(3,18,39)
+          top,mid,bottom=560,890,h-1
+          im=Image.new('RGBA',(w,h),(0,0,0,0))
+          px=im.load()
           for y in range(h):
-              if y <= top:
-                  alpha = 0
-              elif y <= mid:
-                  t = (y-top)/(mid-top)
-                  # Gentle ease-in so the portrait remains visually full-bleed.
-                  alpha = round(120*(t*t))
+              if y<=top: alpha=0
+              elif y<=mid:
+                  t=(y-top)/(mid-top)
+                  alpha=round(120*(t*t))
               else:
-                  t = (y-mid)/(bottom-mid)
-                  # Smoothly deepen to navy behind the name/class text.
-                  alpha = round(120 + (125*(1-(1-t)*(1-t))))
-              alpha = max(0, min(245, alpha))
-              for x in range(w):
-                  px[x,y] = (*navy, alpha)
-
-          footer = pathlib.Path('assets/Reference/HERO_FOOTER_OVERLAY_v1.png')
-          footer.parent.mkdir(parents=True, exist_ok=True)
-          im.save(footer, 'PNG', optimize=True)
-          check = Image.open(footer).convert('RGBA')
-          if check.size != (1080,1350):
-              raise SystemExit(f'Gradient footer dimensions incorrect: {check.size}')
-          if check.getpixel((540,0))[3] != 0:
-              raise SystemExit('Gradient footer must be transparent at the top.')
-          if check.getpixel((540,1349))[3] < 235:
-              raise SystemExit('Gradient footer is not dark enough at the bottom.')
-          print('Built smooth transparent-to-navy Hero footer gradient.')
+                  t=(y-mid)/(bottom-mid)
+                  alpha=round(120+(125*(1-(1-t)*(1-t))))
+              alpha=max(0,min(245,alpha))
+              for x in range(w): px[x,y]=(*navy,alpha)
+          footer=pathlib.Path('assets/Reference/HERO_FOOTER_OVERLAY_v1.png')
+          im.save(footer,'PNG',optimize=True)
+          check=Image.open(footer).convert('RGBA')
+          assert check.size==(1080,1350)
+          assert check.getpixel((540,100))[3]==0
+          assert check.getpixel((540,1349))[3]>=235
+          print('Built clean smooth Hero footer gradient.')
           PY
 
       - name: Validate targeted changes
@@ -128,7 +72,7 @@ jobs:
           assert footer.size==(1080,1350)
           assert footer.getpixel((540,100))[3]==0
           assert footer.getpixel((540,1349))[3]>=235
-          print('PASS: upload DB migration and smooth gradient validated.')
+          print('PASS: upload migration and smooth gradient validated.')
           PY
 
       - name: Commit focused Hero repair
