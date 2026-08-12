@@ -32,21 +32,18 @@ jobs:
               text=text.replace(old,new,1)
               print('patched:',label)
 
-          # The deployed Hero canvas is 1080x1350 (4:5), not 2:3.
           replace_once(
               '#heroCanvas{aspect-ratio:2/3 !important;object-fit:contain;cursor:grab;touch-action:none}',
               '#heroCanvas{aspect-ratio:4/5 !important;object-fit:contain;cursor:grab;touch-action:none;border:0!important;outline:0!important}',
               'Hero display aspect ratio and canvas border'
           )
 
-          # Save/reopen must preserve the same large pixel offsets that the native drag handler already produces.
           replace_once(
-              "  function normalizePhotoTransform(scale=1,x=0,y=0){\n    const s=Math.max(1,Math.min(3,+scale||1));\n    const nx=Math.max(-100,Math.min(100,+x||0));\n    const ny=Math.max(-100,Math.min(100,+y||0));\n    return {scale:s,x:nx,y:ny};\n  }",
-              "  function normalizePhotoTransform(scale=1,x=0,y=0){\n    const s=Math.max(1,Math.min(4,+scale||1));\n    const nx=Math.max(-1800,Math.min(1800,+x||0));\n    const ny=Math.max(-1800,Math.min(1800,+y||0));\n    return {scale:s,x:nx,y:ny};\n  }",
+              "  function normalizePhotoTransform(transform){\n    return {\n      scale:Number.isFinite(transform?.scale)?Math.max(1,Math.min(3,transform.scale)):1,\n      cropX:Number.isFinite(transform?.cropX)?Math.max(-100,Math.min(100,transform.cropX)):0,\n      cropY:Number.isFinite(transform?.cropY)?Math.max(-100,Math.min(100,transform.cropY)):0,",
+              "  function normalizePhotoTransform(transform){\n    return {\n      scale:Number.isFinite(transform?.scale)?Math.max(1,Math.min(4,transform.scale)):1,\n      cropX:Number.isFinite(transform?.cropX)?Math.max(-1800,Math.min(1800,transform.cropX)):0,\n      cropY:Number.isFinite(transform?.cropY)?Math.max(-1800,Math.min(1800,transform.cropY)):0,",
               'Hero transform persistence range'
           )
 
-          # Give the native grab-and-drag crop useful movement even at its default 100% control value.
           replace_once(
               "  function heroBaseScale(){\n    if(!heroSourceImage)return 1;\n    const img=heroSourceImage.img;\n    return Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight);\n  }",
               "  function heroBaseScale(){\n    if(!heroSourceImage)return 1;\n    const img=heroSourceImage.img;\n    return Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight)*1.12;\n  }",
@@ -59,33 +56,30 @@ jobs:
               'Hero zoom range'
           )
 
-          # The visible white rounded frame was being drawn by the native renderer after the card itself.
           replace_once(
               "\n    // Locked border\n    g.strokeStyle='rgba(255,255,255,.94)';g.lineWidth=4;\n    drawRoundedRect(g,18,18,HERO_W-36,HERO_H-36,28);g.stroke();",
               "",
               'Remove unwanted Hero border'
           )
 
-          # Use the approved condensed/italic sports typography family in the native approved renderer.
-          replacements={
-            "s=>`900 ${s}px Arial`":"s=>`900 ${s}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`",
-            "g.font=`900 ${firstSize}px Arial`;":"g.font=`900 ${firstSize}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`;",
-            "s=>`italic 900 ${s}px Arial`":"s=>`italic 900 ${s}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`",
-            "g.font=`italic 900 ${lastSize}px Arial`;":"g.font=`italic 900 ${lastSize}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`;"
-          }
-          for old,new in replacements.items():
+          # The approved Hero styles use these exact typography calls. Replace only those known calls.
+          typography=[
+              ("s=>`900 ${s}px Arial`","s=>`900 ${s}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`"),
+              ("g.font=`900 ${firstSize}px Arial`;","g.font=`900 ${firstSize}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`;"),
+              ("s=>`italic 900 ${s}px Arial`","s=>`italic 900 ${s}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`"),
+              ("g.font=`italic 900 ${lastSize}px Arial`;","g.font=`italic 900 ${lastSize}px \\\"Avenir Next Condensed\\\",\\\"Helvetica Neue Condensed\\\",\\\"Arial Narrow\\\",sans-serif`;")
+          ]
+          for old,new in typography:
               count=text.count(old)
               if count < 1:
                   raise SystemExit(f'Hero typography: missing expected token {old!r}')
               text=text.replace(old,new)
               print('patched typography token',old,'count',count)
 
-          # Make the approved upper treatment fade into the portrait instead of reading as a hard flat band.
           marker="    drawPhotoLayer(g);\n\n    const first=(e.first.value||'FIRST').toUpperCase();"
           if text.count(marker)!=1:
               raise SystemExit(f'Hero top fade anchor: expected 1 match, found {text.count(marker)}')
-          replacement="    drawPhotoLayer(g);\n\n    if(e.design.value==='approved'){\n      const topFade=g.createLinearGradient(0,170,0,330);\n      topFade.addColorStop(0,'rgba(245,246,247,.72)');\n      topFade.addColorStop(.32,'rgba(245,246,247,.30)');\n      topFade.addColorStop(1,'rgba(245,246,247,0)');\n      g.fillStyle=topFade;g.fillRect(0,165,HERO_W,170);\n    }\n\n    const first=(e.first.value||'FIRST').toUpperCase();"
-          text=text.replace(marker,replacement,1)
+          text=text.replace(marker,"    drawPhotoLayer(g);\n\n    if(e.design.value==='approved'){\n      const topFade=g.createLinearGradient(0,170,0,330);\n      topFade.addColorStop(0,'rgba(245,246,247,.72)');\n      topFade.addColorStop(.32,'rgba(245,246,247,.30)');\n      topFade.addColorStop(1,'rgba(245,246,247,0)');\n      g.fillStyle=topFade;g.fillRect(0,165,HERO_W,170);\n    }\n\n    const first=(e.first.value||'FIRST').toUpperCase();",1)
           print('patched: Hero top gradient transition')
 
           if text == original:
@@ -100,9 +94,9 @@ jobs:
           import pathlib
           t=pathlib.Path('index.html').read_text()
           assert '#heroCanvas{aspect-ratio:4/5 !important' in t
-          assert 'Math.min(4,+scale||1)' in t
-          assert 'Math.max(-1800,Math.min(1800,+x||0))' in t
-          assert 'Math.max(-1800,Math.min(1800,+y||0))' in t
+          assert 'Math.min(4,transform.scale)' in t
+          assert 'Math.max(-1800,Math.min(1800,transform.cropX))' in t
+          assert 'Math.max(-1800,Math.min(1800,transform.cropY))' in t
           assert 'Math.max(HERO_W/img.naturalWidth,HERO_H/img.naturalHeight)*1.12' in t
           assert '// Locked border' not in t
           assert "const topFade=g.createLinearGradient(0,170,0,330);" in t
