@@ -4,78 +4,64 @@ import re
 p=Path('index.html')
 t=p.read_text()
 original=t
-
 approved_stack='\\"Avenir Next Condensed\\",\\"Helvetica Neue Condensed\\",\\"Arial Narrow\\",sans-serif'
 
 def sub_once(pattern,repl,label,flags=0):
     global t
-    matches=list(re.finditer(pattern,t,flags))
-    if len(matches)!=1:
-        raise SystemExit(f'{label}: expected exactly 1 match, found {len(matches)}')
+    ms=list(re.finditer(pattern,t,flags))
+    if len(ms)!=1:
+        raise SystemExit(f'{label}: expected exactly 1 match, found {len(ms)}')
     t=re.sub(pattern,repl,t,count=1,flags=flags)
     print('patched:',label)
 
-# Patch only the four locked Hero text-layer definitions. Match by textKey so
-# prior spacing/property edits do not defeat the guard. Preserve whether the
-# source line ends with a comma so the final array item remains valid JS.
+# Roll back ONLY the incorrect visual-fidelity commit. Preserve the font stack
+# and all working Hero interaction code from the prior known-good state.
 layer_specs={
- 'firstName': "{id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:60,y:992,w:560,h:58,fontSize:50,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:11,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'headline'}",
- 'lastName': "{id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1050,w:690,h:122,fontSize:116,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:1,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'}",
- 'graduationYear': "{id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1198,w:650,h:42,fontSize:38,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:9,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'}",
- 'achievement': "{id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1248,w:840,h:34,fontSize:28,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:4,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}",
+ 'firstName': "{id:cId('layer'),type:'text',name:'First Name',textKey:'firstName',text:'WYLDER',x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700',visible:true,locked:true,role:'headline'}",
+ 'lastName': "{id:cId('layer'),type:'text',name:'Last Name',textKey:'lastName',text:'SMITH',x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800',visible:true,locked:true,role:'headline'}",
+ 'graduationYear': "{id:cId('layer'),type:'text',name:'Graduation Year',textKey:'graduationYear',text:'CLASS OF 2027',x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700',visible:true,locked:true,role:'event details'}",
+ 'achievement': "{id:cId('layer'),type:'text',name:'Achievement',textKey:'achievement',text:'',x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'"+approved_stack+"',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600',visible:true,locked:true,role:'supporting copy'}",
 }
-for key,base_repl in layer_specs.items():
+for key,base in layer_specs.items():
     pat=r"\{id:cId\('layer'\),type:'text',name:'[^']+',textKey:'"+re.escape(key)+r"'[^\n]*\}(,?)"
-    matches=list(re.finditer(pat,t))
-    if len(matches)!=1:
-        raise SystemExit(f'Hero {key} locked layer: expected exactly 1 match, found {len(matches)}')
-    comma=matches[0].group(1)
-    t=t[:matches[0].start()]+base_repl+comma+t[matches[0].end():]
-    print('patched:',f'Hero {key} locked layer')
+    ms=list(re.finditer(pat,t))
+    if len(ms)!=1: raise SystemExit(f'Hero {key}: expected 1 match, found {len(ms)}')
+    comma=ms[0].group(1)
+    t=t[:ms[0].start()]+base+comma+t[ms[0].end():]
 
-# Normalize saved Hero cards too. Replace exactly one lockedType object inside
-# the Hero lock-policy path, irrespective of the values left by earlier passes.
-locked_repl="""const lockedType={
-      firstName:{x:60,y:992,w:560,h:58,fontFamily:approvedHeroType,fontStyle:'italic',fontSize:50,letterSpacing:11,weight:'600'},
-      lastName:{x:56,y:1050,w:690,h:122,fontFamily:approvedHeroType,fontStyle:'italic',fontSize:116,letterSpacing:1,weight:'700'},
-      graduationYear:{x:60,y:1198,w:650,h:42,fontFamily:approvedHeroType,fontStyle:'italic',fontSize:38,letterSpacing:9,weight:'700'},
-      achievement:{x:60,y:1248,w:840,h:34,fontFamily:approvedHeroType,fontStyle:'italic',fontSize:28,letterSpacing:4,weight:'600'}
+locked="""const lockedType={
+      firstName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:58,letterSpacing:12,weight:'700'},
+      lastName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:162,letterSpacing:2,weight:'800'},
+      graduationYear:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:48,letterSpacing:10,weight:'700'},
+      achievement:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:30,letterSpacing:5,weight:'600'}
     };"""
-sub_once(r"const lockedType=\{[\s\S]*?\n    \};",locked_repl,'Existing Hero locked typography normalization')
+sub_once(r"const lockedType=\{[\s\S]*?\n    \};",locked,'restore prior Hero locked typography')
 
-# Replace exactly one Hero header gradient block. The role guard keeps this
-# scoped to the locked Hero header renderer only.
 fade_pattern=r"if\(isHeroCardDesign\(\)&&String\(layer\.role\|\|''\)\.toLowerCase\(\)==='header'\)\{[\s\S]*?ctx\.fillRect\(layer\.x,fadeTop,layer\.w,[^\n;]+\);\n    \}"
-fade_repl="""if(isHeroCardDesign()&&String(layer.role||'').toLowerCase()==='header'){
-      const fadeTop=layer.y+layer.h-26;
-      const fadeHeight=170;
-      const fade=ctx.createLinearGradient(0,fadeTop,0,fadeTop+fadeHeight);
-      fade.addColorStop(0,'rgba(247,248,249,.98)');
-      fade.addColorStop(.22,'rgba(247,248,249,.78)');
-      fade.addColorStop(.48,'rgba(247,248,249,.46)');
-      fade.addColorStop(.72,'rgba(247,248,249,.18)');
+fade="""if(isHeroCardDesign()&&String(layer.role||'').toLowerCase()==='header'){
+      const fadeTop=layer.y+layer.h-18;
+      const fade=ctx.createLinearGradient(0,fadeTop,0,fadeTop+132);
+      fade.addColorStop(0,'rgba(247,248,249,.96)');
+      fade.addColorStop(.28,'rgba(247,248,249,.62)');
+      fade.addColorStop(.62,'rgba(247,248,249,.22)');
       fade.addColorStop(1,'rgba(247,248,249,0)');
       ctx.fillStyle=fade;
-      ctx.fillRect(layer.x,fadeTop,layer.w,fadeHeight);
+      ctx.fillRect(layer.x,fadeTop,layer.w,132);
     }"""
-sub_once(fade_pattern,fade_repl,'Hero header-to-photo frosted fade')
+sub_once(fade_pattern,fade,'restore prior Hero header transition')
 
-if t==original:
-    raise SystemExit('No changes made')
+if t==original: raise SystemExit('No changes made')
 p.write_text(t)
 
 checks=[
-    "fontSize:116,fontFamily:'"+approved_stack+"'",
-    "graduationYear:{x:60,y:1198,w:650,h:42",
-    'const fadeHeight=170;',
-    "fade.addColorStop(.72,'rgba(247,248,249,.18)')",
-    # Preserve the already-working interaction and crop code.
-    'state.heroPhotoDrag={layerId:photo.id',
-    "commitDesign('Hero photo position updated.');",
-    '*1.14*Math.max(1,t.scale)',
-    "sourcePath:'assets/Reference/HERO_FOOTER_OVERLAY_v1.png'"
+  "fontSize:162,fontFamily:'"+approved_stack+"'",
+  "firstName:{fontFamily:approvedHeroType,fontStyle:'italic',fontSize:58",
+  "ctx.fillRect(layer.x,fadeTop,layer.w,132);",
+  'state.heroPhotoDrag={layerId:photo.id',
+  "commitDesign('Hero photo position updated.');",
+  '*1.14*Math.max(1,t.scale)',
+  "sourcePath:'assets/Reference/HERO_FOOTER_OVERLAY_v1.png'"
 ]
-missing=[item for item in checks if item not in t]
-if missing:
-    raise SystemExit('Missing expected post-patch checks: '+repr(missing))
-print('PASS: Hero typography proportions and header fade patched; drag/crop/footer path preserved.')
+missing=[x for x in checks if x not in t]
+if missing: raise SystemExit('Rollback validation failed: '+repr(missing))
+print('PASS: incorrect visual-fidelity commit rolled back; working Hero interaction preserved.')
