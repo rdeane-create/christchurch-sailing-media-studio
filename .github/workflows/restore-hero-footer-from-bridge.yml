@@ -15,15 +15,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Patch and validate actual Hero Builder
         run: python3 .github/scripts/patch_actual_hero_builder.py
-      - name: Commit Hero rollback
+      - name: Commit exact approved Hero header reconnection
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add index.html
           if git diff --cached --quiet; then
-            echo 'No Hero rollback changes to commit.'
+            echo 'No Hero header changes to commit.'
             exit 0
           fi
-          git commit -m 'Roll back incorrect Hero visual fidelity patch'
+          git commit -m 'Use exact approved Hero header overlay in native builder'
           git push
-# rollback-run: 2026-08-12-1700
+# exact-header-run: 2026-08-12-1704
