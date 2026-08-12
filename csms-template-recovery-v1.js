@@ -1,8 +1,8 @@
 (function(){
 'use strict';
 // Keep the legacy recovery bundle disabled. RC5 uses the native Studio plus
-// the rebuilt Hero composer below.
-const VERSION='20260812-hero-loader-v1';
+// the flexible Hero composer below.
+const VERSION='20260812-hero-loader-v2';
 function load(src){
   return new Promise((resolve,reject)=>{
     const s=document.createElement('script');
@@ -15,9 +15,9 @@ function load(src){
 }
 (async()=>{
   try{
-    await load('hero-card-rebuild-v1.js');
+    await load('hero-card-flex-v2.js');
     await load('hero-card-compat-v1.js');
-    console.info('[CSMS] Native RC5 active with rebuilt Hero composer; legacy recovery remains disabled.');
+    console.info('[CSMS] Native RC5 active with flexible Hero composer v2; legacy recovery remains disabled.');
   }catch(err){
     console.error('[CSMS Hero loader]',err);
     const banner=document.createElement('div');
