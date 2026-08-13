@@ -1,0 +1,43 @@
+name: Install Athlete Main Headshot Template
+
+on:
+  push:
+    paths:
+      - 'athlete-main-headshot-template.js'
+      - '.github/workflows/install-athlete-main-headshot-template.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install blank template loader
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          t=p.read_text()
+          marker='<script src="athlete-main-headshot-template.js?v=20260813-1"></script>'
+          t=re.sub(r'\s*<script src="athlete-main-headshot-template\.js\?v=[^"]+"></script>\s*','\n',t)
+          if '</body>' not in t:
+              raise SystemExit('Missing </body>')
+          t=t.replace('</body>', marker+'\n</body>', 1)
+          p.write_text(t)
+          PY
+
+      - name: Commit install
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add index.html
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Install Athlete Main Headshot template in Studio'
+          git push
