@@ -3,7 +3,7 @@ name: Install Athlete Main Headshot Approved Template
 on:
   push:
     paths:
-      - 'athlete-main-headshot-approved.js'
+      - 'athlete-main-headshot-approved-locked-v3.js'
       - 'athlete-main-headshot-approved-vectors.js'
       - '.github/workflows/install-athlete-main-headshot-approved.yml'
   workflow_dispatch:
@@ -16,19 +16,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install approved template loaders
+      - name: Install locked approved template loaders
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           p=Path('index.html')
           t=p.read_text()
-          markers=[
-            '<script src="athlete-main-headshot-approved-vectors.js?v=20260813-1"></script>',
-            '<script src="athlete-main-headshot-approved.js?v=20260813-1"></script>'
+          patterns=[
+            r'\s*<script src="athlete-main-headshot-approved-vectors\.js\?v=[^"]+"></script>\s*',
+            r'\s*<script src="athlete-main-headshot-approved\.js\?v=[^"]+"></script>\s*',
+            r'\s*<script src="athlete-main-headshot-approved-locked-v3\.js\?v=[^"]+"></script>\s*'
           ]
-          t=re.sub(r'\s*<script src="athlete-main-headshot-approved-vectors\.js\?v=[^"]+"></script>\s*','\n',t)
-          t=re.sub(r'\s*<script src="athlete-main-headshot-approved\.js\?v=[^"]+"></script>\s*','\n',t)
+          for pat in patterns:
+              t=re.sub(pat,'\n',t)
+          markers=[
+            '<script src="athlete-main-headshot-approved-vectors.js?v=20260813-3"></script>',
+            '<script src="athlete-main-headshot-approved-locked-v3.js?v=20260813-3"></script>'
+          ]
           if '</body>' not in t:
               raise SystemExit('Missing </body>')
           t=t.replace('</body>', '\n'.join(markers)+'\n</body>', 1)
@@ -40,5 +45,5 @@ jobs:
           git config user.email 'rdeane@christchurchschool.org'
           git add index.html
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Install Athlete Main Headshot Approved loaders'
+          git commit -m 'Use locked assets for Athlete Main Headshot Approved'
           git push
