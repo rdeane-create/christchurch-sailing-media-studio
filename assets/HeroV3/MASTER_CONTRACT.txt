@@ -1,9 +1,9 @@
-HERO BUILDER V3 MASTER CONTRACT
-Source: CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED(1).png
-Canvas: 1023 x 1537
-Header: exact source pixels x=0..1022, y=0..217
-First name bbox: x=68..340, y=1136..1172
-Last name bbox: x=48..446, y=1192..1358
-Orange rule bbox: x=51..422, y=1381..1385
-Class line bbox: x=52..422, y=1412..1436
-Editable: photo, first name, last name, class year, optional text, crop.
+HERO BUILDER V3.2 — FROZEN RC5 CONTRACT
+Output canvas: 1080 x 1350 (4:5)
+Locked header source: exact approved pixels 1023 x 218
+Locked header destination: x=0 y=0 w=1080 h=209
+First Name: x=66 y=992 w=540 h=64 Arial italic 58 weight 700 tracking 12
+Last Name: x=56 y=1058 w=650 h=164 Arial Narrow italic 162 weight 800 tracking 2
+Graduation Year: x=60 y=1248 w=620 h=48 Arial italic 48 weight 700 tracking 10 #f04b1a
+Achievement: x=60 y=1300 w=840 h=38 Arial italic 30 weight 600 tracking 5
+Editable: photo, first name, last name, class year, optional text, crop/position.
