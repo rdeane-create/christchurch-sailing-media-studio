@@ -1,4 +1,4 @@
-name: Install Hero Builder v3 from frozen RC5 contract
+name: Validate Hero Builder v3 vector contract
 
 on:
   push:
@@ -11,99 +11,83 @@ permissions:
   contents: write
 
 jobs:
-  install:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build new HeroV3 locked header from approved source
+      - name: Correct and lock internal vector alphabet
         run: |
-          python3 -m pip install --quiet pillow
           python3 - <<'PY'
           from pathlib import Path
-          from PIL import Image
-          import hashlib
-
-          source=Path('assets/Reference/CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED(1).png')
-          out=Path('assets/HeroV3')
-          out.mkdir(parents=True,exist_ok=True)
-          expected='ade1907e4d610e0f08967c51476b97eada1c7bc188876299d957a75d953c7086'
-          actual=hashlib.sha256(source.read_bytes()).hexdigest()
-          if actual!=expected:
-              raise SystemExit(f'Approved source checksum changed: {actual}')
-          source_image=Image.open(source).convert('RGBA')
-          if source_image.size!=(1023,1537):
-              raise SystemExit(f'Approved source dimensions changed: {source_image.size}')
-
-          # The frozen RC5 Studio contract uses only the exact 1023x218 locked
-          # source header, scaled into a 1080x209 region on a 1080x1350 card.
-          header=source_image.crop((0,0,1023,218))
-          header.save(out/'hero-header-master.png','PNG',optimize=True)
-          (out/'MASTER_CONTRACT.txt').write_text(
-              'HERO BUILDER V3.2 — FROZEN RC5 CONTRACT\n'
-              'Output canvas: 1080 x 1350 (4:5)\n'
-              'Locked header source: exact approved pixels 1023 x 218\n'
-              'Locked header destination: x=0 y=0 w=1080 h=209\n'
-              'First Name: x=66 y=992 w=540 h=64 Arial italic 58 weight 700 tracking 12\n'
-              'Last Name: x=56 y=1058 w=650 h=164 Arial Narrow italic 162 weight 800 tracking 2\n'
-              'Graduation Year: x=60 y=1248 w=620 h=48 Arial italic 48 weight 700 tracking 10 #f04b1a\n'
-              'Achievement: x=60 y=1300 w=840 h=38 Arial italic 30 weight 600 tracking 5\n'
-              'Editable: photo, first name, last name, class year, optional text, crop/position.\n'
-          )
-          print('PASS: rebuilt only the exact locked header and wrote frozen RC5 contract')
+          p=Path('hero-builder-v3.js')
+          t=p.read_text()
+          start=t.find('const G={')
+          end=t.find('function glyphWidth',start)
+          if start<0 or end<0:
+              raise SystemExit('Vector alphabet anchors not found')
+          replacement=r'''const SEG={
+ a:[0,0,4,0],b:[4,0,4,3],c:[4,3,4,6],d:[0,6,4,6],e:[0,3,0,6],f:[0,0,0,3],g:[0,3,4,3],
+ h:[0,0,2,3],i:[4,0,2,3],j:[0,6,2,3],k:[4,6,2,3],v:[2,0,2,6],p:[2,3,2,6]
+};
+const G={
+ A:'abcefg',B:'fegcdb',C:'afed',D:'fbcde',E:'afged',F:'afge',G:'afedcg',H:'fbgec',I:'avd',J:'bcd',K:'fejik',L:'fed',M:'fhbic',N:'fhkc',O:'abcdef',P:'abfg e'.replace(/ /g,''),Q:'abcdefk',R:'abfgek',S:'afgcd',T:'av',U:'fbcde',V:'fjk',W:'fejkc',X:'hijk',Y:'hip',Z:'aijd',
+ '0':'abcdef','1':'bc','2':'abged','3':'abgcd','4':'fgbc','5':'afgcd','6':'afgecd','7':'abc','8':'abcdefg','9':'abfgcd','-':'g','.':'dot','&':'afgehkcd',' ':''
+};
+'''
+          t=t[:start]+replacement+t[end:]
+          old="for(const ch of s){const strokes=G[ch]||G[' '],gw=glyphWidth(ch);for(const code of strokes){const a=segPoint(code[0]+code[1]),b=segPoint(code[2]+code[3]);if(code==='2626'){ctx.beginPath();ctx.arc((pen+1.2)*sx,6.7*unit,ctx.lineWidth*.42,0,Math.PI*2);ctx.fill();continue;}ctx.beginPath();ctx.moveTo((pen+a.x)*sx,a.y*unit);ctx.lineTo((pen+b.x)*sx,b.y*unit);ctx.stroke();}pen+=gw+tracking;}"
+          new="for(const ch of s){const strokes=G[ch]||G[' '],gw=glyphWidth(ch);if(strokes==='dot'){ctx.beginPath();ctx.arc((pen+1.2)*sx,6.55*unit,ctx.lineWidth*.42,0,Math.PI*2);ctx.fill();}else for(const key of strokes){const seg=SEG[key];if(!seg)continue;ctx.beginPath();ctx.moveTo((pen+seg[0])*sx,seg[1]*unit);ctx.lineTo((pen+seg[2])*sx,seg[3]*unit);ctx.stroke();}pen+=gw+tracking;}"
+          if old not in t:
+              raise SystemExit('Old vector stroke loop not found')
+          t=t.replace(old,new,1)
+          t=t.replace("function segPoint(ch){const n=Number(ch);return{x:(n%10),y:Math.floor(n/10)};}\n",'',1)
+          p.write_text(t)
+          print('PASS: corrected internal Hero vector alphabet')
           PY
 
-      - name: Validate frozen RC5 standalone module
+      - name: Validate browser-independent Hero contract
         run: |
           node --check hero-builder-v3.js
-          test -s assets/HeroV3/hero-header-master.png
-          grep -q "const VERSION='3.2.0'" hero-builder-v3.js
+          grep -q "const VERSION='3.3.0'" hero-builder-v3.js
           grep -q "const W=1080,H=1350" hero-builder-v3.js
-          grep -q 'Arial Narrow' hero-builder-v3.js
-          grep -q 'italic 800 162px' hero-builder-v3.js
-          grep -q 'italic 700 58px' hero-builder-v3.js
-          grep -q 'italic 700 48px' hero-builder-v3.js
+          grep -q "const SEG=" hero-builder-v3.js
+          grep -q "function vectorLine" hero-builder-v3.js
+          grep -q "function drawHeaderFade" hero-builder-v3.js
           grep -q "bindCanvasDrag" hero-builder-v3.js
-          grep -q "heroBuilderV3Canvas" hero-builder-v3.js
-          grep -q "heroBlob" hero-builder-v3.js
-          ! grep -q 'Barlow Condensed' hero-builder-v3.js
+          grep -q "async function saveHero" hero-builder-v3.js
+          grep -q "function exportHero" hero-builder-v3.js
+          ! grep -q "document.fonts" hero-builder-v3.js
+          ! grep -q "ctx.font" hero-builder-v3.js
+          ! grep -q "Arial" hero-builder-v3.js
+          ! grep -q "Barlow" hero-builder-v3.js
+          test -s assets/HeroV3/hero-header-master.png
 
-      - name: Replace all prior Hero module loaders with v3.2
+      - name: Keep Hero Builder loaded exactly once
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           p=Path('index.html')
           t=p.read_text()
-          t=re.sub(r'\s*<script src="hero-card-master-v2\.js(?:\?v=[^"]*)?"></script>\s*','\n',t)
           t=re.sub(r'\s*<script src="hero-builder-v3\.js(?:\?v=[^"]*)?"></script>\s*','\n',t)
-          marker='<script src="hero-builder-v3.js?v=20260812-32"></script>'
+          marker='<script src="hero-builder-v3.js?v=20260812-33"></script>'
           if '</body>' not in t:
-              raise SystemExit('Install guard failed: </body> not found')
+              raise SystemExit('</body> not found')
           t=t.replace('</body>',marker+'\n</body>',1)
           if t.count('hero-builder-v3.js')!=1:
-              raise SystemExit('v3 loader count is not exactly one')
-          if 'hero-card-master-v2.js' in t:
-              raise SystemExit('v2 loader still present in index.html')
+              raise SystemExit('Hero Builder loader count is not one')
           p.write_text(t)
-          print('PASS: v3.2 installed exactly once; v2 removed')
           PY
 
-      - name: Final production validation
-        run: |
-          node --check hero-builder-v3.js
-          grep -q '<script src="hero-builder-v3.js?v=20260812-32"></script>' index.html
-          ! grep -q 'hero-card-master-v2.js' index.html
-          grep -q 'Output canvas: 1080 x 1350 (4:5)' assets/HeroV3/MASTER_CONTRACT.txt
-
-      - name: Commit frozen RC5 v3.2 production install
+      - name: Commit vector Hero production state
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add index.html hero-builder-v3.js assets/HeroV3/hero-header-master.png assets/HeroV3/MASTER_CONTRACT.txt
+          git add hero-builder-v3.js index.html
           if git diff --cached --quiet; then
-            echo 'Hero Builder v3.2 already installed.'
+            echo 'Vector Hero contract already current.'
             exit 0
           fi
-          git commit -m 'Install frozen RC5 Hero Builder v3.2'
+          git commit -m 'Lock browser-independent Hero vector typography'
           git push
