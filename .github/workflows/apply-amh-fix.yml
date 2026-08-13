@@ -1,0 +1,19 @@
+name: Apply AMH fix
+on:
+  push:
+    branches: [amh-exact-assets-transfer]
+    paths: ['.github/workflows/apply-amh-fix.yml']
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tools/fix-amh-bridge.sh
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add athlete-main-headshot-approved-exact.js
+          git diff --cached --quiet || git commit -m 'Apply Athlete Main Headshot bridge fix'
+          git push
