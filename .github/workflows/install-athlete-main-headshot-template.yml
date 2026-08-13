@@ -16,14 +16,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install blank template loader
+      - name: Install Athlete Main Headshot loader
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           p=Path('index.html')
           t=p.read_text()
-          marker='<script src="athlete-main-headshot-template.js?v=20260813-1"></script>'
+          marker='<script src="athlete-main-headshot-template.js?v=20260813-2"></script>'
           t=re.sub(r'\s*<script src="athlete-main-headshot-template\.js\?v=[^"]+"></script>\s*','\n',t)
           if '</body>' not in t:
               raise SystemExit('Missing </body>')
@@ -39,5 +39,5 @@ jobs:
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m 'Install Athlete Main Headshot template in Studio'
+          git commit -m 'Refresh Athlete Main Headshot controls in Studio'
           git push
