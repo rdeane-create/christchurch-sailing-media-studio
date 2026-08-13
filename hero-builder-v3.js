@@ -1,135 +1,68 @@
 (()=>{
 'use strict';
-/*
-  Christchurch Hero — Original Master reset
-  This intentionally contains NO Hero rendering code.
-  The approved master file is displayed directly and unchanged.
-*/
-const VERSION='4.0.0-original-master';
-const ORIGINAL_MASTER_ID='1lqiQnm2XyEZFR4bhA6WyUYGaQ96HWRVO';
-const ORIGINAL_MASTER_URL=`https://lh3.googleusercontent.com/d/${ORIGINAL_MASTER_ID}`;
-const ORIGINAL_W=1023;
-const ORIGINAL_H=1537;
+/* Christchurch Hero v5.0 — locked original master + separate editable copy */
+const VERSION='5.0.0';
+const MASTER_ID='1lqiQnm2XyEZFR4bhA6WyUYGaQ96HWRVO';
+const MASTER_URL=`https://lh3.googleusercontent.com/d/${MASTER_ID}`;
+const MASTER_W=1023,MASTER_H=1537;
+const W=1080,H=1350;
+const DB_NAME='ChristchurchMediaStudio',STORE='media';
+const FOOTER_SRC='assets/Reference/HERO_FOOTER_OVERLAY_v1.png';
+const HEADER_DATA_SCRIPT='hero-header-exact-data.js';
 
+const LAYERS={
+  firstName:{x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'Arial',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700'},
+  lastName:{x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'Arial Narrow',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800'},
+  graduationYear:{x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'Arial',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700'},
+  achievement:{x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'Arial',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600'}
+};
+
+const state={mode:'reference',active:false,installed:false,dragging:false,lastX:0,lastY:0,projectName:'Hero Card — Untitled',firstName:'WYLDER',lastName:'SMITH',year:'CLASS OF 2027',optional:'',scale:1,offsetX:0,offsetY:0,photoFile:null,photoImg:null,headerImg:null,footerImg:null,canvas:null,ctx:null,masterImg:null};
 const q=id=>document.getElementById(id);
-let installed=false;
-let active=false;
-let masterImg=null;
+const ui=()=>({builder:q('heroCardBuilder'),wrap:q('heroBuilderCanvasWrap'),status:q('heroBuilderStatus'),project:q('heroBuilderProjectName'),upload:q('heroBuilderUploadPhotoBtn'),saved:q('heroBuilderSavedHeroes'),save:q('heroBuilderSaveBtn'),saveBottom:q('heroBuilderSaveBottomBtn'),exportBottom:q('heroBuilderExportBottomBtn'),next:q('heroBuilderCreateNextBtn'),nextBottom:q('heroBuilderCreateNextBottomBtn'),back:q('heroBuilderBackTemplatesBtn'),first:q('heroBuilderFirstNameInput'),last:q('heroBuilderLastNameInput'),year:q('heroBuilderGraduationYearInput'),optional:q('heroBuilderOptionalTextInput'),scale:q('heroBuilderScale'),x:q('heroBuilderOffsetX'),y:q('heroBuilderOffsetY'),reset:q('heroBuilderResetCropBtn')});
+const setStatus=msg=>{const el=ui().status;if(el)el.textContent=msg;};
 
-function status(message){
-  const el=q('heroBuilderStatus');
-  if(el)el.textContent=message;
-}
+function loadImage(src){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>res(img);img.onerror=()=>rej(new Error('Unable to load '+src));img.src=src+(src.startsWith('data:')?'':(src.includes('?')?'&':'?')+'v='+VERSION);});}
+function loadHeaderData(){if(window.__CSMS_HERO_HEADER_EXACT)return Promise.resolve(window.__CSMS_HERO_HEADER_EXACT);return new Promise((res,rej)=>{const s=document.createElement('script');s.src=HEADER_DATA_SCRIPT+'?v='+VERSION;s.onload=()=>window.__CSMS_HERO_HEADER_EXACT?res(window.__CSMS_HERO_HEADER_EXACT):rej(new Error('Exact Hero header data was empty.'));s.onerror=()=>rej(new Error('Exact Hero header data failed to load.'));document.head.appendChild(s);});}
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function getAll(){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readonly');const r=tx.objectStore(STORE).getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error);});}
+async function put(rec){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(rec);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
 
-function buildMasterImage(){
-  if(masterImg)return masterImg;
-  const img=document.createElement('img');
-  img.id='heroOriginalMasterImage';
-  img.alt='CHRISTCHURCH HERO CARD — ORIGINAL APPROVED MASTER';
-  img.src=ORIGINAL_MASTER_URL;
-  img.decoding='async';
-  img.draggable=false;
-  img.style.display='block';
-  img.style.width='min(100%, 540px)';
-  img.style.height='auto';
-  img.style.margin='0 auto';
-  img.style.border='0';
-  img.style.borderRadius='0';
-  img.style.boxShadow='0 18px 50px rgba(7,21,47,.22)';
-  img.style.background='transparent';
-  img.style.objectFit='contain';
+function buildToolbar(){let bar=q('heroMasterModeBar');if(bar)return bar;bar=document.createElement('div');bar.id='heroMasterModeBar';bar.style.cssText='display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:0 0 14px 0';const edit=document.createElement('button');edit.id='heroCreateEditableCopy';edit.type='button';edit.textContent='Create Editable Copy';edit.style.cssText='padding:10px 16px;border:0;border-radius:10px;background:#07152f;color:#fff;font-weight:700;cursor:pointer';edit.onclick=()=>enterEditable().catch(err=>{console.error(err);setStatus(err.message);});const ref=document.createElement('button');ref.id='heroShowLockedMaster';ref.type='button';ref.textContent='Show Locked Original';ref.style.cssText='padding:10px 16px;border:1px solid #ccd5e3;border-radius:10px;background:#fff;color:#07152f;font-weight:700;cursor:pointer';ref.onclick=()=>showReference();bar.append(edit,ref);return bar;}
+function buildMasterImage(){if(state.masterImg)return state.masterImg;const img=document.createElement('img');img.id='heroOriginalMasterImage';img.alt='CHRISTCHURCH HERO CARD — ORIGINAL APPROVED MASTER';img.src=MASTER_URL;img.draggable=false;img.decoding='async';img.style.cssText='display:block;width:min(100%,540px);height:auto;margin:0 auto;border:0;border-radius:0;box-shadow:0 18px 50px rgba(7,21,47,.22);background:transparent;object-fit:contain';img.onload=()=>{const w=img.naturalWidth,h=img.naturalHeight;setStatus(w===MASTER_W&&h===MASTER_H?`Locked original master loaded unchanged — ${w}×${h}.`:`Original master loaded at ${w}×${h}; expected ${MASTER_W}×${MASTER_H}.`);};img.onerror=()=>setStatus('The locked original master could not be displayed. No substitute was used.');state.masterImg=img;return img;}
+function ensureCanvas(){if(state.canvas)return state.canvas;const c=document.createElement('canvas');c.id='heroEditableCanvas';c.width=W;c.height=H;c.tabIndex=0;c.style.cssText='display:block;width:min(100%,540px);height:auto;aspect-ratio:4/5;margin:0 auto;background:#fff;border:0;border-radius:0;box-shadow:0 18px 50px rgba(7,21,47,.22);cursor:grab;touch-action:none';state.canvas=c;state.ctx=c.getContext('2d',{alpha:false});bindCanvasDrag(c);return c;}
+function mount(node){const wrap=ui().wrap;if(!wrap)return;const bar=buildToolbar();wrap.replaceChildren(bar,node);}
 
-  img.addEventListener('load',()=>{
-    const w=img.naturalWidth;
-    const h=img.naturalHeight;
-    if(w===ORIGINAL_W&&h===ORIGINAL_H){
-      status(`Original approved master loaded unchanged — ${w}×${h}. No rendering or reconstruction is active.`);
-    }else{
-      status(`Original master source loaded at ${w}×${h}; expected ${ORIGINAL_W}×${ORIGINAL_H}. No substitute will be used.`);
-    }
-  });
+function setEditingEnabled(enabled){['heroBuilderUploadPhotoBtn','heroBuilderFirstNameInput','heroBuilderLastNameInput','heroBuilderGraduationYearInput','heroBuilderOptionalTextInput','heroBuilderScale','heroBuilderOffsetX','heroBuilderOffsetY','heroBuilderResetCropBtn','heroBuilderSaveBtn','heroBuilderSaveBottomBtn','heroBuilderExportBottomBtn','heroBuilderCreateNextBtn','heroBuilderCreateNextBottomBtn'].forEach(id=>{const el=q(id);if(!el)return;el.disabled=!enabled;el.setAttribute('aria-disabled',String(!enabled));});}
+function showReference(){state.mode='reference';setEditingEnabled(false);mount(buildMasterImage());setStatus('Locked original master. This image is not editable. Choose Create Editable Copy to make a new Hero.');}
 
-  img.addEventListener('error',()=>{
-    status('The original approved Drive master could not be displayed. No fallback or imitation has been substituted.');
-  });
+async function ensureEditableAssets(){if(!state.headerImg){const uri=await loadHeaderData();state.headerImg=await loadImage(uri);}if(!state.footerImg)state.footerImg=await loadImage(FOOTER_SRC);}
+async function enterEditable(){state.mode='editable';await ensureEditableAssets();setEditingEnabled(true);mount(ensureCanvas());syncFields();render();refreshSaved().catch(()=>{});setStatus('Editable Hero copy ready. The locked original master remains unchanged.');}
 
-  masterImg=img;
-  return img;
-}
+function drawPhoto(){const ctx=state.ctx,img=state.photoImg;if(!img)return;const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;const base=Math.max(W/iw,H/ih);const s=base*Math.max(1,state.scale);const dw=iw*s,dh=ih*s;ctx.drawImage(img,(W-dw)/2+state.offsetX,(H-dh)/2+state.offsetY,dw,dh);}
+function drawHeader(){if(!state.headerImg)return;state.ctx.drawImage(state.headerImg,0,0,state.headerImg.naturalWidth||1023,state.headerImg.naturalHeight||218,0,0,W,192);}
+function drawFooter(){if(state.footerImg)state.ctx.drawImage(state.footerImg,0,0,W,H);}
+function drawTextLayer(text,layer){if(!text)return;const ctx=state.ctx;ctx.save();ctx.fillStyle=layer.color;ctx.font=`${layer.fontStyle==='italic'?'italic':'normal'} ${layer.weight} ${layer.fontSize}px ${layer.fontFamily}`;ctx.textBaseline='top';let x=layer.x;const chars=[...String(text).toUpperCase()];const widths=chars.map(ch=>ctx.measureText(ch).width);const total=widths.reduce((a,b)=>a+b,0)+Math.max(0,chars.length-1)*layer.letterSpacing;if(layer.align==='center')x=layer.x+(layer.w-total)/2;else if(layer.align==='right')x=layer.x+layer.w-total;chars.forEach((ch,i)=>{ctx.fillText(ch,x,layer.y);x+=widths[i]+layer.letterSpacing;});ctx.restore();}
+function render(){if(state.mode!=='editable'||!state.ctx)return;const ctx=state.ctx;ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);drawPhoto();drawHeader();drawFooter();drawTextLayer(state.firstName,LAYERS.firstName);drawTextLayer(state.lastName,LAYERS.lastName);drawTextLayer(state.year,LAYERS.graduationYear);if(String(state.optional||'').trim())drawTextLayer(state.optional,LAYERS.achievement);}
 
-function disableEditing(){
-  [
-    'heroBuilderUploadPhotoBtn',
-    'heroBuilderFirstNameInput',
-    'heroBuilderLastNameInput',
-    'heroBuilderGraduationYearInput',
-    'heroBuilderOptionalTextInput',
-    'heroBuilderScale',
-    'heroBuilderOffsetX',
-    'heroBuilderOffsetY',
-    'heroBuilderResetCropBtn',
-    'heroBuilderSaveBtn',
-    'heroBuilderSaveBottomBtn',
-    'heroBuilderExportBottomBtn',
-    'heroBuilderCreateNextBtn',
-    'heroBuilderCreateNextBottomBtn'
-  ].forEach(id=>{
-    const el=q(id);
-    if(!el)return;
-    el.disabled=true;
-    el.setAttribute('aria-disabled','true');
-  });
-}
+function bindCanvasDrag(c){const point=ev=>{const r=c.getBoundingClientRect();return{x:(ev.clientX-r.left)*(W/r.width),y:(ev.clientY-r.top)*(H/r.height)};};c.addEventListener('pointerdown',ev=>{if(!state.photoImg)return;ev.preventDefault();const p=point(ev);state.dragging=true;state.lastX=p.x;state.lastY=p.y;c.setPointerCapture(ev.pointerId);c.style.cursor='grabbing';});c.addEventListener('pointermove',ev=>{if(!state.dragging)return;ev.preventDefault();const p=point(ev);state.offsetX+=p.x-state.lastX;state.offsetY+=p.y-state.lastY;state.lastX=p.x;state.lastY=p.y;syncCropFields();render();});const stop=ev=>{if(!state.dragging)return;state.dragging=false;c.style.cursor='grab';try{c.releasePointerCapture(ev.pointerId);}catch(_){}};c.addEventListener('pointerup',stop);c.addEventListener('pointercancel',stop);c.addEventListener('lostpointercapture',()=>{state.dragging=false;c.style.cursor='grab';});c.addEventListener('wheel',ev=>{if(!state.photoImg)return;ev.preventDefault();state.scale=Math.max(1,Math.min(4,state.scale+(ev.deltaY<0?.05:-.05)));syncCropFields();render();},{passive:false});}
 
-function activate(){
-  const builder=q('heroCardBuilder');
-  const wrap=q('heroBuilderCanvasWrap');
-  if(!builder||!wrap)return;
+function syncFields(){const e=ui();if(e.project)e.project.value=state.projectName;if(e.first)e.first.value=state.firstName;if(e.last)e.last.value=state.lastName;if(e.year)e.year.value=state.year;if(e.optional)e.optional.value=state.optional;syncCropFields();}
+function syncCropFields(){const e=ui();if(e.scale)e.scale.value=String(state.scale);if(e.x)e.x.value=String(Math.round(state.offsetX));if(e.y)e.y.value=String(Math.round(state.offsetY));}
+function resetEditable(){state.projectName='Hero Card — Untitled';state.firstName='WYLDER';state.lastName='SMITH';state.year='CLASS OF 2027';state.optional='';state.scale=1;state.offsetX=0;state.offsetY=0;state.photoFile=null;state.photoImg=null;syncFields();render();setStatus('New editable Hero copy ready. Upload a sailor photo.');}
+function choosePhoto(){const inp=document.createElement('input');inp.type='file';inp.accept='image/png,image/jpeg,image/webp';inp.onchange=()=>{const f=inp.files?.[0];if(!f)return;const url=URL.createObjectURL(f);const img=new Image();img.onload=()=>{state.photoFile=f;state.photoImg=img;state.scale=1;state.offsetX=0;state.offsetY=0;URL.revokeObjectURL(url);syncCropFields();render();setStatus('Photo loaded. Drag on the card or use the position controls.');};img.onerror=()=>{URL.revokeObjectURL(url);setStatus('Photo could not be loaded.');};img.src=url;};inp.click();}
+function canvasBlob(){return new Promise(res=>state.canvas.toBlob(res,'image/png'));}
+async function saveHero(){if(state.mode!=='editable')return;const blob=await canvasBlob(),all=await getAll(),f=state.firstName.trim(),l=state.lastName.trim();const existing=all.find(r=>(r.type==='athlete'||r.recordType==='athlete')&&String(r.first||r.firstName||'').toLowerCase()===f.toLowerCase()&&String(r.last||r.lastName||'').toLowerCase()===l.toLowerCase());const now=new Date().toISOString();const rec={...(existing||{}),id:existing?.id||`athlete_${Date.now()}`,type:'athlete',recordType:'athlete',first:f,last:l,year:state.year.trim(),firstName:f,lastName:l,graduationYear:state.year.trim(),optional:state.optional.trim(),projectName:state.projectName,originalFile:state.photoFile||existing?.originalFile||null,heroBlob:blob,crop:{scale:state.scale,x:state.offsetX,y:state.offsetY},heroMasterVersion:VERSION,created:existing?.created||now,updated:now};await put(rec);await refreshSaved();setStatus(`${f||'Hero'} ${l||''} saved.`.trim());}
+function exportHero(){if(state.mode!=='editable')return;state.canvas.toBlob(blob=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=[state.firstName,state.lastName,'Hero'].filter(Boolean).join('_').replace(/\s+/g,'_')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2500);setStatus('PNG exported at 1080×1350.');},'image/png');}
+async function refreshSaved(){const e=ui();if(!e.saved)return;const all=(await getAll()).filter(r=>r.type==='athlete'||r.recordType==='athlete');e.saved.innerHTML='<option value="">Saved Hero Cards</option>';for(const r of all){const o=document.createElement('option');o.value=r.id;o.textContent=`${r.first||r.firstName||''} ${r.last||r.lastName||''}`.trim();e.saved.appendChild(o);}}
+async function loadSaved(id){if(!id)return;const r=(await getAll()).find(x=>x.id===id);if(!r)return;if(state.mode!=='editable')await enterEditable();state.projectName=r.projectName||'Hero Card';state.firstName=r.first||r.firstName||'';state.lastName=r.last||r.lastName||'';state.year=r.year||r.graduationYear||'';state.optional=r.optional||'';state.scale=Number(r.crop?.scale||1);state.offsetX=Number(r.crop?.x||0);state.offsetY=Number(r.crop?.y||0);const f=r.originalFile;state.photoFile=f||null;if(f instanceof Blob){const url=URL.createObjectURL(f);const img=new Image();img.onload=()=>{state.photoImg=img;URL.revokeObjectURL(url);syncFields();render();};img.src=url;}else{state.photoImg=null;syncFields();render();}}
 
-  active=true;
-  ['creativeCanvas','heroMasterCanvasV2','heroBuilderV3Canvas'].forEach(id=>{
-    const el=q(id);
-    if(el)el.style.display='none';
-  });
+function capture(el,type,fn){if(!el)return;const key='heroV5'+type;if(el.dataset[key])return;el.dataset[key]='1';el.addEventListener(type,ev=>{if(!state.active)return;ev.stopImmediatePropagation();fn(ev);},true);}
+function bind(){const e=ui();capture(e.upload,'click',ev=>{ev.preventDefault();if(state.mode==='editable')choosePhoto();});capture(e.project,'input',()=>{if(state.mode==='editable')state.projectName=e.project.value;});capture(e.first,'input',()=>{if(state.mode==='editable'){state.firstName=e.first.value;render();}});capture(e.last,'input',()=>{if(state.mode==='editable'){state.lastName=e.last.value;render();}});capture(e.year,'input',()=>{if(state.mode==='editable'){state.year=e.year.value;render();}});capture(e.optional,'input',()=>{if(state.mode==='editable'){state.optional=e.optional.value;render();}});capture(e.scale,'input',()=>{if(state.mode==='editable'){state.scale=Math.max(1,Number(e.scale.value)||1);render();}});capture(e.x,'input',()=>{if(state.mode==='editable'){state.offsetX=Number(e.x.value)||0;render();}});capture(e.y,'input',()=>{if(state.mode==='editable'){state.offsetY=Number(e.y.value)||0;render();}});capture(e.reset,'click',ev=>{ev.preventDefault();if(state.mode==='editable'){state.scale=1;state.offsetX=0;state.offsetY=0;syncCropFields();render();}});[e.save,e.saveBottom].forEach(b=>capture(b,'click',ev=>{ev.preventDefault();saveHero().catch(err=>{console.error(err);setStatus('Save failed: '+err.message);});}));capture(e.exportBottom,'click',ev=>{ev.preventDefault();exportHero();});[e.next,e.nextBottom].forEach(b=>capture(b,'click',ev=>{ev.preventDefault();if(state.mode==='editable')resetEditable();}));capture(e.saved,'change',()=>loadSaved(e.saved.value).catch(console.error));}
 
-  const img=buildMasterImage();
-  if(img.parentElement!==wrap)wrap.replaceChildren(img);
-  disableEditing();
-  status('Loading the untouched original approved Hero master directly from its original Drive file…');
-}
-
-function deactivate(){
-  active=false;
-}
-
-function watch(){
-  const tick=()=>{
-    const builder=q('heroCardBuilder');
-    const workspace=q('workspace-creative');
-    const on=!!(builder&&!builder.hidden&&workspace&&workspace.classList.contains('hero-builder-mode'));
-    if(on&&!active)activate();
-    else if(!on&&active)deactivate();
-  };
-  new MutationObserver(tick).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['hidden','class']});
-  setInterval(tick,700);
-  tick();
-}
-
-function init(){
-  if(installed)return;
-  installed=true;
-  const style=document.createElement('style');
-  style.textContent=`
-    #workspace-creative.hero-builder-mode #creativeCanvas,
-    #workspace-creative.hero-builder-mode #heroMasterCanvasV2,
-    #workspace-creative.hero-builder-mode #heroBuilderV3Canvas{display:none!important}
-    #workspace-creative.hero-builder-mode #heroOriginalMasterImage{display:block!important}
-  `;
-  document.head.appendChild(style);
-  watch();
-  console.info('Christchurch Hero Original Master viewer installed',VERSION);
-}
-
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
-else init();
+function activate(){const e=ui();if(!e.builder||!e.wrap)return;state.active=true;bind();showReference();}
+function deactivate(){state.active=false;}
+function watch(){const tick=()=>{const e=ui(),w=q('workspace-creative');const on=!!(e.builder&&!e.builder.hidden&&w&&w.classList.contains('hero-builder-mode'));if(on&&!state.active)activate();else if(!on&&state.active)deactivate();};new MutationObserver(tick).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['hidden','class']});setInterval(tick,700);tick();}
+function init(){if(state.installed)return;state.installed=true;const style=document.createElement('style');style.textContent='#workspace-creative.hero-builder-mode #creativeCanvas,#workspace-creative.hero-builder-mode #heroMasterCanvasV2,#workspace-creative.hero-builder-mode #heroBuilderV3Canvas{display:none!important}';document.head.appendChild(style);watch();console.info('Christchurch Hero locked master + editable copy installed',VERSION);}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
