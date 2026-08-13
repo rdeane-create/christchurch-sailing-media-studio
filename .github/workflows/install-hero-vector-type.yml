@@ -1,0 +1,152 @@
+name: Install Hero vector typography
+
+on:
+  push:
+    paths:
+      - '.github/workflows/install-hero-vector-type.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  install-vector-type:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build browser-independent vector glyph package
+        shell: bash
+        run: |
+          python3 -m pip install --quiet fonttools
+          curl -L --fail --silent --show-error \
+            https://raw.githubusercontent.com/google/fonts/main/ofl/barlowcondensed/BarlowCondensed-MediumItalic.ttf \
+            -o /tmp/hero-first.ttf
+          curl -L --fail --silent --show-error \
+            https://raw.githubusercontent.com/google/fonts/main/ofl/barlowcondensed/BarlowCondensed-ExtraBoldItalic.ttf \
+            -o /tmp/hero-last.ttf
+          curl -L --fail --silent --show-error \
+            https://raw.githubusercontent.com/google/fonts/main/ofl/barlowcondensed/BarlowCondensed-BoldItalic.ttf \
+            -o /tmp/hero-detail.ttf
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from fontTools.ttLib import TTFont
+          from fontTools.pens.svgPathPen import SVGPathPen
+
+          chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-& '
+          sources={
+            'first':'/tmp/hero-first.ttf',
+            'last':'/tmp/hero-last.ttf',
+            'detail':'/tmp/hero-detail.ttf',
+          }
+          package={}
+          for style,filename in sources.items():
+            font=TTFont(filename)
+            cmap=font.getBestCmap()
+            glyphset=font.getGlyphSet()
+            hmtx=font['hmtx'].metrics
+            upm=font['head'].unitsPerEm
+            glyphs={}
+            for ch in chars:
+              if ch==' ':
+                name=cmap.get(32,'space')
+              else:
+                name=cmap.get(ord(ch))
+              if not name:
+                continue
+              pen=SVGPathPen(glyphset)
+              glyphset[name].draw(pen)
+              glyphs[ch]={
+                'd':pen.getCommands(),
+                'advance':hmtx.get(name,(upm//2,0))[0]
+              }
+            package[style]={'upm':upm,'glyphs':glyphs}
+          js='window.CSMSHeroVectorType='+json.dumps(package,separators=(',',':'))+';\n'
+          Path('hero-type-v1.js').write_text(js)
+          print('wrote hero-type-v1.js',len(js),'bytes')
+          PY
+
+      - name: Patch Hero Builder to draw vectors and header fade
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('hero-builder-v3.js')
+          s=p.read_text()
+          original=s
+
+          s=s.replace("const VERSION='3.2.0';","const VERSION='3.3.0';",1)
+          s=s.replace("const HEADER_SRC='assets/HeroV3/hero-header-master.png';","const HEADER_SRC='assets/HeroV3/hero-header-master.png';\nconst VECTOR_TYPE_SRC='hero-type-v1.js';",1)
+          s=s.replace("const FIRST_FONT='Arial,sans-serif';\nconst LAST_FONT='\"Arial Narrow\",Arial,sans-serif';\n",'',1)
+          s=s.replace("const state={active:false,installed:false,dragging:false,", "const state={active:false,installed:false,typeReady:false,dragging:false,",1)
+
+          old_load="function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Unable to load '+src));i.src=src+'?v='+VERSION;});}"
+          new_load="function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Unable to load '+src));i.src=src+'?v='+VERSION;});}\nfunction loadVectorType(){if(window.CSMSHeroVectorType){state.typeReady=true;return Promise.resolve();}return new Promise((res,rej)=>{const s=document.createElement('script');s.src=VECTOR_TYPE_SRC+'?v='+VERSION;s.onload=()=>{state.typeReady=!!window.CSMSHeroVectorType;s.remove();state.typeReady?res():rej(new Error('Hero vector type package was empty.'));};s.onerror=()=>{s.remove();rej(new Error('Unable to load Hero vector typography.'));};document.head.appendChild(s);});}"
+          if old_load not in s: raise SystemExit('Guard failed: image loader anchor not found')
+          s=s.replace(old_load,new_load,1)
+
+          start=s.find("function tracked(")
+          end=s.find("function render()",start)
+          if start<0 or end<0: raise SystemExit('Guard failed: tracked renderer block not found')
+          vector_renderer=r'''function vectorTracked(text,x,baseline,size,tracking,color,maxWidth,style){const ctx=state.ctx,pkg=window.CSMSHeroVectorType?.[style],str=String(text||'').toUpperCase();if(!pkg||!str)return;const upm=pkg.upm||1000,glyphs=pkg.glyphs||{},trackUnits=tracking*upm/size;let units=0;const seq=[...str].map(ch=>glyphs[ch]||glyphs[' ']).filter(Boolean);seq.forEach((g,i)=>{units+=Number(g.advance||0);if(i<seq.length-1)units+=trackUnits;});const natural=units*size/upm;const fit=maxWidth&&natural>maxWidth?maxWidth/natural:1;ctx.save();ctx.fillStyle=color;ctx.translate(x,baseline);ctx.scale(fit*size/upm,-size/upm);let penX=0;for(let i=0;i<seq.length;i++){const g=seq[i];if(g.d){ctx.save();ctx.translate(penX,0);ctx.fill(new Path2D(g.d));ctx.restore();}penX+=Number(g.advance||0)+(i<seq.length-1?trackUnits:0);}ctx.restore();}
+function drawHeaderFade(){const ctx=state.ctx;const g=ctx.createLinearGradient(0,185,0,330);g.addColorStop(0,'rgba(248,249,250,.92)');g.addColorStop(.22,'rgba(248,249,250,.72)');g.addColorStop(.5,'rgba(248,249,250,.38)');g.addColorStop(.78,'rgba(248,249,250,.13)');g.addColorStop(1,'rgba(248,249,250,0)');ctx.fillStyle=g;ctx.fillRect(0,185,W,145);}
+'''
+          s=s[:start]+vector_renderer+s[end:]
+
+          old_render="function render(){if(!state.ctx)return;const ctx=state.ctx;ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);drawPhoto();if(state.headerImg)ctx.drawImage(state.headerImg,0,0,state.headerImg.naturalWidth||1023,state.headerImg.naturalHeight||218,0,0,1080,209);drawBottomTreatment();\n  // Frozen RC5 text contract: top-left boxes converted to canvas baselines.\n  tracked(state.firstName,66,992+58,`italic 700 58px ${FIRST_FONT}`,12,'#fff',540);\n  tracked(state.lastName,56,1058+162,`italic 800 162px ${LAST_FONT}`,2,'#fff',650);\n  tracked(state.year,60,1248+48,`italic 700 48px ${FIRST_FONT}`,10,ORANGE,620);\n  if(String(state.optional||'').trim())tracked(state.optional,60,1300+30,`italic 600 30px ${FIRST_FONT}`,5,'#fff',840);\n}"
+          new_render="function render(){if(!state.ctx)return;const ctx=state.ctx;ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);drawPhoto();if(state.headerImg){ctx.drawImage(state.headerImg,0,0,state.headerImg.naturalWidth||1023,state.headerImg.naturalHeight||218,0,0,1080,209);drawHeaderFade();}drawBottomTreatment();\n  // Browser-independent vector lettering calibrated to the approved Hero lockup.\n  vectorTracked(state.firstName,66,1050,58,12,'#fff',540,'first');\n  vectorTracked(state.lastName,56,1220,162,2,'#fff',650,'last');\n  vectorTracked(state.year,60,1296,48,10,ORANGE,620,'detail');\n  if(String(state.optional||'').trim())vectorTracked(state.optional,60,1330,30,5,'#fff',840,'detail');\n}"
+          if old_render not in s: raise SystemExit('Guard failed: exact v3.2 render block not found')
+          s=s.replace(old_render,new_render,1)
+
+          old_activate="async function activate(){state.active=true;ensureCanvas();bind();syncFields();if(!state.headerImg){status('Loading Hero master…');try{state.headerImg=await loadImage(HEADER_SRC);}catch(err){console.error(err);status(err.message);return;}}try{await Promise.all([document.fonts.load(`italic 800 162px ${LAST_FONT}`),document.fonts.load(`italic 700 58px ${FIRST_FONT}`),document.fonts.load(`italic 700 48px ${FIRST_FONT}`)]);}catch(_){}render();refreshSaved().catch(()=>{});status('Hero Builder v3.2 ready. Exact frozen RC5 typography and 4:5 geometry active.');}"
+          new_activate="async function activate(){state.active=true;ensureCanvas();bind();syncFields();status('Loading locked Hero artwork and vector type…');try{if(!state.headerImg)state.headerImg=await loadImage(HEADER_SRC);if(!state.typeReady)await loadVectorType();}catch(err){console.error(err);status(err.message);return;}render();refreshSaved().catch(()=>{});status('Hero Builder v3.3 ready. Browser-independent vector typography active.');}"
+          if old_activate not in s: raise SystemExit('Guard failed: activate block not found')
+          s=s.replace(old_activate,new_activate,1)
+          s=s.replace("status('Hero Builder v3.2 ready. Frozen RC5 typography restored.');","status('Hero Builder v3.3 ready. Vector typography restored.');",1)
+          s=s.replace("console.info('Christchurch Hero Builder v3.2 installed',VERSION);","console.info('Christchurch Hero Builder v3.3 installed',VERSION);",1)
+
+          if s==original: raise SystemExit('No builder changes produced')
+          if 'document.fonts.load' in s or 'ctx.font=' in s or 'FIRST_FONT' in s or 'LAST_FONT' in s:
+            raise SystemExit('Browser-font dependency remains in Hero Builder')
+          p.write_text(s)
+          print('patched hero-builder-v3.js')
+          PY
+
+      - name: Validate vector package and builder contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          t=Path('hero-type-v1.js').read_text()
+          b=Path('hero-builder-v3.js').read_text()
+          checks={
+            'vector package created': t.startswith('window.CSMSHeroVectorType='),
+            'all three vector styles': all(('\"'+k+'\"') in t for k in ['first','last','detail']),
+            'browser font API removed': 'document.fonts.load' not in b and 'ctx.font=' not in b,
+            'vector Path2D renderer installed': 'new Path2D(g.d)' in b,
+            'header fade installed': 'function drawHeaderFade()' in b,
+            'locked header retained': "assets/HeroV3/hero-header-master.png" in b,
+            '1080x1350 output retained': "const W=1080,H=1350;" in b,
+            'drag behavior retained': "addEventListener('pointermove'" in b,
+            'save retained': 'async function saveHero()' in b,
+            'export retained': 'function exportHero()' in b,
+          }
+          for k,v in checks.items(): print(('PASS' if v else 'FAIL')+': '+k)
+          bad=[k for k,v in checks.items() if not v]
+          if bad: raise SystemExit('Validation failed: '+', '.join(bad))
+          PY
+
+      - name: Commit vector typography engine
+        shell: bash
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add hero-type-v1.js hero-builder-v3.js
+          if git diff --cached --quiet; then
+            echo 'No vector typography changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Replace Hero browser fonts with vector lettering'
+          git push
