@@ -1,10 +1,9 @@
-name: Install Athlete Main Headshot Approved Template
+name: Install Exact Athlete Main Headshot
 
 on:
   push:
     paths:
-      - 'athlete-main-headshot-approved-locked-v3.js'
-      - 'athlete-main-headshot-approved-vectors.js'
+      - 'athlete-main-headshot-approved-exact.js'
       - '.github/workflows/install-athlete-main-headshot-approved.yml'
   workflow_dispatch:
 
@@ -16,7 +15,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install locked approved template loaders
+
+      - name: Transfer exact locked assets from Studio Drive bridge
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import urllib.parse, urllib.request, json, base64, hashlib
+
+          BRIDGE='https://script.google.com/a/macros/christchurchschool.org/s/AKfycbwVpWix_ivzxwpEQxNTBGvJNpThQYjfRRG8T7CYMNPz3r9lB-JI6CowrskoQUAs67lt/exec'
+          assets=[
+            ('ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp','4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14'),
+            ('ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp','ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f'),
+          ]
+          dest=Path('assets/Reference')
+          dest.mkdir(parents=True,exist_ok=True)
+
+          def get_json(params):
+              url=BRIDGE+'?'+urllib.parse.urlencode(params)
+              req=urllib.request.Request(url,headers={'User-Agent':'Christchurch-Media-Studio-Installer/1.0'})
+              with urllib.request.urlopen(req,timeout=90) as r:
+                  return json.loads(r.read().decode('utf-8'))
+
+          for name,expected in assets:
+              found=get_json({'action':'findfilerecursive','name':name})
+              matches=found.get('matches') or []
+              if not matches:
+                  raise SystemExit(f'Exact locked asset not found in Drive: {name}')
+              ok=False
+              for match in matches:
+                  try:
+                      payload=get_json({'action':'file','fileId':match['id']})
+                      raw=base64.b64decode(payload.get('data') or '',validate=True)
+                  except Exception:
+                      continue
+                  actual=hashlib.sha256(raw).hexdigest()
+                  if actual==expected:
+                      (dest/name).write_bytes(raw)
+                      print(f'Verified exact asset {name}: {actual}')
+                      ok=True
+                      break
+              if not ok:
+                  raise SystemExit(f'No byte-exact Drive match found for {name}')
+          PY
+
+      - name: Wire Studio to the exact renderer only
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -26,24 +68,28 @@ jobs:
           patterns=[
             r'\s*<script src="athlete-main-headshot-approved-vectors\.js\?v=[^"]+"></script>\s*',
             r'\s*<script src="athlete-main-headshot-approved\.js\?v=[^"]+"></script>\s*',
-            r'\s*<script src="athlete-main-headshot-approved-locked-v3\.js\?v=[^"]+"></script>\s*'
+            r'\s*<script src="athlete-main-headshot-approved-locked-v3\.js\?v=[^"]+"></script>\s*',
+            r'\s*<script src="athlete-main-headshot-approved-exact\.js\?v=[^"]+"></script>\s*',
           ]
           for pat in patterns:
               t=re.sub(pat,'\n',t)
-          markers=[
-            '<script src="athlete-main-headshot-approved-vectors.js?v=20260813-3"></script>',
-            '<script src="athlete-main-headshot-approved-locked-v3.js?v=20260813-3"></script>'
-          ]
+          marker='<script src="athlete-main-headshot-approved-exact.js?v=20260813-exact-1"></script>'
           if '</body>' not in t:
               raise SystemExit('Missing </body>')
-          t=t.replace('</body>', '\n'.join(markers)+'\n</body>', 1)
+          t=t.replace('</body>',marker+'\n</body>',1)
           p.write_text(t)
           PY
-      - name: Commit install
+
+      - name: Commit exact assets and Studio wiring
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add index.html
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Use locked assets for Athlete Main Headshot Approved'
+          git add index.html athlete-main-headshot-approved-exact.js \
+            assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp \
+            assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp
+          if git diff --cached --quiet; then
+            echo 'Exact template already installed.'
+            exit 0
+          fi
+          git commit -m 'Install exact Athlete Main Headshot approved assets'
           git push
