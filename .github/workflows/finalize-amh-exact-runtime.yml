@@ -14,8 +14,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply exact bridge compatibility fix
-        run: bash tools/fix-amh-bridge.sh
+      - name: Make exact assets local first
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('athlete-main-headshot-approved-exact.js')
+          s=p.read_text().replace(",credentials:'include'","")
+          old="async function loadImage(src){const name=String(src||'').split('/').pop();const found=await bridgeJson({action:'findfilerecursive',name});const matches=(found.matches||[]);for(const m of matches){try{const payload=await bridgeJson({action:'file',fileId:m.id});if(payload&&payload.data)return await imageFromData(payload.data,'image/webp');}catch(_){}}throw new Error('Exact approved asset unavailable: '+name);}"
+          new="async function loadImage(src){try{return await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src+'?v='+VERSION;});}catch(_){const name=String(src||'').split('/').pop();const found=await bridgeJson({action:'findfilerecursive',name});const matches=(found.matches||[]);for(const m of matches){try{const payload=await bridgeJson({action:'file',fileId:m.id});if(payload&&payload.data)return await imageFromData(payload.data,'image/webp');}catch(_){}}throw new Error('Exact approved asset unavailable: '+name);}}"
+          if old in s:
+              s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
       - name: Commit exact renderer fix
         run: |
           git config user.name 'rdeane-create'
@@ -25,5 +35,5 @@ jobs:
             echo 'Already fixed.'
             exit 0
           fi
-          git commit -m 'Fix Athlete Main Headshot exact asset loading'
+          git commit -m 'Prefer local Athlete Main Headshot assets'
           git push
