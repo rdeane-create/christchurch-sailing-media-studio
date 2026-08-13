@@ -1,0 +1,60 @@
+name: Install AMH Exact Assets v2
+
+on:
+  push:
+    paths:
+      - '.github/workflows/install-amh-exact-assets-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy approved assets from Christchurch Studio bridge
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import urllib.parse, urllib.request, json, base64, hashlib
+          bridge='https://script.google.com/macros/s/AKfycbwVpWix_ivzxwpEQxNTBGvJNpThQYjfRRG8T7CYMNPz3r9lB-JI6CowrskoQUAs67lt/exec'
+          wanted={
+            'ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp':'4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14',
+            'ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp':'ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f'
+          }
+          def get(params):
+              url=bridge+'?'+urllib.parse.urlencode(params)
+              with urllib.request.urlopen(url,timeout=90) as r:
+                  return json.loads(r.read().decode())
+          out=Path('assets/Reference'); out.mkdir(parents=True,exist_ok=True)
+          for name,sha in wanted.items():
+              matches=(get({'action':'findfilerecursive','name':name}).get('matches') or [])
+              for m in matches:
+                  data=base64.b64decode(get({'action':'file','fileId':m['id']}).get('data') or '')
+                  if hashlib.sha256(data).hexdigest()==sha:
+                      (out/name).write_bytes(data)
+                      break
+              else:
+                  raise SystemExit('Exact asset unavailable: '+name)
+          PY
+      - name: Use exact Athlete Main Headshot renderer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html'); t=p.read_text()
+          for f in ['athlete-main-headshot-approved-vectors','athlete-main-headshot-approved','athlete-main-headshot-approved-locked-v3','athlete-main-headshot-approved-exact']:
+              t=re.sub(r'\s*<script src="'+re.escape(f)+r'\.js\?v=[^"]+"></script>\s*','\n',t)
+          marker='<script src="athlete-main-headshot-approved-exact.js?v=20260813-exact-2"></script>'
+          t=t.replace('</body>',marker+'\n</body>',1)
+          p.write_text(t)
+          PY
+      - name: Commit installed exact template
+        run: |
+          git config user.name rdeane-create
+          git config user.email rdeane@christchurchschool.org
+          git add index.html assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp
+          git commit -m 'Install byte-exact Athlete Main Headshot assets' || exit 0
+          git push
