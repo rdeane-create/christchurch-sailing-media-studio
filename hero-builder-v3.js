@@ -1,71 +1,135 @@
 (()=>{
 'use strict';
 /*
-  Christchurch Hero Builder v3.8
-  Visual contract transplanted from the Studio Drive revision saved
-  2026-08-07 21:06:30 — the revision that produced hero-master-final.
-  The visual layer definitions below are intentionally copied from that
-  revision. Current UI/storage handlers only wrap the original renderer.
+  Christchurch Hero — Original Master reset
+  This intentionally contains NO Hero rendering code.
+  The approved master file is displayed directly and unchanged.
 */
-const VERSION='3.8.0';
-const W=1080,H=1350;
-const DB_NAME='ChristchurchMediaStudio',STORE='media';
-const APPROVED_DRIVE_ID='1lqiQnm2XyEZFR4bhA6WyUYGaQ96HWRVO';
-const APPROVED_SRC=`https://lh3.googleusercontent.com/d/${APPROVED_DRIVE_ID}`;
-const APPROVED_FALLBACK_SRC='assets/Reference/CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED.png';
-const APPROVED_W=1023,APPROVED_H=1537;
+const VERSION='4.0.0-original-master';
+const ORIGINAL_MASTER_ID='1lqiQnm2XyEZFR4bhA6WyUYGaQ96HWRVO';
+const ORIGINAL_MASTER_URL=`https://lh3.googleusercontent.com/d/${ORIGINAL_MASTER_ID}`;
+const ORIGINAL_W=1023;
+const ORIGINAL_H=1537;
 
-/* Exact August 7 final Hero layer contract. */
-const HERO_LAYERS={
-  portrait:{x:0,y:192,w:1080,h:1158,sourceRect:{x:0,y:218,w:APPROVED_W,h:APPROVED_H-218},transform:{scale:1.01,cropX:-2,cropY:1,rotation:0,opacity:1,fitMode:'fill',mask:'none'}},
-  header:{x:0,y:0,w:1080,h:192,sourceRect:{x:0,y:0,w:APPROVED_W,h:218}},
-  footer:{x:0,y:715,w:1080,h:635,sourceRect:{x:0,y:860,w:APPROVED_W,h:300},opacity:1},
-  firstName:{x:66,y:992,w:540,h:64,fontSize:58,fontFamily:'Arial',fontStyle:'italic',letterSpacing:12,align:'left',color:'#ffffff',weight:'700'},
-  lastName:{x:56,y:1058,w:650,h:164,fontSize:162,fontFamily:'Arial Narrow',fontStyle:'italic',letterSpacing:2,align:'left',color:'#ffffff',weight:'800'},
-  graduationYear:{x:60,y:1248,w:620,h:48,fontSize:48,fontFamily:'Arial',fontStyle:'italic',letterSpacing:10,align:'left',color:'#f04b1a',weight:'700'},
-  achievement:{x:60,y:1300,w:840,h:38,fontSize:30,fontFamily:'Arial',fontStyle:'italic',letterSpacing:5,align:'left',color:'#ffffff',weight:'600'}
-};
-
-const state={active:false,installed:false,dragging:false,lastX:0,lastY:0,projectName:'Hero Card — Untitled',firstName:'WYLDER',lastName:'SMITH',year:'CLASS OF 2027',optional:'',scale:HERO_LAYERS.portrait.transform.scale,offsetX:HERO_LAYERS.portrait.transform.cropX,offsetY:HERO_LAYERS.portrait.transform.cropY,photoFile:null,photoImg:null,approvedImg:null,canvas:null,ctx:null};
 const q=id=>document.getElementById(id);
-const ui=()=>({builder:q('heroCardBuilder'),wrap:q('heroBuilderCanvasWrap'),status:q('heroBuilderStatus'),project:q('heroBuilderProjectName'),upload:q('heroBuilderUploadPhotoBtn'),saved:q('heroBuilderSavedHeroes'),save:q('heroBuilderSaveBtn'),saveBottom:q('heroBuilderSaveBottomBtn'),exportBottom:q('heroBuilderExportBottomBtn'),next:q('heroBuilderCreateNextBtn'),nextBottom:q('heroBuilderCreateNextBottomBtn'),back:q('heroBuilderBackTemplatesBtn'),first:q('heroBuilderFirstNameInput'),last:q('heroBuilderLastNameInput'),year:q('heroBuilderGraduationYearInput'),optional:q('heroBuilderOptionalTextInput'),scale:q('heroBuilderScale'),x:q('heroBuilderOffsetX'),y:q('heroBuilderOffsetY'),reset:q('heroBuilderResetCropBtn')});
-const status=msg=>{const e=ui().status;if(e)e.textContent=msg;};
-function loadImage(src){return new Promise((res,rej)=>{const i=new Image();if(/^https?:/i.test(src))i.crossOrigin='anonymous';i.onload=()=>res(i);i.onerror=()=>rej(new Error('Unable to load '+src));i.src=src+(src.includes('?')?'&':'?')+'v='+encodeURIComponent(VERSION);});}
-async function loadApprovedMaster(){let lastErr=null;for(const src of [APPROVED_SRC,APPROVED_FALLBACK_SRC]){try{const img=await loadImage(src);if((img.naturalWidth||img.width)!==APPROVED_W||(img.naturalHeight||img.height)!==APPROVED_H)throw new Error(`Approved master has wrong dimensions: ${img.naturalWidth||img.width}×${img.naturalHeight||img.height}`);return img;}catch(err){lastErr=err;console.warn('Hero master source failed',src,err);}}throw lastErr||new Error('Approved Hero master could not be loaded.');}
-function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-async function getAll(){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readonly');const r=tx.objectStore(STORE).getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error);});}
-async function put(rec){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(rec);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+let installed=false;
+let active=false;
+let masterImg=null;
 
-function ensureCanvas(){const e=ui();if(!e.wrap)return;if(!state.canvas){const c=document.createElement('canvas');c.id='heroBuilderV3Canvas';c.width=W;c.height=H;c.tabIndex=0;c.style.width='min(100%,540px)';c.style.height='auto';c.style.aspectRatio='4/5';c.style.display='block';c.style.margin='0 auto';c.style.background='#fff';c.style.border='0';c.style.borderRadius='0';c.style.boxShadow='0 18px 50px rgba(7,21,47,.22)';c.style.cursor='grab';c.style.touchAction='none';state.canvas=c;state.ctx=c.getContext('2d',{alpha:false});bindCanvasDrag(c);}['creativeCanvas','heroMasterCanvasV2'].forEach(id=>{const old=q(id);if(old)old.style.display='none';});if(state.canvas.parentElement!==e.wrap)e.wrap.replaceChildren(state.canvas);}
+function status(message){
+  const el=q('heroBuilderStatus');
+  if(el)el.textContent=message;
+}
 
-/* Original Studio photo transform semantics: source crop, then fill the layer. */
-function drawPhotoLayer(img,layer,sourceRect,transform){if(!img)return;const ctx=state.ctx;const rect=sourceRect||{x:0,y:0,w:img.naturalWidth||img.width,h:img.naturalHeight||img.height};const sourceX=rect.x,sourceY=rect.y,sourceW=rect.w,sourceH=rect.h;const t={scale:Math.max(1,Math.min(3,Number(transform?.scale)||1)),cropX:Math.max(-100,Math.min(100,Number(transform?.cropX)||0)),cropY:Math.max(-100,Math.min(100,Number(transform?.cropY)||0)),rotation:Number(transform?.rotation)||0,opacity:Number.isFinite(transform?.opacity)?transform.opacity:1,fitMode:transform?.fitMode==='fit'?'fit':'fill'};const srcW=sourceW/Math.max(1,t.scale);const srcH=sourceH/Math.max(1,t.scale);const maxX=Math.max(0,(sourceW-srcW)/2);const maxY=Math.max(0,(sourceH-srcH)/2);const cx=(sourceW/2)+(t.cropX/100)*maxX;const cy=(sourceH/2)+(t.cropY/100)*maxY;const sx=sourceX+Math.max(0,Math.min(sourceW-srcW,cx-srcW/2));const sy=sourceY+Math.max(0,Math.min(sourceH-srcH,cy-srcH/2));ctx.save();ctx.globalAlpha=t.opacity;ctx.translate(layer.x+layer.w/2,layer.y+layer.h/2);ctx.rotate(t.rotation*Math.PI/180);if(t.fitMode==='fit'){const fitScale=Math.min(layer.w/srcW,layer.h/srcH);const dw=srcW*fitScale,dh=srcH*fitScale;ctx.drawImage(img,sx,sy,srcW,srcH,-dw/2,-dh/2,dw,dh);}else{ctx.drawImage(img,sx,sy,srcW,srcH,-layer.w/2,-layer.h/2,layer.w,layer.h);}ctx.restore();}
+function buildMasterImage(){
+  if(masterImg)return masterImg;
+  const img=document.createElement('img');
+  img.id='heroOriginalMasterImage';
+  img.alt='CHRISTCHURCH HERO CARD — ORIGINAL APPROVED MASTER';
+  img.src=ORIGINAL_MASTER_URL;
+  img.decoding='async';
+  img.draggable=false;
+  img.style.display='block';
+  img.style.width='min(100%, 540px)';
+  img.style.height='auto';
+  img.style.margin='0 auto';
+  img.style.border='0';
+  img.style.borderRadius='0';
+  img.style.boxShadow='0 18px 50px rgba(7,21,47,.22)';
+  img.style.background='transparent';
+  img.style.objectFit='contain';
 
-function drawReferenceLayer(img,layer){if(!img)return;const r=layer.sourceRect;state.ctx.save();state.ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;state.ctx.drawImage(img,r.x,r.y,r.w,r.h,layer.x,layer.y,layer.w,layer.h);state.ctx.restore();}
+  img.addEventListener('load',()=>{
+    const w=img.naturalWidth;
+    const h=img.naturalHeight;
+    if(w===ORIGINAL_W&&h===ORIGINAL_H){
+      status(`Original approved master loaded unchanged — ${w}×${h}. No rendering or reconstruction is active.`);
+    }else{
+      status(`Original master source loaded at ${w}×${h}; expected ${ORIGINAL_W}×${ORIGINAL_H}. No substitute will be used.`);
+    }
+  });
 
-/* Original Studio text renderer contract. */
-function drawTextLayer(text,layer){if(!text)return;const ctx=state.ctx;ctx.save();ctx.globalAlpha=Number.isFinite(layer.opacity)?layer.opacity:1;ctx.fillStyle=layer.color||'#ffffff';const fontStyle=layer.fontStyle==='italic'?'italic':'normal';ctx.font=`${fontStyle} ${layer.weight||'700'} ${layer.fontSize||42}px ${layer.fontFamily||'Arial'}`;ctx.textBaseline='top';const lineHeight=(layer.fontSize||42)*(Number.isFinite(layer.lineHeight)?layer.lineHeight:1.18);const letterSpacing=Number.isFinite(layer.letterSpacing)?layer.letterSpacing:0;const lines=String(text||'').split(/\n+/);lines.forEach((line,lineIndex)=>{let x=layer.x;const y=layer.y+(lineIndex*lineHeight);if(letterSpacing){const chars=[...line];const widths=chars.map(ch=>ctx.measureText(ch).width);const total=widths.reduce((a,b)=>a+b,0)+Math.max(0,chars.length-1)*letterSpacing;if(layer.align==='center')x=layer.x+(layer.w-total)/2;else if(layer.align==='right')x=layer.x+layer.w-total;chars.forEach((ch,index)=>{ctx.fillText(ch,x,y);x+=widths[index]+letterSpacing;});}else{ctx.textAlign=layer.align==='center'?'center':layer.align==='right'?'right':'left';const tx=layer.align==='center'?layer.x+layer.w/2:layer.align==='right'?layer.x+layer.w:layer.x;ctx.fillText(line,tx,y);}});ctx.restore();}
+  img.addEventListener('error',()=>{
+    status('The original approved Drive master could not be displayed. No fallback or imitation has been substituted.');
+  });
 
-function drawOriginalHero(){const ctx=state.ctx;ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);const portraitImg=state.photoImg||state.approvedImg;const portraitSource=state.photoImg?null:HERO_LAYERS.portrait.sourceRect;const portraitTransform={...HERO_LAYERS.portrait.transform,scale:state.scale,cropX:state.offsetX,cropY:state.offsetY};drawPhotoLayer(portraitImg,HERO_LAYERS.portrait,portraitSource,portraitTransform);drawReferenceLayer(state.approvedImg,HERO_LAYERS.header);drawReferenceLayer(state.approvedImg,HERO_LAYERS.footer);drawTextLayer(String(state.firstName||'').trim().toUpperCase(),HERO_LAYERS.firstName);drawTextLayer(String(state.lastName||'').trim().toUpperCase(),HERO_LAYERS.lastName);drawTextLayer(String(state.year||'').trim().toUpperCase(),HERO_LAYERS.graduationYear);if(String(state.optional||'').trim())drawTextLayer(String(state.optional).trim().toUpperCase(),HERO_LAYERS.achievement);}
-function render(){if(!state.ctx||!state.approvedImg)return;drawOriginalHero();}
+  masterImg=img;
+  return img;
+}
 
-function bindCanvasDrag(c){const point=ev=>{const r=c.getBoundingClientRect();return{x:(ev.clientX-r.left)*(W/r.width),y:(ev.clientY-r.top)*(H/r.height)};};c.addEventListener('pointerdown',ev=>{ev.preventDefault();const p=point(ev);state.dragging=true;state.lastX=p.x;state.lastY=p.y;c.setPointerCapture(ev.pointerId);c.style.cursor='grabbing';});c.addEventListener('pointermove',ev=>{if(!state.dragging)return;ev.preventDefault();const p=point(ev);const dx=p.x-state.lastX,dy=p.y-state.lastY;state.lastX=p.x;state.lastY=p.y;state.offsetX=Math.max(-100,Math.min(100,state.offsetX+(dx/5)));state.offsetY=Math.max(-100,Math.min(100,state.offsetY+(dy/5)));syncCropFields();render();});const stop=ev=>{if(!state.dragging)return;state.dragging=false;c.style.cursor='grab';try{c.releasePointerCapture(ev.pointerId);}catch(_){}};c.addEventListener('pointerup',stop);c.addEventListener('pointercancel',stop);c.addEventListener('lostpointercapture',()=>{state.dragging=false;c.style.cursor='grab';});c.addEventListener('wheel',ev=>{ev.preventDefault();state.scale=Math.max(1,Math.min(3,state.scale+(ev.deltaY<0?.05:-.05)));syncCropFields();render();},{passive:false});}
+function disableEditing(){
+  [
+    'heroBuilderUploadPhotoBtn',
+    'heroBuilderFirstNameInput',
+    'heroBuilderLastNameInput',
+    'heroBuilderGraduationYearInput',
+    'heroBuilderOptionalTextInput',
+    'heroBuilderScale',
+    'heroBuilderOffsetX',
+    'heroBuilderOffsetY',
+    'heroBuilderResetCropBtn',
+    'heroBuilderSaveBtn',
+    'heroBuilderSaveBottomBtn',
+    'heroBuilderExportBottomBtn',
+    'heroBuilderCreateNextBtn',
+    'heroBuilderCreateNextBottomBtn'
+  ].forEach(id=>{
+    const el=q(id);
+    if(!el)return;
+    el.disabled=true;
+    el.setAttribute('aria-disabled','true');
+  });
+}
 
-function syncFields(){const e=ui();if(e.project)e.project.value=state.projectName;if(e.first)e.first.value=state.firstName;if(e.last)e.last.value=state.lastName;if(e.year)e.year.value=state.year;if(e.optional)e.optional.value=state.optional;syncCropFields();}
-function syncCropFields(){const e=ui();if(e.scale)e.scale.value=String(state.scale);if(e.x)e.x.value=String(Math.round(state.offsetX));if(e.y)e.y.value=String(Math.round(state.offsetY));}
-function resetCrop(){state.scale=HERO_LAYERS.portrait.transform.scale;state.offsetX=HERO_LAYERS.portrait.transform.cropX;state.offsetY=HERO_LAYERS.portrait.transform.cropY;syncCropFields();render();}
-function reset(){state.projectName='Hero Card — Untitled';state.firstName='WYLDER';state.lastName='SMITH';state.year='CLASS OF 2027';state.optional='';state.photoFile=null;state.photoImg=null;resetCrop();syncFields();render();status('Hero Builder v3.8 ready. Original August 7 Hero code active.');}
-function choosePhoto(){const inp=document.createElement('input');inp.type='file';inp.accept='image/png,image/jpeg,image/webp';inp.onchange=()=>{const f=inp.files?.[0];if(!f)return;const url=URL.createObjectURL(f);const img=new Image();img.onload=()=>{state.photoFile=f;state.photoImg=img;URL.revokeObjectURL(url);state.scale=1;state.offsetX=0;state.offsetY=0;syncCropFields();render();status('Photo loaded. Header, footer, and typography remain the original locked Hero code.');};img.onerror=()=>{URL.revokeObjectURL(url);status('Photo could not be loaded.');};img.src=url;};inp.click();}
-function canvasBlob(){return new Promise(res=>state.canvas.toBlob(res,'image/png'));}
-async function saveHero(){const blob=await canvasBlob(),all=await getAll(),f=state.firstName.trim(),l=state.lastName.trim();const existing=all.find(r=>(r.type==='athlete'||r.recordType==='athlete')&&String(r.first||r.firstName||'').toLowerCase()===f.toLowerCase()&&String(r.last||r.lastName||'').toLowerCase()===l.toLowerCase());const now=new Date().toISOString();const rec={...(existing||{}),id:existing?.id||`athlete_${Date.now()}`,type:'athlete',recordType:'athlete',first:f,last:l,year:state.year.trim(),firstName:f,lastName:l,graduationYear:state.year.trim(),optional:state.optional.trim(),projectName:state.projectName,originalFile:state.photoFile||existing?.originalFile||null,heroBlob:blob,crop:{scale:state.scale,x:state.offsetX,y:state.offsetY},heroMasterVersion:VERSION,created:existing?.created||now,updated:now};await put(rec);await refreshSaved();status(`${f||'Hero'} ${l||''} saved.`.trim());}
-function exportHero(){state.canvas.toBlob(blob=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=[state.firstName,state.lastName,'Hero'].filter(Boolean).join('_').replace(/\s+/g,'_')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2500);status('PNG exported at 1080×1350 (4:5).');},'image/png');}
-async function refreshSaved(){const e=ui();if(!e.saved)return;const all=(await getAll()).filter(r=>r.type==='athlete'||r.recordType==='athlete');e.saved.innerHTML='<option value="">Saved Hero Cards</option>';for(const r of all){const o=document.createElement('option');o.value=r.id;o.textContent=`${r.first||r.firstName||''} ${r.last||r.lastName||''}`.trim();e.saved.appendChild(o);}}
-async function loadSaved(id){if(!id)return;const r=(await getAll()).find(x=>x.id===id);if(!r)return;state.projectName=r.projectName||'Hero Card';state.firstName=r.first||r.firstName||'';state.lastName=r.last||r.lastName||'';state.year=r.year||r.graduationYear||'';state.optional=r.optional||'';state.scale=Number(r.crop?.scale||1);state.offsetX=Number(r.crop?.x||0);state.offsetY=Number(r.crop?.y||0);const f=r.originalFile;state.photoFile=f||null;if(f instanceof Blob){const url=URL.createObjectURL(f);const img=new Image();img.onload=()=>{state.photoImg=img;URL.revokeObjectURL(url);syncFields();render();};img.src=url;}else{state.photoImg=null;syncFields();render();}}
-function capture(el,type,fn){if(!el)return;const key='heroV38'+type;if(el.dataset[key])return;el.dataset[key]='1';el.addEventListener(type,ev=>{if(!state.active)return;ev.stopImmediatePropagation();fn(ev);},true);}
-function bind(){const e=ui();capture(e.upload,'click',ev=>{ev.preventDefault();choosePhoto();});capture(e.project,'input',()=>{state.projectName=e.project.value;});capture(e.first,'input',()=>{state.firstName=e.first.value;render();});capture(e.last,'input',()=>{state.lastName=e.last.value;render();});capture(e.year,'input',()=>{state.year=e.year.value;render();});capture(e.optional,'input',()=>{state.optional=e.optional.value;render();});capture(e.scale,'input',()=>{state.scale=Math.max(1,Math.min(3,Number(e.scale.value)||1));render();});capture(e.x,'input',()=>{state.offsetX=Math.max(-100,Math.min(100,Number(e.x.value)||0));render();});capture(e.y,'input',()=>{state.offsetY=Math.max(-100,Math.min(100,Number(e.y.value)||0));render();});capture(e.reset,'click',ev=>{ev.preventDefault();resetCrop();});[e.save,e.saveBottom].forEach(b=>capture(b,'click',ev=>{ev.preventDefault();saveHero().catch(err=>{console.error(err);status('Save failed: '+err.message);});}));capture(e.exportBottom,'click',ev=>{ev.preventDefault();exportHero();});[e.next,e.nextBottom].forEach(b=>capture(b,'click',ev=>{ev.preventDefault();reset();}));capture(e.saved,'change',()=>loadSaved(e.saved.value).catch(console.error));}
-async function activate(){state.active=true;ensureCanvas();bind();syncFields();status('Loading intact approved Hero master…');try{if(!state.approvedImg)state.approvedImg=await loadApprovedMaster();}catch(err){console.error(err);status(err.message);return;}render();refreshSaved().catch(()=>{});status('Hero Builder v3.8 ready. Intact August 7 approved master active.');}
-function deactivate(){state.active=false;}
-function watch(){const tick=()=>{const e=ui(),w=q('workspace-creative');const on=!!(e.builder&&!e.builder.hidden&&w&&w.classList.contains('hero-builder-mode'));if(on&&!state.active)activate();else if(!on&&state.active)deactivate();};new MutationObserver(tick).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['hidden','class']});setInterval(tick,700);tick();}
-function init(){if(state.installed)return;state.installed=true;const style=document.createElement('style');style.textContent='#workspace-creative.hero-builder-mode #creativeCanvas,#workspace-creative.hero-builder-mode #heroMasterCanvasV2{display:none!important}#heroBuilderV3Canvas{display:block!important}';document.head.appendChild(style);watch();console.info('Christchurch Hero Builder v3.8 installed',VERSION);}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+function activate(){
+  const builder=q('heroCardBuilder');
+  const wrap=q('heroBuilderCanvasWrap');
+  if(!builder||!wrap)return;
+
+  active=true;
+  ['creativeCanvas','heroMasterCanvasV2','heroBuilderV3Canvas'].forEach(id=>{
+    const el=q(id);
+    if(el)el.style.display='none';
+  });
+
+  const img=buildMasterImage();
+  if(img.parentElement!==wrap)wrap.replaceChildren(img);
+  disableEditing();
+  status('Loading the untouched original approved Hero master directly from its original Drive file…');
+}
+
+function deactivate(){
+  active=false;
+}
+
+function watch(){
+  const tick=()=>{
+    const builder=q('heroCardBuilder');
+    const workspace=q('workspace-creative');
+    const on=!!(builder&&!builder.hidden&&workspace&&workspace.classList.contains('hero-builder-mode'));
+    if(on&&!active)activate();
+    else if(!on&&active)deactivate();
+  };
+  new MutationObserver(tick).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['hidden','class']});
+  setInterval(tick,700);
+  tick();
+}
+
+function init(){
+  if(installed)return;
+  installed=true;
+  const style=document.createElement('style');
+  style.textContent=`
+    #workspace-creative.hero-builder-mode #creativeCanvas,
+    #workspace-creative.hero-builder-mode #heroMasterCanvasV2,
+    #workspace-creative.hero-builder-mode #heroBuilderV3Canvas{display:none!important}
+    #workspace-creative.hero-builder-mode #heroOriginalMasterImage{display:block!important}
+  `;
+  document.head.appendChild(style);
+  watch();
+  console.info('Christchurch Hero Original Master viewer installed',VERSION);
+}
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
+else init();
 })();
