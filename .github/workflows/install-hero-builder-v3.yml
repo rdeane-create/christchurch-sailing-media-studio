@@ -1,4 +1,4 @@
-name: Install Hero Builder v3 from approved master
+name: Install Hero Builder v3 from frozen RC5 contract
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build new HeroV3 assets from approved master only
+      - name: Build new HeroV3 locked header from approved source
         run: |
           python3 -m pip install --quiet pillow
           python3 - <<'PY'
@@ -28,55 +28,56 @@ jobs:
           out=Path('assets/HeroV3')
           out.mkdir(parents=True,exist_ok=True)
           expected='ade1907e4d610e0f08967c51476b97eada1c7bc188876299d957a75d953c7086'
-          raw=source.read_bytes()
-          actual=hashlib.sha256(raw).hexdigest()
+          actual=hashlib.sha256(source.read_bytes()).hexdigest()
           if actual!=expected:
-              raise SystemExit(f'Approved visual master checksum changed: {actual}')
-          master=Image.open(source).convert('RGBA')
-          if master.size!=(1023,1537):
-              raise SystemExit(f'Approved master is {master.size}, expected 1023x1537')
+              raise SystemExit(f'Approved source checksum changed: {actual}')
+          source_image=Image.open(source).convert('RGBA')
+          if source_image.size!=(1023,1537):
+              raise SystemExit(f'Approved source dimensions changed: {source_image.size}')
 
-          # New v3 assets are generated from the approved image; no old Hero
-          # renderer assets are copied or referenced by the new builder.
-          header=master.crop((0,0,1023,218))
+          # The frozen RC5 Studio contract uses only the exact 1023x218 locked
+          # source header, scaled into a 1080x209 region on a 1080x1350 card.
+          header=source_image.crop((0,0,1023,218))
           header.save(out/'hero-header-master.png','PNG',optimize=True)
-          master.save(out/'hero-visual-reference.png','PNG',optimize=True)
           (out/'MASTER_CONTRACT.txt').write_text(
-              'HERO BUILDER V3 MASTER CONTRACT\n'
-              'Source: CHRISTCHURCH_HERO_CARD_MASTER_v1_APPROVED(1).png\n'
-              'Canvas: 1023 x 1537\n'
-              'Header: exact source pixels x=0..1022, y=0..217\n'
-              'First name bbox: x=68..340, y=1136..1172\n'
-              'Last name bbox: x=48..446, y=1192..1358\n'
-              'Orange rule bbox: x=51..422, y=1381..1385\n'
-              'Class line bbox: x=52..422, y=1412..1436\n'
-              'Editable: photo, first name, last name, class year, optional text, crop.\n'
+              'HERO BUILDER V3.2 — FROZEN RC5 CONTRACT\n'
+              'Output canvas: 1080 x 1350 (4:5)\n'
+              'Locked header source: exact approved pixels 1023 x 218\n'
+              'Locked header destination: x=0 y=0 w=1080 h=209\n'
+              'First Name: x=66 y=992 w=540 h=64 Arial italic 58 weight 700 tracking 12\n'
+              'Last Name: x=56 y=1058 w=650 h=164 Arial Narrow italic 162 weight 800 tracking 2\n'
+              'Graduation Year: x=60 y=1248 w=620 h=48 Arial italic 48 weight 700 tracking 10 #f04b1a\n'
+              'Achievement: x=60 y=1300 w=840 h=38 Arial italic 30 weight 600 tracking 5\n'
+              'Editable: photo, first name, last name, class year, optional text, crop/position.\n'
           )
-          print('PASS: created new HeroV3 assets from approved master',actual)
+          print('PASS: rebuilt only the exact locked header and wrote frozen RC5 contract')
           PY
 
-      - name: Validate new standalone module
+      - name: Validate frozen RC5 standalone module
         run: |
           node --check hero-builder-v3.js
           test -s assets/HeroV3/hero-header-master.png
-          test -s assets/HeroV3/hero-visual-reference.png
-          grep -q "const W=1023,H=1537" hero-builder-v3.js
+          grep -q "const VERSION='3.2.0'" hero-builder-v3.js
+          grep -q "const W=1080,H=1350" hero-builder-v3.js
+          grep -q 'Arial Narrow' hero-builder-v3.js
+          grep -q 'italic 800 162px' hero-builder-v3.js
+          grep -q 'italic 700 58px' hero-builder-v3.js
+          grep -q 'italic 700 48px' hero-builder-v3.js
           grep -q "bindCanvasDrag" hero-builder-v3.js
           grep -q "heroBuilderV3Canvas" hero-builder-v3.js
           grep -q "heroBlob" hero-builder-v3.js
+          ! grep -q 'Barlow Condensed' hero-builder-v3.js
 
-      - name: Replace all prior Hero module loaders with v3
+      - name: Replace all prior Hero module loaders with v3.2
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           p=Path('index.html')
           t=p.read_text()
-          # Remove standalone Hero v2/v3 loaders. The generic Studio remains intact;
-          # Hero Builder v3 owns the Hero screen whenever it is open.
           t=re.sub(r'\s*<script src="hero-card-master-v2\.js(?:\?v=[^"]*)?"></script>\s*','\n',t)
           t=re.sub(r'\s*<script src="hero-builder-v3\.js(?:\?v=[^"]*)?"></script>\s*','\n',t)
-          marker='<script src="hero-builder-v3.js?v=20260812-1"></script>'
+          marker='<script src="hero-builder-v3.js?v=20260812-32"></script>'
           if '</body>' not in t:
               raise SystemExit('Install guard failed: </body> not found')
           t=t.replace('</body>',marker+'\n</body>',1)
@@ -85,23 +86,24 @@ jobs:
           if 'hero-card-master-v2.js' in t:
               raise SystemExit('v2 loader still present in index.html')
           p.write_text(t)
-          print('PASS: v2 loader removed; v3 installed exactly once')
+          print('PASS: v3.2 installed exactly once; v2 removed')
           PY
 
       - name: Final production validation
         run: |
           node --check hero-builder-v3.js
-          grep -q '<script src="hero-builder-v3.js?v=20260812-1"></script>' index.html
+          grep -q '<script src="hero-builder-v3.js?v=20260812-32"></script>' index.html
           ! grep -q 'hero-card-master-v2.js' index.html
+          grep -q 'Output canvas: 1080 x 1350 (4:5)' assets/HeroV3/MASTER_CONTRACT.txt
 
-      - name: Commit clean v3 production install
+      - name: Commit frozen RC5 v3.2 production install
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add index.html hero-builder-v3.js assets/HeroV3
+          git add index.html hero-builder-v3.js assets/HeroV3/hero-header-master.png assets/HeroV3/MASTER_CONTRACT.txt
           if git diff --cached --quiet; then
-            echo 'Hero Builder v3 already installed.'
+            echo 'Hero Builder v3.2 already installed.'
             exit 0
           fi
-          git commit -m 'Install master-driven Hero Builder v3'
+          git commit -m 'Install frozen RC5 Hero Builder v3.2'
           git push
