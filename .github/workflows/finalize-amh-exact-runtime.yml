@@ -25,17 +25,52 @@ jobs:
           root = Path('assets/Reference')
           canon = root / '.amh-canon'
           clean = root / '.amh-clean'
-          expected = 'ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f'
+          atlas_sha256 = 'ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f'
+
+          def git_blob_sha(text):
+              data = text.encode()
+              return hashlib.sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
+
+          def exact_delete_one(text, target_sha):
+              if git_blob_sha(text) == target_sha:
+                  return text
+              if len(text) != 10001:
+                  raise SystemExit(f'delete-repair unexpected length {len(text)}')
+              for i in range(len(text)):
+                  candidate = text[:i] + text[i+1:]
+                  if git_blob_sha(candidate) == target_sha:
+                      print(f'repaired extra character at {i}')
+                      return candidate
+              raise SystemExit('could not repair extra character by Git blob SHA')
+
+          def exact_insert_one(text, target_sha):
+              if git_blob_sha(text) == target_sha:
+                  return text
+              if len(text) != 9999:
+                  raise SystemExit(f'insert-repair unexpected length {len(text)}')
+              alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+              for i in range(len(text)+1):
+                  left, right = text[:i], text[i:]
+                  for ch in alphabet:
+                      candidate = left + ch + right
+                      if git_blob_sha(candidate) == target_sha:
+                          print(f'repaired missing character {ch!r} at {i}')
+                          return candidate
+              raise SystemExit('could not repair missing character by Git blob SHA')
 
           def revfile(path, prefix=''):
               s = Path(path).read_text().strip()
               return (prefix + s)[::-1]
 
-          rest = []
+          parts = []
           def add(label, text, expected_len):
               if len(text) != expected_len:
                   raise SystemExit(f'{label}: expected {expected_len} chars, got {len(text)}')
-              rest.append(text)
+              parts.append(text)
+
+          bad0 = (canon/'r000000-010000.rev').read_text().strip()
+          fixed0 = exact_delete_one(bad0, 'ac80defd2cc6834a598a837ed1e8227202395ecb')
+          add('0-10000', fixed0[::-1], 10000)
 
           for start in range(10000, 80000, 10000):
               end = start + 10000
@@ -54,9 +89,12 @@ jobs:
           add('260000-270000', revfile(clean/'atlas-f260-270.rev'), 10000)
           add('270000-280000', revfile(clean/'atlas-f270-280.rev'), 10000)
 
-          for start in range(280000, 320000, 10000):
-              end = start + 10000
-              add(f'{start}-{end}', revfile(canon/f'r{start:06d}-{end:06d}.rev'), 10000)
+          add('280000-290000', revfile(canon/'r280000-290000.rev'), 10000)
+          bad290 = (canon/'r290000-300000.rev').read_text().strip()
+          fixed290 = exact_insert_one(bad290, '8c6f0762acd927c4848e23ec6b5db9a5a9cfa5a8')
+          add('290000-300000', fixed290[::-1], 10000)
+          add('300000-310000', revfile(canon/'r300000-310000.rev'), 10000)
+          add('310000-320000', revfile(canon/'r310000-320000.rev'), 10000)
 
           add('320000-330000', revfile(clean/'atlas-r320-330.rev'), 10000)
           add('330000-340000', revfile(clean/'atlas-r330-340.rev'), 10000)
@@ -68,36 +106,19 @@ jobs:
           add('400000-420000', revfile(clean/'atlas-r020-tail.rev', 'C'), 20000)
           add('420000-430736', revfile(clean/'atlas-r420-430736.rev'), 10736)
 
-          suffix = ''.join(rest)
-          bad = (canon/'r000000-010000.rev').read_text().strip()
-          if len(bad) == 10000:
-              candidates = [bad]
-          elif len(bad) == 10001:
-              candidates = (bad[:i] + bad[i+1:] for i in range(len(bad)))
-          else:
-              raise SystemExit(f'first chunk unexpected length: {len(bad)}')
-
-          raw = None
-          for candidate_rev in candidates:
-              joined = candidate_rev[::-1] + suffix
-              if len(joined) != 430736:
-                  continue
-              try:
-                  trial = base64.b64decode(joined, validate=True)
-              except Exception:
-                  continue
-              if len(trial) != 323050:
-                  continue
-              if hashlib.sha256(trial).hexdigest() == expected:
-                  raw = trial
-                  break
-
-          if raw is None:
-              raise SystemExit('No single-character repair produced the approved SHA256')
+          joined = ''.join(parts)
+          if len(joined) != 430736:
+              raise SystemExit(f'base64 length mismatch: {len(joined)}')
+          raw = base64.b64decode(joined, validate=True)
+          if len(raw) != 323050:
+              raise SystemExit(f'byte size mismatch: {len(raw)}')
+          actual = hashlib.sha256(raw).hexdigest()
+          if actual != atlas_sha256:
+              raise SystemExit(f'SHA256 mismatch: {actual}')
 
           out = root/'ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp'
           out.write_bytes(raw)
-          print(f'VERIFIED {out} {len(raw)} bytes {expected}')
+          print(f'VERIFIED {out} {len(raw)} bytes {actual}')
           PY
       - name: Verify approved overlay
         run: |
