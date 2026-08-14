@@ -1,4 +1,4 @@
-# deploy marker: 20260814-contour-kern-12
+# deploy marker: 20260814-white-core-kern-13
 name: Finalize AMH Exact Runtime
 
 on:
@@ -25,7 +25,7 @@ jobs:
           test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp | awk '{print $1}')" = "ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f"
           ! grep -q "const BRIDGE=" athlete-main-headshot-approved-exact.js
           ! grep -q "bridgeJson" athlete-main-headshot-approved-exact.js
-      - name: Install contour kerning engine
+      - name: Install white-core contour kerning engine
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -33,7 +33,7 @@ jobs:
 
           r=Path('athlete-main-headshot-approved-exact.js')
           s=r.read_text()
-          start=s.index("const GLYPH_BOUNDS={};")
+          start=s.index("const GLYPH_METRICS={};")
           end=s.index("  function drawPhoto(ctx)")
           engine=textwrap.dedent("""\
             const GLYPH_METRICS={};
@@ -53,8 +53,10 @@ jobs:
               for(let yy=0;yy<g.h;yy++){
                 let left=g.w,right=-1;
                 for(let xx=0;xx<g.w;xx++){
-                  const i=(yy*g.w+xx)*4,a=px[i+3],bright=Math.max(px[i],px[i+1],px[i+2]);
-                  if(a>72&&bright>92){
+                  const i=(yy*g.w+xx)*4;
+                  const r=px[i],gg=px[i+1],b=px[i+2],a=px[i+3];
+                  const whiteCore=a>170 && Math.min(r,gg,b)>178;
+                  if(whiteCore){
                     if(xx<left)left=xx;if(xx>right)right=xx;
                     if(xx<minX)minX=xx;if(xx>maxX)maxX=xx;
                     if(yy<minY)minY=yy;if(yy>maxY)maxY=yy;
@@ -83,12 +85,12 @@ jobs:
               const A=glyphMetrics(style,a),B=glyphMetrics(style,b);
               if(!A||!B||!A.left||!B.left)return tracking;
               const sa=height/A.h,sb=height/B.h,aw=A.w*sa;
-              const target=style==='large'?1.5:4;
+              const target=style==='large'?4:5;
               const needs=[];
-              const samples=Math.max(24,Math.round(height));
+              const samples=Math.max(28,Math.round(height));
               for(let n=0;n<samples;n++){
                 const t=samples===1?0:n/(samples-1);
-                if(t<.10||t>.90)continue;
+                if(t<.06||t>.94)continue;
                 const ya=Math.min(A.h-1,Math.round(t*(A.h-1)));
                 const yb=Math.min(B.h-1,Math.round(t*(B.h-1)));
                 const ar=A.right[ya],bl=B.left[yb];
@@ -96,10 +98,9 @@ jobs:
                 needs.push(target-aw-bl*sb+ar*sa);
               }
               if(!needs.length)return tracking;
-              needs.sort((x,y)=>x-y);
-              const q=needs[Math.floor((needs.length-1)*.82)];
-              const min=-height*.34,max=style==='large'?height*.04:height*.12;
-              return Math.max(min,Math.min(max,q));
+              const required=Math.max(...needs);
+              const min=-height*.42,max=style==='large'?height*.08:height*.16;
+              return Math.max(min,Math.min(max,required));
             }
             function measure(text,style,height,tracking){
               const chars=String(text||'').toUpperCase();
@@ -133,33 +134,34 @@ jobs:
             }
           """)
           s=s[:start]+engine+s[end:]
-          s=re.sub(r"const VERSION='[^']+';","const VERSION='20260814-contour-kern-12';",s,count=1)
-          s=re.sub(r"\?v=20260814-[^'\"]+","?v=20260814-contour-kern-12",s)
+          s=re.sub(r"const VERSION='[^']+';","const VERSION='20260814-white-core-kern-13';",s,count=1)
+          s=re.sub(r"\?v=20260814-[^'\"]+","?v=20260814-white-core-kern-13",s)
           r.write_text(s)
 
           p=Path('index.html')
           t=p.read_text()
           t,n=re.subn(r'athlete-main-headshot-approved-exact\.js\?v=[^"\']+',
-                      'athlete-main-headshot-approved-exact.js?v=20260814-contour-kern-12',t)
+                      'athlete-main-headshot-approved-exact.js?v=20260814-white-core-kern-13',t)
           if n < 1:
               raise SystemExit('Exact renderer script tag not found in index.html')
           p.write_text(t)
-          print('Installed generic row-contour kerning. No surname-specific pairs or W hacks.')
+          print('Installed white-core contour kerning: shadows/bevel ignored; minimum white-to-white gap enforced.')
           PY
-      - name: Verify contour kerning engine
+      - name: Verify white-core kerning engine
         run: |
-          grep -q "function glyphMetrics" athlete-main-headshot-approved-exact.js
-          grep -q "function contourDelta" athlete-main-headshot-approved-exact.js
-          grep -q "needs.length" athlete-main-headshot-approved-exact.js
+          grep -q "whiteCore=a>170" athlete-main-headshot-approved-exact.js
+          grep -q "Math.min(r,gg,b)>178" athlete-main-headshot-approved-exact.js
+          grep -q "const required=Math.max" athlete-main-headshot-approved-exact.js
+          grep -q "const target=style==='large'?4:5" athlete-main-headshot-approved-exact.js
           ! grep -q "PAIR_KERN" athlete-main-headshot-approved-exact.js
           ! grep -q "glyphScale" athlete-main-headshot-approved-exact.js
           ! grep -q "glyphOffset" athlete-main-headshot-approved-exact.js
-          grep -q "20260814-contour-kern-12" athlete-main-headshot-approved-exact.js
-      - name: Commit contour kerning engine
+          grep -q "20260814-white-core-kern-13" athlete-main-headshot-approved-exact.js
+      - name: Commit white-core kerning engine
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add athlete-main-headshot-approved-exact.js index.html
-          if git diff --cached --quiet; then echo 'Contour kerning engine already installed.'; exit 0; fi
-          git commit -m 'Use contour kerning for all athlete names'
+          if git diff --cached --quiet; then echo 'White-core kerning engine already installed.'; exit 0; fi
+          git commit -m 'Kern athlete names from white letter edges only'
           git push origin HEAD:main
