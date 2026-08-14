@@ -39,7 +39,7 @@ jobs:
           grep -q 'regatta-lineup-layout-v2.js?v=20260814-regatta-lineup-layout-v4' index.html
           grep -q "listSavedCards" regatta-lineup-layout-v2.js
           grep -q "getSavedCard" regatta-lineup-layout-v2.js
-          grep -q "Add athletes from" regatta-lineup-layout-v2.js
+          grep -q "add athletes from" regatta-lineup-layout-v2.js
           grep -q "Regatta Details" regatta-lineup-layout-v2.js
 
       - name: Commit Regatta Lineup layout install
