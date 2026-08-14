@@ -1,0 +1,55 @@
+name: Install Regatta Lineup Output Branding v1
+
+on:
+  push:
+    paths:
+      - 'regatta-lineup-output-branding-v1.js'
+      - '.github/workflows/install-regatta-lineup-output-branding-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Regatta Lineup output branding
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          t=p.read_text()
+          t=re.sub(r'\s*<script src="regatta-lineup-output-branding-v1\.js\?v=[^"]+"></script>\s*','\n',t)
+          marker='<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v1"></script>'
+          if '</body>' not in t:
+              raise SystemExit('Missing </body>')
+          t=t.replace('</body>',marker+'\n</body>',1)
+          p.write_text(t)
+          PY
+
+      - name: Validate Regatta Lineup output branding
+        run: |
+          grep -q 'id="workspace-video"' index.html
+          grep -q 'id="canvas" width="1080" height="1920"' index.html
+          grep -q 'regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v1' index.html
+          grep -q "CHRISTCHURCH" regatta-lineup-output-branding-v1.js
+          grep -q "S  A  I  L  I  N  G" regatta-lineup-output-branding-v1.js
+          grep -q "REGATTA LINEUP" regatta-lineup-output-branding-v1.js
+          grep -q "eventName" regatta-lineup-output-branding-v1.js
+          grep -q "location" regatta-lineup-output-branding-v1.js
+
+      - name: Commit output branding install
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add index.html
+          if git diff --cached --quiet; then
+            echo 'Regatta Lineup output branding already installed.'
+            exit 0
+          fi
+          git commit -m 'Install exact athlete header and regatta footer output branding'
+          git push
