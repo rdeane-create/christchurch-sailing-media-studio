@@ -1,22 +1,15 @@
 (function(){
 'use strict';
-const VERSION='20260814-regatta-lineup-layout-v3';
+const VERSION='20260814-regatta-lineup-layout-v4';
 const q=id=>document.getElementById(id);
-const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let savedCards=[];
 let selectedCardIds=[];
 let loadedFiles=new Map();
 let refreshTimer=null;
+let loadingCards=false;
 
 function workspace(){return q('workspace-video');}
-function leftPanel(){
-  const w=workspace();
-  if(!w)return null;
-  return w.querySelector(':scope > .grid > section.panel:first-child') ||
-    w.querySelector('.grid > section.panel:first-child') ||
-    w.querySelector('section.panel') || w;
-}
-function controlFor(el){return el?.closest?.('.control')||el?.parentElement||null;}
+function norm(s){return String(s||'').replace(/\s+/g,' ').trim();}
 function bridgeCall(action,payload={}){
   if(typeof window.csmsAuthenticatedBridgeCall!=='function'){
     return Promise.reject(new Error('Google Drive Bridge is unavailable. Refresh Studio and connect Google Drive.'));
@@ -28,85 +21,97 @@ function b64Blob(base64,mime='image/png'){
   for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
   return new Blob([bytes],{type:mime});
 }
+function videoPanel(){
+  const w=workspace();if(!w)return null;
+  const heading=[...w.querySelectorAll('h1,h2,h3,h4')].find(el=>norm(el.textContent)==='Video Setup');
+  if(heading){
+    let n=heading.parentElement;
+    while(n&&n!==w){
+      if(n.querySelector&&n.querySelector('select,input,button'))return n;
+      n=n.parentElement;
+    }
+  }
+  return w.querySelector('section.panel')||w.querySelector('.panel')||w;
+}
 function addStyles(){
-  if(q('csmsRegattaLayoutStylesV3'))return;
+  if(q('csmsRegattaLayoutStylesV4'))return;
+  q('csmsRegattaLayoutStylesV3')?.remove();
   q('csmsRegattaLayoutStyles')?.remove();
-  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV3';s.textContent=`
+  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV4';s.textContent=`
 #workspace-video .csmsRegattaTitle{background:#07152f;border-radius:16px;padding:18px 20px 16px;margin:0 0 20px;overflow:hidden}
 #workspace-video .csmsRegattaEyebrow{color:#fff;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;font-weight:900;letter-spacing:.28em;text-transform:uppercase;margin-bottom:7px}
 #workspace-video .csmsRegattaTitleText{display:inline-block;color:#fff;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:44px;font-weight:900;font-style:italic;letter-spacing:-.055em;line-height:.9;transform:skewX(-9deg);transform-origin:left center;text-transform:uppercase}
 #workspace-video .csmsRegattaTitleRule{height:5px;background:#f15a24;width:82%;max-width:390px;margin-top:12px}
-#workspace-video .csmsAthleteCardLibrary{border:1px solid #d8e2ed;border-radius:14px;background:#f8fafc;padding:14px;margin:8px 0 14px}
-#workspace-video .csmsAthleteCardLibrary label{font-weight:800;display:block;margin-bottom:6px}
-#workspace-video .csmsAthleteCardLibrary select{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11px;background:#fff}
-#workspace-video .csmsAthleteCardActions{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
-#workspace-video .csmsAthleteCardStatus{font-size:12px;color:#536174;margin-top:8px;line-height:1.35}
-#workspace-video .csmsRegattaMetaBottom{margin-top:22px;padding-top:18px;border-top:2px solid #d8e2ed}
+#workspace-video .csmsDriveAthleteHint{font-size:12px;line-height:1.35;color:#536174;margin:7px 0 0}
+#workspace-video .csmsRegattaMetaBottom{margin-top:24px;padding-top:18px;border-top:2px solid #d8e2ed}
 #workspace-video .csmsRegattaMetaBottom h2{margin:0 0 12px;color:#10213c;font-size:20px}
 #workspace-video .csmsRegattaMetaBottom .control{margin-bottom:12px}
 `;
   document.head.appendChild(s);
 }
 function ensureTitle(){
-  const panel=leftPanel();if(!panel)return;
-  const old=q('csmsRegattaPageTitle');
-  if(old&&old.parentElement!==panel)old.remove();
-  if(q('csmsRegattaPageTitle'))return;
-  const box=document.createElement('div');box.id='csmsRegattaPageTitle';box.className='csmsRegattaTitle';
-  box.innerHTML='<div class="csmsRegattaEyebrow">CHRISTCHURCH SAILING</div><div class="csmsRegattaTitleText">REGATTA LINEUP</div><div class="csmsRegattaTitleRule"></div>';
-  panel.insertBefore(box,panel.firstChild);
-}
-function findAthletesHeading(){
-  const panel=leftPanel();if(!panel)return null;
-  return [...panel.querySelectorAll('h1,h2,h3,h4,strong')].find(el=>/^athletes$/i.test(String(el.textContent||'').trim()))||null;
-}
-function ensureAthleteLibrary(){
-  const panel=leftPanel();if(!panel)return;
-  const athleteFiles=q('athleteFiles');
-  const heading=findAthletesHeading();
-  const existing=q('csmsRegattaAthleteCards');
-  if(existing){
-    if(heading&&existing.previousElementSibling!==heading)heading.insertAdjacentElement('afterend',existing);
-    return;
+  const panel=videoPanel();if(!panel)return;
+  let box=q('csmsRegattaPageTitle');
+  if(box&&box.parentElement!==panel){box.remove();box=null;}
+  if(!box){
+    box=document.createElement('div');box.id='csmsRegattaPageTitle';box.className='csmsRegattaTitle';
+    box.innerHTML='<div class="csmsRegattaEyebrow">CHRISTCHURCH SAILING</div><div class="csmsRegattaTitleText">REGATTA LINEUP</div><div class="csmsRegattaTitleRule"></div>';
+    panel.insertBefore(box,panel.firstChild);
   }
-  if(!athleteFiles&&!heading)return;
-  const box=document.createElement('div');box.id='csmsRegattaAthleteCards';box.className='csmsAthleteCardLibrary';
-  box.innerHTML=`<label for="csmsRegattaAthleteCardSelect">Athlete Library</label>
-    <select id="csmsRegattaAthleteCardSelect"><option value="">Loading Athlete Cards from Drive…</option></select>
-    <div class="csmsAthleteCardActions"><button type="button" class="primary tiny" id="csmsAddAthleteCard">Add Athlete Card</button><button type="button" class="secondary tiny" id="csmsReloadAthleteCards">Refresh Library</button></div>
-    <div id="csmsRegattaAthleteCardStatus" class="csmsAthleteCardStatus">Saved Athlete Cards from the Studio Drive library appear here.</div>`;
-  if(heading)heading.insertAdjacentElement('afterend',box);
-  else {
-    const anchor=controlFor(athleteFiles)||q('athleteList');
-    if(anchor?.parentElement)anchor.parentElement.insertBefore(box,anchor);
-    else panel.appendChild(box);
+}
+function findAthleteHeading(){
+  const w=workspace();if(!w)return null;
+  return [...w.querySelectorAll('h1,h2,h3,h4,strong')].find(el=>/^athletes$/i.test(norm(el.textContent)))||null;
+}
+function findNativeAthleteSelect(){
+  const w=workspace();if(!w)return null;
+  const candidates=[...w.querySelectorAll('select')];
+  for(const sel of candidates){
+    const block=sel.closest('.control')||sel.parentElement;
+    const text=norm(block?.textContent).toLowerCase();
+    if(text.includes('add athletes from'))return sel;
   }
-  q('csmsAddAthleteCard').onclick=addSelectedCard;
-  q('csmsReloadAthleteCards').onclick=loadSavedCards;
-  loadSavedCards();
+  const heading=findAthleteHeading();
+  if(heading){
+    let n=heading.nextElementSibling;
+    for(let i=0;n&&i<8;i++,n=n.nextElementSibling){
+      const sel=n.matches?.('select')?n:n.querySelector?.('select');
+      if(sel)return sel;
+    }
+  }
+  return null;
 }
 async function loadSavedCards(){
-  const sel=q('csmsRegattaAthleteCardSelect'),status=q('csmsRegattaAthleteCardStatus');if(!sel)return;
-  sel.innerHTML='<option value="">Loading Athlete Cards from Drive…</option>';
+  const sel=findNativeAthleteSelect();if(!sel||loadingCards)return;
+  loadingCards=true;
+  sel.dataset.csmsDriveAthletes='1';
+  sel.innerHTML='<option value="">Loading saved Athlete Cards…</option>';
   try{
     const result=await bridgeCall('listSavedCards',{});
     savedCards=(result&&Array.isArray(result.cards)?result.cards:[]).filter(c=>/athlete/i.test(String(c.cardType||c.name||'')));
     savedCards.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
-    sel.innerHTML='<option value="">Choose an Athlete Card…</option>'+savedCards.map(c=>`<option value="${esc(c.fileId)}">${esc(String(c.name||'Athlete Card').replace(/\.png$/i,''))}</option>`).join('');
-    if(status)status.textContent=savedCards.length?`${savedCards.length} saved Athlete Card${savedCards.length===1?'':'s'} available from Google Drive.`:'No saved Athlete Cards found in Google Drive yet.';
+    sel.innerHTML='<option value="">Choose saved Athlete Card…</option>';
+    savedCards.forEach(card=>{
+      const o=document.createElement('option');o.value=card.fileId;o.textContent=String(card.name||'Athlete Card').replace(/\.png$/i,'');sel.appendChild(o);
+    });
+    let hint=q('csmsDriveAthleteHint');
+    if(!hint){hint=document.createElement('div');hint.id='csmsDriveAthleteHint';hint.className='csmsDriveAthleteHint';sel.insertAdjacentElement('afterend',hint);}
+    hint.textContent=savedCards.length?`${savedCards.length} Athlete Card${savedCards.length===1?'':'s'} available from Google Drive.`:'No saved Athlete Cards found in Google Drive yet.';
   }catch(err){
-    console.error('Regatta Athlete Library load failed',err);
-    sel.innerHTML='<option value="">Athlete Library unavailable</option>';
-    if(status)status.textContent=err?.message||'Could not load Athlete Cards from Drive.';
-  }
+    console.error('Regatta athlete card library load failed',err);
+    sel.innerHTML='<option value="">Drive Athlete Library unavailable</option>';
+    let hint=q('csmsDriveAthleteHint');
+    if(!hint){hint=document.createElement('div');hint.id='csmsDriveAthleteHint';hint.className='csmsDriveAthleteHint';sel.insertAdjacentElement('afterend',hint);}
+    hint.textContent=err?.message||'Could not load Athlete Cards from Drive.';
+  }finally{loadingCards=false;}
 }
-async function addSelectedCard(){
-  const sel=q('csmsRegattaAthleteCardSelect'),status=q('csmsRegattaAthleteCardStatus'),input=q('athleteFiles');
-  if(!sel?.value){if(status)status.textContent='Choose an Athlete Card first.';return;}
-  if(!input){if(status)status.textContent='The lineup athlete input is unavailable.';return;}
-  const id=sel.value;const meta=savedCards.find(c=>c.fileId===id);if(!meta)return;
+async function addCardById(id){
+  const input=q('athleteFiles');
+  if(!id||!input)return;
+  const meta=savedCards.find(c=>c.fileId===id);if(!meta)return;
+  const hint=q('csmsDriveAthleteHint');
   try{
-    if(status)status.textContent='Loading '+String(meta.name||'Athlete Card').replace(/\.png$/i,'')+' from Drive…';
+    if(hint)hint.textContent='Loading '+String(meta.name||'Athlete Card').replace(/\.png$/i,'')+'…';
     if(!loadedFiles.has(id)){
       const result=await bridgeCall('getSavedCard',{fileId:id});
       if(!result?.card?.data)throw new Error('Athlete Card image could not be loaded from Drive.');
@@ -115,54 +120,60 @@ async function addSelectedCard(){
     }
     if(!selectedCardIds.includes(id))selectedCardIds.push(id);
     const dt=new DataTransfer();
-    selectedCardIds.forEach(cardId=>{const file=loadedFiles.get(cardId);if(file)dt.items.add(file)});
+    selectedCardIds.forEach(cardId=>{const f=loadedFiles.get(cardId);if(f)dt.items.add(f);});
     input.files=dt.files;
     input.dispatchEvent(new Event('change',{bubbles:true}));
-    if(status)status.textContent=`Added ${String(meta.name||'Athlete Card').replace(/\.png$/i,'')} • ${selectedCardIds.length} card${selectedCardIds.length===1?'':'s'} in lineup.`;
+    if(hint)hint.textContent=`Added ${String(meta.name||'Athlete Card').replace(/\.png$/i,'')} • ${selectedCardIds.length} athlete card${selectedCardIds.length===1?'':'s'} in lineup.`;
   }catch(err){
-    console.error('Add Athlete Card failed',err);
-    if(status)status.textContent=err?.message||'Could not add Athlete Card.';
+    console.error('Add Regatta athlete card failed',err);
+    if(hint)hint.textContent=err?.message||'Could not add Athlete Card.';
   }
 }
-function regattaControlCandidates(panel){
-  const candidates=[];
-  function add(c){if(c&&c.classList?.contains('control')&&!candidates.includes(c))candidates.push(c);}
-  [q('eventName'),q('location')].forEach(el=>add(controlFor(el)));
-  [...panel.querySelectorAll('.control')].forEach(c=>{
-    const label=String(c.querySelector('label')?.textContent||'').trim().toLowerCase();
-    const input=c.querySelector('input,select,textarea');
-    const value=String(input?.value||'').trim().toLowerCase();
-    if(label==='regatta lineup'||label==='regatta'||label==='location')add(c);
-    if((label==='title'||label==='video title'||label==='lineup title')&&value==='regatta lineup')add(c);
-  });
-  return candidates;
+function wireNativeAthleteSelect(){
+  q('csmsRegattaAthleteCards')?.remove();
+  const sel=findNativeAthleteSelect();if(!sel)return;
+  if(sel.dataset.csmsDriveWired!=='1'){
+    sel.dataset.csmsDriveWired='1';
+    sel.addEventListener('change',function(){const id=this.value;if(id)addCardById(id);});
+  }
+  if(sel.dataset.csmsDriveAthletes!=='1')loadSavedCards();
 }
-function moveMetaToBottom(){
-  const panel=leftPanel();if(!panel)return;
+function controlText(c){
+  const label=norm(c.querySelector?.('label')?.textContent);
+  if(label)return label;
+  const clone=c.cloneNode(true);
+  clone.querySelectorAll?.('input,select,textarea,button').forEach(el=>el.remove());
+  return norm(clone.textContent);
+}
+function findRegattaControls(panel){
+  const out=[];
+  const controls=[...panel.querySelectorAll('.control')];
+  for(const c of controls){
+    if(c.closest('#csmsRegattaMetaBottom'))continue;
+    const t=controlText(c).toLowerCase();
+    if(t==='regatta lineup'||t==='regatta'||t==='location'||t.startsWith('regatta lineup ')||t.startsWith('location '))out.push(c);
+  }
+  if(!out.length){
+    for(const c of controls){
+      const t=norm(c.textContent).toLowerCase();
+      if(/^regatta lineup\b/.test(t)||/^regatta\b/.test(t)||/^location\b/.test(t))out.push(c);
+    }
+  }
+  return [...new Set(out)];
+}
+function moveRegattaDetails(){
+  const panel=videoPanel();if(!panel)return;
   let box=q('csmsRegattaMetaBottom');
-  if(!box){
-    box=document.createElement('div');box.id='csmsRegattaMetaBottom';box.className='csmsRegattaMetaBottom';box.innerHTML='<h2>Regatta Details</h2>';
-    panel.appendChild(box);
-  }
-  regattaControlCandidates(panel).forEach(c=>{if(c.parentElement!==box)box.appendChild(c);});
-  if(box.parentElement===panel&&box!==panel.lastElementChild)panel.appendChild(box);
-}
-function removeOldWorkspaceTitle(){
-  const w=workspace(),panel=leftPanel(),title=q('csmsRegattaPageTitle');
-  if(w&&panel&&title&&title.parentElement===w){title.remove();ensureTitle();}
+  if(!box){box=document.createElement('div');box.id='csmsRegattaMetaBottom';box.className='csmsRegattaMetaBottom';box.innerHTML='<h2>Regatta Details</h2>';}
+  const controls=findRegattaControls(panel);
+  controls.forEach(c=>box.appendChild(c));
+  if(controls.length||box.childElementCount>1)panel.appendChild(box);
 }
 function refresh(){
-  addStyles();
-  ensureTitle();
-  removeOldWorkspaceTitle();
-  ensureAthleteLibrary();
-  moveMetaToBottom();
+  addStyles();ensureTitle();wireNativeAthleteSelect();moveRegattaDetails();
 }
-function scheduleRefresh(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,30);}
-function init(){
-  refresh();
-  new MutationObserver(scheduleRefresh).observe(document.body,{childList:true,subtree:true});
-}
+function scheduleRefresh(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,60);}
+function init(){refresh();new MutationObserver(scheduleRefresh).observe(document.body,{childList:true,subtree:true});}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 window.__CSMS_REGATTA_LINEUP_LAYOUT__={version:VERSION,refresh,loadSavedCards};
 })();
