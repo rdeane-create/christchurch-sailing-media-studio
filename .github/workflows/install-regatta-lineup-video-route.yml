@@ -23,7 +23,7 @@ jobs:
           import re
           p=Path('index.html')
           t=p.read_text()
-          marker='<script src="regatta-lineup-video-route.js?v=20260814-1"></script>'
+          marker='<script src="regatta-lineup-video-route.js?v=20260814-2"></script>'
           t=re.sub(r'\s*<script src="regatta-lineup-video-route\.js\?v=[^"]+"></script>\s*','\n',t)
           if '</body>' not in t:
               raise SystemExit('Missing </body>')
@@ -35,7 +35,8 @@ jobs:
         run: |
           grep -q 'id="workspace-video"' index.html
           grep -q 'id="renderBtn"' index.html
-          grep -q 'regatta-lineup-video-route.js?v=20260814-1' index.html
+          grep -q 'regatta-lineup-video-route.js?v=20260814-2' index.html
+          grep -q 'authoritative native video routing' regatta-lineup-video-route.js
 
       - name: Commit route install
         run: |
@@ -46,5 +47,5 @@ jobs:
             echo 'Regatta Lineup route already installed.'
             exit 0
           fi
-          git commit -m 'Install Regatta Lineup video template route'
+          git commit -m 'Install authoritative Regatta Lineup video route v2'
           git push
