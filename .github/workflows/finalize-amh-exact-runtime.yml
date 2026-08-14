@@ -14,26 +14,84 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Make exact assets local first
+        with:
+          ref: amh-atlas-final-transfer
+      - name: Reconstruct exact approved glyph atlas
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('athlete-main-headshot-approved-exact.js')
-          s=p.read_text().replace(",credentials:'include'","")
-          old="async function loadImage(src){const name=String(src||'').split('/').pop();const found=await bridgeJson({action:'findfilerecursive',name});const matches=(found.matches||[]);for(const m of matches){try{const payload=await bridgeJson({action:'file',fileId:m.id});if(payload&&payload.data)return await imageFromData(payload.data,'image/webp');}catch(_){}}throw new Error('Exact approved asset unavailable: '+name);}"
-          new="async function loadImage(src){try{return await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src+'?v='+VERSION;});}catch(_){const name=String(src||'').split('/').pop();const found=await bridgeJson({action:'findfilerecursive',name});const matches=(found.matches||[]);for(const m of matches){try{const payload=await bridgeJson({action:'file',fileId:m.id});if(payload&&payload.data)return await imageFromData(payload.data,'image/webp');}catch(_){}}throw new Error('Exact approved asset unavailable: '+name);}}"
-          if old in s:
-              s=s.replace(old,new,1)
-          p.write_text(s)
+          import base64, hashlib
+
+          root = Path('assets/Reference')
+          canon = root / '.amh-canon'
+          clean = root / '.amh-clean'
+
+          def revfile(path, prefix=''):
+              s = Path(path).read_text().strip()
+              return (prefix + s)[::-1]
+
+          parts = []
+          def add(label, text, expected):
+              if len(text) != expected:
+                  raise SystemExit(f'{label}: expected {expected} chars, got {len(text)}')
+              parts.append(text)
+
+          for start in range(0, 80000, 10000):
+              end = start + 10000
+              add(f'{start}-{end}', revfile(canon / f'r{start:06d}-{end:06d}.rev'), 10000)
+
+          add('80000-100000', revfile(clean/'atlas-008009.rev', 'f'), 20000)
+          add('100000-120000', revfile(clean/'atlas-r100-120.rev', 'e'), 20000)
+          add('120000-140000', revfile(clean/'atlas-r120-140.rev', 'Y'), 20000)
+          add('140000-160000', revfile(clean/'atlas-r140-160.rev', 'O'), 20000)
+          add('160000-180000', revfile(clean/'atlas-r160-200.rev', 'I'), 20000)
+          add('180000-190000', revfile(canon/'r180000-190000.rev'), 10000)
+          add('190000-200000', revfile(clean/'atlas-f190-200.rev'), 10000)
+          add('200000-220000', revfile(clean/'atlas-r010.rev', 'X'), 20000)
+          add('220000-240000', revfile(clean/'atlas-r011.rev', 'N'), 20000)
+          add('240000-260000', revfile(clean/'atlas-r012-013.rev', 'u'), 20000)
+          add('260000-270000', revfile(clean/'atlas-f260-270.rev'), 10000)
+          add('270000-280000', revfile(clean/'atlas-f270-280.rev'), 10000)
+
+          for start in range(280000, 320000, 10000):
+              end = start + 10000
+              add(f'{start}-{end}', revfile(canon/f'r{start:06d}-{end:06d}.rev'), 10000)
+
+          add('320000-330000', revfile(clean/'atlas-r320-330.rev'), 10000)
+          add('330000-340000', revfile(clean/'atlas-r330-340.rev'), 10000)
+          add('340000-350000', revfile(canon/'r340000-350000.rev'), 10000)
+          add('350000-360000', revfile(clean/'atlas-r340-360.rev'), 10000)
+          add('360000-380000', revfile(clean/'atlas-r018-019.rev', '8'), 20000)
+          add('380000-390000', revfile(canon/'r380000-390000.rev'), 10000)
+          add('390000-400000', revfile(canon/'r390000-400000.rev'), 10000)
+          add('400000-420000', revfile(clean/'atlas-r020-tail.rev', 'C'), 20000)
+          add('420000-430736', revfile(clean/'atlas-r420-430736.rev'), 10736)
+
+          joined = ''.join(parts)
+          if len(joined) != 430736:
+              raise SystemExit(f'base64 length mismatch: {len(joined)}')
+          raw = base64.b64decode(joined, validate=True)
+          if len(raw) != 323050:
+              raise SystemExit(f'byte size mismatch: {len(raw)}')
+          expected = 'ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f'
+          actual = hashlib.sha256(raw).hexdigest()
+          if actual != expected:
+              raise SystemExit(f'SHA256 mismatch: {actual}')
+          out = root/'ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp'
+          out.write_bytes(raw)
+          print(f'VERIFIED {out} {len(raw)} bytes {actual}')
           PY
-      - name: Commit exact renderer fix
+      - name: Verify approved overlay
+        run: |
+          test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp | awk '{print $1}')" = "4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14"
+      - name: Commit exact local atlas
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add athlete-main-headshot-approved-exact.js
+          git add assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp
           if git diff --cached --quiet; then
-            echo 'Already fixed.'
+            echo 'Exact atlas already committed.'
             exit 0
           fi
-          git commit -m 'Prefer local Athlete Main Headshot assets'
-          git push
+          git commit -m 'Install exact approved Athlete Main Headshot glyph atlas'
+          git push origin HEAD:amh-atlas-final-transfer
