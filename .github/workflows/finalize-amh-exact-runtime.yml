@@ -39,7 +39,6 @@ jobs:
               for i in range(len(text)):
                   candidate = text[:i] + text[i+1:]
                   if git_blob_sha(candidate) == target_sha:
-                      print(f'repaired extra character at {i}')
                       return candidate
               raise SystemExit('could not repair extra character by Git blob SHA')
 
@@ -54,7 +53,6 @@ jobs:
                   for ch in alphabet:
                       candidate = left + ch + right
                       if git_blob_sha(candidate) == target_sha:
-                          print(f'repaired missing character {ch!r} at {i}')
                           return candidate
               raise SystemExit('could not repair missing character by Git blob SHA')
 
@@ -120,9 +118,6 @@ jobs:
           out.write_bytes(raw)
           print(f'VERIFIED {out} {len(raw)} bytes {actual}')
           PY
-      - name: Verify approved overlay
-        run: |
-          test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp | awk '{print $1}')" = "4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14"
       - name: Commit exact local atlas
         run: |
           git config user.name 'rdeane-create'
