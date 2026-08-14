@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'athlete-main-headshot-approved-exact.js'
+      - '.github/scripts/install_saved_card_library.py'
       - '.github/workflows/install-athlete-main-headshot-approved.yml'
   workflow_dispatch:
 
@@ -80,6 +81,18 @@ jobs:
           p.write_text(t)
           PY
 
+      - name: Install Drive-backed Saved Cards
+        run: python3 .github/scripts/install_saved_card_library.py
+
+      - name: Validate Drive-backed Saved Cards
+        run: |
+          grep -q 'CSMS DRIVE-BACKED SAVED CARDS V1' athlete-main-headshot-approved-exact.js
+          grep -q "savedCardBridgeCall('saveCard'" athlete-main-headshot-approved-exact.js
+          grep -q "savedCardBridgeCall('listSavedCards'" athlete-main-headshot-approved-exact.js
+          grep -q "savedCardBridgeCall('getSavedCard'" athlete-main-headshot-approved-exact.js
+          grep -q "savedCardBridgeCall('deleteSavedCard'" athlete-main-headshot-approved-exact.js
+          grep -q '20260814-drive-saved-cards-18' index.html
+
       - name: Commit exact assets and Studio wiring
         run: |
           git config user.name 'rdeane-create'
@@ -88,8 +101,8 @@ jobs:
             assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp \
             assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp
           if git diff --cached --quiet; then
-            echo 'Exact template already installed.'
+            echo 'Exact template and Drive-backed Saved Cards already installed.'
             exit 0
           fi
-          git commit -m 'Install exact Athlete Main Headshot approved assets'
+          git commit -m 'Install Drive-backed Saved Cards'
           git push
