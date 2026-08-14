@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  const VERSION='20260814-regatta-lineup-video-route-v1';
+  const VERSION='20260814-regatta-lineup-video-route-v2';
 
   function activateNative(name){
     if(typeof window.activateWorkspace==='function'){
@@ -16,6 +16,14 @@
     return false;
   }
 
+  function refreshRegattaLayout(){
+    try{
+      if(window.__CSMS_REGATTA_LINEUP_LAYOUT__&&typeof window.__CSMS_REGATTA_LINEUP_LAYOUT__.refresh==='function'){
+        window.__CSMS_REGATTA_LINEUP_LAYOUT__.refresh();
+      }
+    }catch(err){console.warn('Regatta Lineup layout refresh failed',err)}
+  }
+
   function openRegattaLineup(){
     const ok=activateNative('video');
     if(!ok){
@@ -23,10 +31,33 @@
       alert('Regatta Lineup video builder could not be opened.');
       return;
     }
-    const video=document.getElementById('workspace-video');
-    if(video){
-      try{video.scrollIntoView({behavior:'smooth',block:'start'})}catch(_){ }
-    }
+    refreshRegattaLayout();
+    setTimeout(function(){
+      refreshRegattaLayout();
+      const title=document.getElementById('csmsRegattaPageTitle');
+      const video=document.getElementById('workspace-video');
+      const target=title||video;
+      if(target){
+        try{target.scrollIntoView({behavior:'smooth',block:'start'})}catch(_){ }
+      }
+    },80);
+  }
+
+  function templateRows(){
+    const list=document.getElementById('templateLibraryList');
+    if(!list)return [];
+    return [...list.children].filter(row=>/REGATTA LINEUP/i.test(String(row.textContent||'')));
+  }
+
+  function pruneDuplicateRegattaTemplates(){
+    const rows=templateRows();
+    if(rows.length<2)return;
+    let keep=rows.find(row=>/CHRISTCHURCH REGATTA LINEUP/i.test(String(row.textContent||'')));
+    if(!keep)keep=rows.find(row=>!/REGATTA LINEUP\s*V1/i.test(String(row.textContent||'')))||rows[0];
+    rows.forEach(row=>{
+      if(row!==keep)row.remove();
+    });
+    if(keep)keep.dataset.csmsAuthoritativeRegattaLineup='1';
   }
 
   function isLineupLaunch(target){
@@ -59,14 +90,19 @@
         openRegattaLineup();
       },true);
     });
+    pruneDuplicateRegattaTemplates();
   }
 
   function init(){
     wireKnownButtons();
-    const observer=new MutationObserver(wireKnownButtons);
+    pruneDuplicateRegattaTemplates();
+    const observer=new MutationObserver(function(){
+      wireKnownButtons();
+      pruneDuplicateRegattaTemplates();
+    });
     observer.observe(document.body,{childList:true,subtree:true});
-    window.CSMSRegattaLineupVideo={version:VERSION,open:openRegattaLineup};
-    console.info('[CSMS Regatta Lineup] restored native video routing',VERSION);
+    window.CSMSRegattaLineupVideo={version:VERSION,open:openRegattaLineup,prune:pruneDuplicateRegattaTemplates};
+    console.info('[CSMS Regatta Lineup] authoritative native video routing',VERSION);
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
