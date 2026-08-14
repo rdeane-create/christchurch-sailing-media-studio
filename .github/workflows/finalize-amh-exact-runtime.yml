@@ -1,4 +1,4 @@
-# deploy marker: 20260814-name-spacing-2
+# deploy marker: 20260814-name-spacing-3
 name: Finalize AMH Exact Runtime
 
 on:
@@ -25,42 +25,48 @@ jobs:
           test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp | awk '{print $1}')" = "ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f"
           ! grep -q "const BRIDGE=" athlete-main-headshot-approved-exact.js
           ! grep -q "bridgeJson" athlete-main-headshot-approved-exact.js
-      - name: Refine name spacing and update cache token
+      - name: Align names to orange line and tighten surname
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           r=Path('athlete-main-headshot-approved-exact.js')
           s=r.read_text()
-          old_first="drawRasterText(ctx,S.first,'small',76,850,58,18,710);"
-          new_first="drawRasterText(ctx,S.first,'small',76,882,58,18,710);"
+
+          # Orange line begins at y=1194. Class line begins at y=1216, a 22px gap.
+          # Match that same 22px gap above the line for the surname, then 22px above
+          # the surname for the first name.
+          old_first="drawRasterText(ctx,S.first,'small',76,882,58,18,710);"
+          new_first="drawRasterText(ctx,S.first,'small',76,887,58,18,710);"
           if old_first in s:
               s=s.replace(old_first,new_first,1)
           elif new_first not in s:
               raise SystemExit('First-name render call not found')
-          old_last="drawRasterText(ctx,S.last,'large',48,940,205,-3,960);"
-          new_last="drawRasterText(ctx,S.last,'large',48,940,205,-8,960);"
+
+          old_last="drawRasterText(ctx,S.last,'large',48,940,205,-8,960);"
+          new_last="drawRasterText(ctx,S.last,'large',48,967,205,-18,960);"
           if old_last in s:
               s=s.replace(old_last,new_last,1)
           elif new_last not in s:
               raise SystemExit('Last-name render call not found')
-          s=s.replace("const VERSION='20260814-lastname-1';","const VERSION='20260814-name-spacing-2';")
-          s=s.replace("?v=20260814-lastname-1","?v=20260814-name-spacing-2")
+
+          s=s.replace("const VERSION='20260814-name-spacing-2';","const VERSION='20260814-name-spacing-3';")
+          s=s.replace("?v=20260814-name-spacing-2","?v=20260814-name-spacing-3")
           r.write_text(s)
 
           p=Path('index.html')
           t=p.read_text()
-          t,n=re.subn(r'athlete-main-headshot-approved-exact\.js\?v=[^"\']+', 'athlete-main-headshot-approved-exact.js?v=20260814-name-spacing-2', t)
+          t,n=re.subn(r'athlete-main-headshot-approved-exact\.js\?v=[^"\']+', 'athlete-main-headshot-approved-exact.js?v=20260814-name-spacing-3', t)
           if n < 1:
               raise SystemExit('Exact renderer script tag not found in index.html')
           p.write_text(t)
-          print('First name y=882; last name tracking=-8')
+          print('First y=887; last y=967; last tracking=-18; matched 22px vertical gaps.')
           PY
-      - name: Commit name-spacing refinement
+      - name: Commit name-block alignment
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add athlete-main-headshot-approved-exact.js index.html
-          if git diff --cached --quiet; then echo 'Name-spacing refinement already installed.'; exit 0; fi
-          git commit -m 'Bring first name closer and tighten last name spacing'
+          if git diff --cached --quiet; then echo 'Name-block alignment already installed.'; exit 0; fi
+          git commit -m 'Align Athlete Main Headshot names and tighten surname'
           git push origin HEAD:main
