@@ -1,4 +1,4 @@
-name: Install Regatta Lineup Layout v4
+name: Install Regatta Lineup Layout v5
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
           p=Path('index.html')
           t=p.read_text()
           t=re.sub(r'\s*<script src="regatta-lineup-layout-v2\.js\?v=[^"]+"></script>\s*','\n',t)
-          marker='<script src="regatta-lineup-layout-v2.js?v=20260814-regatta-lineup-layout-v4"></script>'
+          marker='<script src="regatta-lineup-layout-v2.js?v=20260814-regatta-lineup-layout-v5"></script>'
           if '</body>' not in t:
               raise SystemExit('Missing </body>')
           t=t.replace('</body>',marker+'\n</body>',1)
@@ -36,11 +36,13 @@ jobs:
           grep -q 'id="workspace-video"' index.html
           grep -q 'id="athleteFiles"' index.html
           grep -q 'id="renderBtn"' index.html
-          grep -q 'regatta-lineup-layout-v2.js?v=20260814-regatta-lineup-layout-v4' index.html
+          grep -q 'regatta-lineup-layout-v2.js?v=20260814-regatta-lineup-layout-v5' index.html
           grep -q "listSavedCards" regatta-lineup-layout-v2.js
           grep -q "getSavedCard" regatta-lineup-layout-v2.js
           grep -q "add athletes from" regatta-lineup-layout-v2.js
           grep -q "Regatta Details" regatta-lineup-layout-v2.js
+          grep -q "csmsPreviewActionBar" regatta-lineup-layout-v2.js
+          grep -q "REGATTA LINEUP" regatta-lineup-layout-v2.js
 
       - name: Commit Regatta Lineup layout install
         run: |
@@ -51,5 +53,5 @@ jobs:
             echo 'Regatta Lineup layout already installed.'
             exit 0
           fi
-          git commit -m 'Install native Drive athlete dropdown and Regatta details layout'
+          git commit -m 'Install Regatta Lineup title details and preview controls layout'
           git push
