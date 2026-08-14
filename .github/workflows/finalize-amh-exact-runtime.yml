@@ -1,4 +1,4 @@
-# deploy marker: 20260814-optical-balance-7
+# deploy marker: 20260814-pair-kern-8
 name: Finalize AMH Exact Runtime
 
 on:
@@ -25,7 +25,7 @@ jobs:
           test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp | awk '{print $1}')" = "ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f"
           ! grep -q "const BRIDGE=" athlete-main-headshot-approved-exact.js
           ! grep -q "bridgeJson" athlete-main-headshot-approved-exact.js
-      - name: Apply strong optical tightening
+      - name: Apply optical W compensation and pair kerning
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -34,35 +34,45 @@ jobs:
           r=Path('athlete-main-headshot-approved-exact.js')
           s=r.read_text()
 
-          s=s.replace("function glyphScale(style,ch){return style==='small'&&ch==='W'?1.12:1}",
-                      "function glyphScale(style,ch){return 1}",1)
-          s=s.replace("drawRasterText(ctx,S.last,'large',48,967,205,-12,960);",
-                      "drawRasterText(ctx,S.last,'large',48,967,205,-34,960);",1)
-          s=s.replace("const VERSION='20260814-optical-balance-6';",
-                      "const VERSION='20260814-optical-balance-7';",1)
-          s=s.replace("?v=20260814-optical-balance-6",
-                      "?v=20260814-optical-balance-7")
+          old="function glyphScale(style,ch){return 1} function measure(text,style,height,tracking){let w=0;const chars=String(text||'').toUpperCase();for(const ch of chars){if(ch===' '){w+=height*.34+tracking;continue}const g=visibleGlyph(style,ch);if(!g)continue;const gh=height*glyphScale(style,ch),sc=gh/g.h;w+=g.w*sc+tracking}return Math.max(0,w-(chars?tracking:0))}"
+          new="function glyphScale(style,ch){return style==='small'&&ch==='W'?1.38:1} const PAIR_KERN={small:{'WY':-4,'YL':-2,'LD':-3,'DE':-2,'ER':-2},large:{'SM':-10,'MI':-20,'IT':-10,'TH':-14}}; function pairKern(style,a,b){return (PAIR_KERN[style]&&PAIR_KERN[style][a+b])||0} function measure(text,style,height,tracking){let w=0;const chars=String(text||'').toUpperCase();for(let i=0;i<chars.length;i++){const ch=chars[i],next=chars[i+1]||'';if(ch===' '){w+=height*.34+tracking;continue}const g=visibleGlyph(style,ch);if(!g)continue;const gh=height*glyphScale(style,ch),sc=gh/g.h;w+=g.w*sc+tracking+pairKern(style,ch,next)}return Math.max(0,w-(chars?tracking:0))}"
+          if old not in s:
+              raise SystemExit('Current measure/glyphScale pattern not found')
+          s=s.replace(old,new,1)
+
+          old_draw="function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){text=String(text||'').toUpperCase();let h=height,tr=tracking;const mw=measure(text,style,h,tr);if(maxWidth&&mw>maxWidth){const f=maxWidth/mw;h*=f;tr*=f}let cx=x;for(const ch of text){if(ch===' '){cx+=h*.34+tr;continue}const g=visibleGlyph(style,ch);if(!g)continue;const dh=h*glyphScale(style,ch),sc=dh/g.h,dw=g.w*sc,gy=y+(h-dh);ctx.save();ctx.shadowColor='rgba(0,0,0,.62)';ctx.shadowBlur=Math.max(4,h*.055);ctx.shadowOffsetX=Math.max(3,h*.035);ctx.shadowOffsetY=Math.max(4,h*.045);ctx.drawImage(S.atlas,g.x,g.y,g.w,g.h,cx,gy,dw,dh);ctx.restore();cx+=dw+tr}}"
+          new_draw="function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){text=String(text||'').toUpperCase();let h=height,tr=tracking;const mw=measure(text,style,h,tr);if(maxWidth&&mw>maxWidth){const f=maxWidth/mw;h*=f;tr*=f}let cx=x;for(let i=0;i<text.length;i++){const ch=text[i],next=text[i+1]||'';if(ch===' '){cx+=h*.34+tr;continue}const g=visibleGlyph(style,ch);if(!g)continue;const dh=h*glyphScale(style,ch),sc=dh/g.h,dw=g.w*sc,gy=y+(h-dh);ctx.save();ctx.shadowColor='rgba(0,0,0,.62)';ctx.shadowBlur=Math.max(4,h*.055);ctx.shadowOffsetX=Math.max(3,h*.035);ctx.shadowOffsetY=Math.max(4,h*.045);ctx.drawImage(S.atlas,g.x,g.y,g.w,g.h,cx,gy,dw,dh);ctx.restore();cx+=dw+tr+pairKern(style,ch,next)}}"
+          if old_draw not in s:
+              raise SystemExit('Current drawRasterText pattern not found')
+          s=s.replace(old_draw,new_draw,1)
+
+          s=s.replace("drawRasterText(ctx,S.first,'small',76,887,58,8,710);","drawRasterText(ctx,S.first,'small',76,887,58,4,710);",1)
+          s=s.replace("drawRasterText(ctx,S.last,'large',48,967,205,-34,960);","drawRasterText(ctx,S.last,'large',48,967,205,-18,960);",1)
+          s=s.replace("const VERSION='20260814-optical-balance-7';","const VERSION='20260814-pair-kern-8';",1)
+          s=s.replace("?v=20260814-optical-balance-7","?v=20260814-pair-kern-8")
           r.write_text(s)
 
           p=Path('index.html')
           t=p.read_text()
           t,n=re.subn(r'athlete-main-headshot-approved-exact\.js\?v=[^"\']+',
-                      'athlete-main-headshot-approved-exact.js?v=20260814-optical-balance-7',t)
+                      'athlete-main-headshot-approved-exact.js?v=20260814-pair-kern-8',t)
           if n < 1:
               raise SystemExit('Exact renderer script tag not found in index.html')
           p.write_text(t)
-          print('W normalized to 1.0; surname visible-edge tracking=-34; cache version=7.')
+          print('Installed W optical compensation=1.38 and pair-by-pair kerning for first/last name.')
           PY
-      - name: Verify strong typography refinement
+      - name: Verify pair kerning refinement
         run: |
-          grep -q "function glyphScale(style,ch){return 1}" athlete-main-headshot-approved-exact.js
-          grep -q "drawRasterText(ctx,S.last,'large',48,967,205,-34,960)" athlete-main-headshot-approved-exact.js
-          grep -q "20260814-optical-balance-7" athlete-main-headshot-approved-exact.js
-      - name: Commit strong typography refinement
+          grep -q "ch==='W'?1.38:1" athlete-main-headshot-approved-exact.js
+          grep -q "PAIR_KERN" athlete-main-headshot-approved-exact.js
+          grep -q "'MI':-20" athlete-main-headshot-approved-exact.js
+          grep -q "drawRasterText(ctx,S.last,'large',48,967,205,-18,960)" athlete-main-headshot-approved-exact.js
+          grep -q "20260814-pair-kern-8" athlete-main-headshot-approved-exact.js
+      - name: Commit pair kerning refinement
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add athlete-main-headshot-approved-exact.js index.html
-          if git diff --cached --quiet; then echo 'Typography refinement already installed.'; exit 0; fi
-          git commit -m 'Make Athlete Main Headshot typography visibly tighter'
+          if git diff --cached --quiet; then echo 'Pair kerning refinement already installed.'; exit 0; fi
+          git commit -m 'Refine Athlete Main Headshot W scale and pair kerning'
           git push origin HEAD:main
