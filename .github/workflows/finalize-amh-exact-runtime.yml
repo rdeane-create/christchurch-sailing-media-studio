@@ -16,34 +16,33 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-      - name: Verify exact approved assets
+      - name: Verify exact approved assets and local runtime
         run: |
           test "$(wc -c < assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp)" = "90626"
           test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp | awk '{print $1}')" = "4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14"
           test "$(wc -c < assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp)" = "323050"
           test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp | awk '{print $1}')" = "ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f"
-      - name: Switch exact renderer to local-only assets
+          ! grep -q "const BRIDGE=" athlete-main-headshot-approved-exact.js
+          ! grep -q "bridgeJson" athlete-main-headshot-approved-exact.js
+          grep -q "20260814-exact-local-final" athlete-main-headshot-approved-exact.js
+      - name: Set final renderer cache token
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('athlete-main-headshot-approved-exact.js')
+          import re
+          p=Path('index.html')
           s=p.read_text()
-          start=s.index("  const BRIDGE=")
-          end=s.index("  function buildCard()", start)
-          local="""  function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Exact approved local asset unavailable: '+src));i.src=src+'?v=20260814-exact-local-final';});}\n"""
-          s=s[:start]+local+s[end:]
-          s=s.replace("const VERSION='20260813-exact-bridge-2';","const VERSION='20260814-exact-local-final';")
-          if 'const BRIDGE=' in s or 'bridgeJson' in s or 'findfilerecursive' in s:
-              raise SystemExit('bridge code remains')
-          if "ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp" not in s or "ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp" not in s:
-              raise SystemExit('exact local asset paths missing')
-          p.write_text(s)
+          new,n=re.subn(r'athlete-main-headshot-approved-exact\.js\?v=[^"\']+', 'athlete-main-headshot-approved-exact.js?v=20260814-exact-local-final', s)
+          if n < 1:
+              raise SystemExit('Exact renderer script tag not found in index.html')
+          p.write_text(new)
+          print(f'Updated {n} exact renderer script reference(s).')
           PY
-      - name: Commit local-only exact runtime
+      - name: Commit final Studio wiring
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add athlete-main-headshot-approved-exact.js
-          if git diff --cached --quiet; then echo 'Renderer already local-only.'; exit 0; fi
-          git commit -m 'Make Athlete Main Headshot exact runtime fully local'
+          git add index.html
+          if git diff --cached --quiet; then echo 'Final cache wiring already installed.'; exit 0; fi
+          git commit -m 'Finalize Athlete Main Headshot local cache wiring'
           git push origin HEAD:main
