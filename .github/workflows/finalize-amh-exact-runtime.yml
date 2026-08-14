@@ -1,4 +1,4 @@
-# deploy marker: 20260814-generic-optical-11
+# deploy marker: 20260814-generic-optical-11b
 name: Finalize AMH Exact Runtime
 
 on:
@@ -29,80 +29,78 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
+          import re, textwrap
 
           r=Path('athlete-main-headshot-approved-exact.js')
           s=r.read_text()
-
           start=s.index("  const GLYPH_BOUNDS={};")
           end=s.index("  function drawPhoto(ctx)")
-
-          engine="""  const GLYPH_BOUNDS={};
-  function visibleGlyph(style,ch){
-    const key=style+':'+ch;
-    if(GLYPH_BOUNDS[key])return GLYPH_BOUNDS[key];
-    const g=GLYPHS[key];
-    if(!g||!S.atlas)return g;
-    const c=document.createElement('canvas');
-    c.width=g.w;c.height=g.h;
-    const gx=c.getContext('2d',{willReadFrequently:true});
-    gx.clearRect(0,0,g.w,g.h);
-    gx.drawImage(S.atlas,g.x,g.y,g.w,g.h,0,0,g.w,g.h);
-    const px=gx.getImageData(0,0,g.w,g.h).data;
-    let minX=g.w,minY=g.h,maxX=-1,maxY=-1;
-    for(let yy=0;yy<g.h;yy++){
-      for(let xx=0;xx<g.w;xx++){
-        const i=(yy*g.w+xx)*4,a=px[i+3],bright=Math.max(px[i],px[i+1],px[i+2]);
-        // Ignore the dark drop shadow. Measure the actual white/orange glyph only.
-        if(a>72&&bright>92){
-          if(xx<minX)minX=xx;if(xx>maxX)maxX=xx;
-          if(yy<minY)minY=yy;if(yy>maxY)maxY=yy;
-        }
-      }
-    }
-    const b=maxX>=minX?{x:g.x+minX,y:g.y+minY,w:maxX-minX+1,h:maxY-minY+1}:g;
-    GLYPH_BOUNDS[key]=b;
-    return b;
-  }
-  function opticalGap(style,height,tracking){
-    if(style==='large')return Math.max(3,height*.032);
-    if(style==='small')return Math.max(4,height*.095);
-    return tracking;
-  }
-  function measure(text,style,height,tracking){
-    const chars=String(text||'').toUpperCase();
-    const gap=opticalGap(style,height,tracking);
-    let w=0,count=0;
-    for(const ch of chars){
-      if(ch===' '){w+=height*.34;count=0;continue;}
-      const g=visibleGlyph(style,ch);if(!g)continue;
-      const sc=height/g.h;
-      if(count>0)w+=gap;
-      w+=g.w*sc;count++;
-    }
-    return w;
-  }
-  function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
-    text=String(text||'').toUpperCase();
-    let h=height;
-    const mw=measure(text,style,h,tracking);
-    if(maxWidth&&mw>maxWidth)h*=maxWidth/mw;
-    const gap=opticalGap(style,h,tracking);
-    let cx=x,count=0;
-    for(const ch of text){
-      if(ch===' '){cx+=h*.34;count=0;continue;}
-      const g=visibleGlyph(style,ch);if(!g)continue;
-      if(count>0)cx+=gap;
-      const sc=h/g.h,dw=g.w*sc,dh=h;
-      ctx.save();
-      ctx.shadowColor='rgba(0,0,0,.62)';ctx.shadowBlur=Math.max(4,h*.055);
-      ctx.shadowOffsetX=Math.max(3,h*.035);ctx.shadowOffsetY=Math.max(4,h*.045);
-      ctx.drawImage(S.atlas,g.x,g.y,g.w,g.h,cx,y,dw,dh);
-      ctx.restore();
-      cx+=dw;count++;
-    }
-  }
-"""
+          engine=textwrap.dedent("""\
+            const GLYPH_BOUNDS={};
+            function visibleGlyph(style,ch){
+              const key=style+':'+ch;
+              if(GLYPH_BOUNDS[key])return GLYPH_BOUNDS[key];
+              const g=GLYPHS[key];
+              if(!g||!S.atlas)return g;
+              const c=document.createElement('canvas');
+              c.width=g.w;c.height=g.h;
+              const gx=c.getContext('2d',{willReadFrequently:true});
+              gx.clearRect(0,0,g.w,g.h);
+              gx.drawImage(S.atlas,g.x,g.y,g.w,g.h,0,0,g.w,g.h);
+              const px=gx.getImageData(0,0,g.w,g.h).data;
+              let minX=g.w,minY=g.h,maxX=-1,maxY=-1;
+              for(let yy=0;yy<g.h;yy++){
+                for(let xx=0;xx<g.w;xx++){
+                  const i=(yy*g.w+xx)*4,a=px[i+3],bright=Math.max(px[i],px[i+1],px[i+2]);
+                  if(a>72&&bright>92){
+                    if(xx<minX)minX=xx;if(xx>maxX)maxX=xx;
+                    if(yy<minY)minY=yy;if(yy>maxY)maxY=yy;
+                  }
+                }
+              }
+              const b=maxX>=minX?{x:g.x+minX,y:g.y+minY,w:maxX-minX+1,h:maxY-minY+1}:g;
+              GLYPH_BOUNDS[key]=b;
+              return b;
+            }
+            function opticalGap(style,height,tracking){
+              if(style==='large')return Math.max(3,height*.032);
+              if(style==='small')return Math.max(4,height*.095);
+              return tracking;
+            }
+            function measure(text,style,height,tracking){
+              const chars=String(text||'').toUpperCase();
+              const gap=opticalGap(style,height,tracking);
+              let w=0,count=0;
+              for(const ch of chars){
+                if(ch===' '){w+=height*.34;count=0;continue;}
+                const g=visibleGlyph(style,ch);if(!g)continue;
+                const sc=height/g.h;
+                if(count>0)w+=gap;
+                w+=g.w*sc;count++;
+              }
+              return w;
+            }
+            function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
+              text=String(text||'').toUpperCase();
+              let h=height;
+              const mw=measure(text,style,h,tracking);
+              if(maxWidth&&mw>maxWidth)h*=maxWidth/mw;
+              const gap=opticalGap(style,h,tracking);
+              let cx=x,count=0;
+              for(const ch of text){
+                if(ch===' '){cx+=h*.34;count=0;continue;}
+                const g=visibleGlyph(style,ch);if(!g)continue;
+                if(count>0)cx+=gap;
+                const sc=h/g.h,dw=g.w*sc,dh=h;
+                ctx.save();
+                ctx.shadowColor='rgba(0,0,0,.62)';ctx.shadowBlur=Math.max(4,h*.055);
+                ctx.shadowOffsetX=Math.max(3,h*.035);ctx.shadowOffsetY=Math.max(4,h*.045);
+                ctx.drawImage(S.atlas,g.x,g.y,g.w,g.h,cx,y,dw,dh);
+                ctx.restore();
+                cx+=dw;count++;
+              }
+            }
+          """)
           s=s[:start]+engine+s[end:]
           s=s.replace("drawRasterText(ctx,S.first,'small',76,887,58,4,710);","drawRasterText(ctx,S.first,'small',76,887,58,0,710);",1)
           s=s.replace("drawRasterText(ctx,S.last,'large',48,967,205,-14,960);","drawRasterText(ctx,S.last,'large',48,967,205,0,960);",1)
