@@ -1,14 +1,14 @@
 (function(){
   'use strict';
   const NAME='Athlete Main Headshot — Approved';
-  const VERSION='20260814-saved-card-library-17';
+  const VERSION='20260814-drive-saved-cards-18';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
   const GLYPHS={"large:A":{"x":8,"y":8,"w":65,"h":121},"large:B":{"x":112,"y":8,"w":70,"h":120},"large:C":{"x":216,"y":8,"w":67,"h":121},"large:D":{"x":320,"y":8,"w":70,"h":120},"large:E":{"x":424,"y":8,"w":64,"h":119},"large:F":{"x":528,"y":8,"w":63,"h":120},"large:G":{"x":632,"y":8,"w":64,"h":123},"large:H":{"x":736,"y":8,"w":72,"h":121},"large:I":{"x":840,"y":8,"w":45,"h":120},"large:J":{"x":944,"y":8,"w":56,"h":120},"large:K":{"x":1048,"y":8,"w":71,"h":121},"large:L":{"x":1152,"y":8,"w":46,"h":121},"large:M":{"x":8,"y":149,"w":88,"h":121},"large:N":{"x":112,"y":149,"w":71,"h":119},"large:O":{"x":216,"y":149,"w":66,"h":120},"large:P":{"x":320,"y":149,"w":67,"h":119},"large:Q":{"x":424,"y":149,"w":66,"h":125},"large:R":{"x":528,"y":149,"w":67,"h":119},"large:S":{"x":632,"y":149,"w":62,"h":120},"large:T":{"x":736,"y":149,"w":56,"h":119},"large:U":{"x":840,"y":149,"w":67,"h":119},"large:V":{"x":944,"y":149,"w":59,"h":119},"large:W":{"x":1048,"y":149,"w":83,"h":119},"large:X":{"x":1152,"y":149,"w":71,"h":119},"large:Y":{"x":8,"y":290,"w":57,"h":119},"large:Z":{"x":112,"y":290,"w":62,"h":119},"large:0":{"x":216,"y":290,"w":57,"h":76},"large:1":{"x":320,"y":290,"w":36,"h":76},"large:2":{"x":424,"y":290,"w":55,"h":85},"large:3":{"x":528,"y":290,"w":54,"h":76},"large:4":{"x":632,"y":290,"w":56,"h":76},"large:5":{"x":736,"y":290,"w":55,"h":76},"large:6":{"x":840,"y":290,"w":54,"h":76},"large:7":{"x":944,"y":290,"w":47,"h":76},"large:8":{"x":1048,"y":290,"w":54,"h":76},"large:9":{"x":1152,"y":290,"w":53,"h":76},"small:A":{"x":8,"y":431,"w":38,"h":46},"small:B":{"x":112,"y":431,"w":41,"h":47},"small:C":{"x":216,"y":431,"w":39,"h":49},"small:D":{"x":320,"y":431,"w":42,"h":46},"small:E":{"x":424,"y":431,"w":38,"h":46},"small:F":{"x":528,"y":431,"w":39,"h":48},"small:G":{"x":632,"y":431,"w":38,"h":50},"small:H":{"x":736,"y":431,"w":44,"h":47},"small:I":{"x":840,"y":431,"w":25,"h":47},"small:J":{"x":944,"y":431,"w":32,"h":46},"small:K":{"x":1048,"y":431,"w":43,"h":47},"small:L":{"x":1152,"y":431,"w":30,"h":47},"small:M":{"x":8,"y":572,"w":52,"h":48},"small:N":{"x":112,"y":572,"w":44,"h":48},"small:O":{"x":216,"y":572,"w":39,"h":49},"small:P":{"x":320,"y":572,"w":40,"h":47},"small:Q":{"x":424,"y":572,"w":40,"h":54},"small:R":{"x":528,"y":572,"w":41,"h":47},"small:S":{"x":632,"y":572,"w":38,"h":49},"small:T":{"x":736,"y":572,"w":34,"h":48},"small:U":{"x":840,"y":572,"w":40,"h":47},"small:V":{"x":944,"y":572,"w":37,"h":67},"small:W":{"x":1048,"y":572,"w":50,"h":67},"small:X":{"x":1152,"y":572,"w":45,"h":47},"small:Y":{"x":8,"y":713,"w":36,"h":47},"small:Z":{"x":112,"y":713,"w":40,"h":47},"small:0":{"x":216,"y":713,"w":34,"h":60},"small:1":{"x":320,"y":713,"w":23,"h":40},"small:2":{"x":424,"y":713,"w":34,"h":40},"small:3":{"x":528,"y":713,"w":31,"h":40},"small:4":{"x":632,"y":713,"w":31,"h":40},"small:5":{"x":736,"y":713,"w":31,"h":40},"small:6":{"x":840,"y":713,"w":30,"h":40},"small:7":{"x":944,"y":713,"w":29,"h":40},"small:8":{"x":1048,"y":713,"w":30,"h":40},"small:9":{"x":1152,"y":713,"w":32,"h":40},"orange:A":{"x":8,"y":854,"w":34,"h":41},"orange:B":{"x":112,"y":854,"w":37,"h":41},"orange:C":{"x":216,"y":854,"w":35,"h":42},"orange:D":{"x":320,"y":854,"w":36,"h":40},"orange:E":{"x":424,"y":854,"w":34,"h":41},"orange:F":{"x":528,"y":854,"w":35,"h":41},"orange:G":{"x":632,"y":854,"w":34,"h":42},"orange:H":{"x":736,"y":854,"w":38,"h":42},"orange:I":{"x":840,"y":854,"w":22,"h":42},"orange:J":{"x":944,"y":854,"w":29,"h":42},"orange:K":{"x":1048,"y":854,"w":39,"h":42},"orange:L":{"x":1152,"y":854,"w":26,"h":41},"orange:M":{"x":8,"y":995,"w":46,"h":42},"orange:N":{"x":112,"y":995,"w":39,"h":41},"orange:O":{"x":216,"y":995,"w":36,"h":42},"orange:P":{"x":320,"y":995,"w":36,"h":41},"orange:Q":{"x":424,"y":995,"w":36,"h":47},"orange:R":{"x":528,"y":995,"w":36,"h":42},"orange:S":{"x":632,"y":995,"w":33,"h":42},"orange:T":{"x":736,"y":995,"w":30,"h":41},"orange:U":{"x":840,"y":995,"w":35,"h":41},"orange:V":{"x":944,"y":995,"w":31,"h":41},"orange:W":{"x":1048,"y":995,"w":45,"h":41},"orange:X":{"x":1152,"y":995,"w":39,"h":41},"orange:Y":{"x":8,"y":1136,"w":31,"h":41},"orange:Z":{"x":112,"y":1136,"w":36,"h":41},"orange:0":{"x":216,"y":1136,"w":31,"h":40},"orange:1":{"x":320,"y":1136,"w":21,"h":39},"orange:2":{"x":424,"y":1136,"w":32,"h":39},"orange:3":{"x":528,"y":1136,"w":30,"h":39},"orange:4":{"x":632,"y":1136,"w":30,"h":39},"orange:5":{"x":736,"y":1136,"w":31,"h":39},"orange:6":{"x":840,"y":1136,"w":30,"h":39},"orange:7":{"x":944,"y":1136,"w":29,"h":39},"orange:8":{"x":1048,"y":1136,"w":30,"h":40},"orange:9":{"x":1152,"y":1136,"w":30,"h":39}};
   const S={img:null,scale:1,x:0,y:0,drag:false,sx:0,sy:0,ix:0,iy:0,first:'WYLDER',last:'SMITH',classLine:'CLASS OF 2027',cardNameDirty:false,overlay:null,atlas:null,ready:false};
   const q=id=>document.getElementById(id);
-  function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Exact approved local asset unavailable: '+src));i.src=src+'?v=20260814-saved-card-library-17';});}
+  function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Exact approved local asset unavailable: '+src));i.src=src+'?v=20260814-drive-saved-cards-18';});}
   function suggestedCardName(){
     const last=String(S.last||'').trim()||'LAST NAME';
     const first=String(S.first||'').trim()||'FIRST NAME';
@@ -18,26 +18,51 @@
     const input=q('aCardName');if(!input)return;
     if(force||!S.cardNameDirty)input.value=suggestedCardName();
   }
-  const SAVED_DB='ccs-sailing-media-studio-output-library';
-  const SAVED_STORE='cards';
-  function openSavedDB(){
+  // ===== CSMS DRIVE-BACKED SAVED CARDS V1 =====
+  function savedCardBlobToBase64(blob){
     return new Promise((resolve,reject)=>{
-      const req=indexedDB.open(SAVED_DB,1);
-      req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(SAVED_STORE))db.createObjectStore(SAVED_STORE,{keyPath:'id'})};
-      req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+      const reader=new FileReader();
+      reader.onload=()=>{const text=String(reader.result||'');const comma=text.indexOf(',');resolve(comma>=0?text.slice(comma+1):text)};
+      reader.onerror=()=>reject(reader.error||new Error('Could not read saved card PNG'));
+      reader.readAsDataURL(blob);
     });
   }
+  function savedCardBase64ToBlob(base64,mimeType){
+    const binary=atob(base64);const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    return new Blob([bytes],{type:mimeType||'image/png'});
+  }
+  async function savedCardBridgeCall(action,payload={}){
+    if(typeof csmsAuthenticatedBridgeCall!=='function')throw new Error('Google Drive Bridge is unavailable. Refresh Studio and connect Google Drive.');
+    return await csmsAuthenticatedBridgeCall(action,payload,{userInitiated:true});
+  }
   async function putSavedCard(card){
-    const db=await openSavedDB();
-    return new Promise((resolve,reject)=>{const tx=db.transaction(SAVED_STORE,'readwrite');tx.objectStore(SAVED_STORE).put(card);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}});
+    const data=await savedCardBlobToBase64(card.blob);
+    const result=await savedCardBridgeCall('saveCard',{
+      name:card.name,
+      cardType:card.type||'ATHLETE HEADSHOT CARD',
+      first:card.first||'',
+      last:card.last||'',
+      classLine:card.classLine||'',
+      data
+    });
+    if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive did not save the card');
+    return result.card;
   }
   async function getSavedCards(){
-    const db=await openSavedDB();
-    return new Promise((resolve,reject)=>{const tx=db.transaction(SAVED_STORE,'readonly');const req=tx.objectStore(SAVED_STORE).getAll();req.onsuccess=()=>{db.close();resolve(req.result||[])};req.onerror=()=>{db.close();reject(req.error)}});
+    const result=await savedCardBridgeCall('listSavedCards',{});
+    if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive Saved Cards library is unavailable');
+    return Array.isArray(result.cards)?result.cards:[];
   }
-  async function deleteSavedCard(id){
-    const db=await openSavedDB();
-    return new Promise((resolve,reject)=>{const tx=db.transaction(SAVED_STORE,'readwrite');tx.objectStore(SAVED_STORE).delete(id);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}});
+  async function getSavedCardBlob(fileId){
+    const result=await savedCardBridgeCall('getSavedCard',{fileId});
+    if(!result||!result.ok||!result.card||!result.card.data)throw new Error('Saved card PNG could not be loaded from Drive');
+    return savedCardBase64ToBlob(result.card.data,result.card.mimeType||'image/png');
+  }
+  async function deleteSavedCard(fileId){
+    const result=await savedCardBridgeCall('deleteSavedCard',{fileId});
+    if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive could not delete the saved card');
+    return result;
   }
   function ensureSavedCardsPanel(){
     let panel=q('amhSavedCardsPanel');if(panel)return panel;
@@ -50,16 +75,18 @@
   async function renderSavedCards(){
     const panel=ensureSavedCardsPanel();if(!panel)return;
     const list=q('amhSavedCardsList');if(!list)return;
-    let cards=[];try{cards=await getSavedCards()}catch(err){console.error('Saved card library unavailable',err);return}
-    cards.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));list.innerHTML='';
-    if(!cards.length){list.innerHTML='<div class="hint">No finished cards saved yet.</div>';return}
+    list.innerHTML='<div class="hint">Loading saved cards from Google Drive…</div>';
+    let cards=[];
+    try{cards=await getSavedCards()}catch(err){console.error('Drive Saved Cards library unavailable',err);list.innerHTML='<div class="hint">Connect Google Drive to load Saved Cards.</div>';return}
+    cards.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0));list.innerHTML='';
+    if(!cards.length){list.innerHTML='<div class="hint">No finished cards saved in Drive yet.</div>';return}
     for(const card of cards){
       const row=document.createElement('div');row.className='athleteItem';row.style.gridTemplateColumns='72px 1fr auto';row.style.padding='10px';
-      const url=URL.createObjectURL(card.blob);
-      row.innerHTML=`<img alt="" style="width:58px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #d8e2ed" src="${url}"><div><div style="font-weight:800;font-size:14px">${escapeSavedName(card.name)}</div><div class="hint" style="margin-top:3px">Athlete Headshot Card</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="tiny primary" data-action="download">Download</button><button type="button" class="tiny secondary" data-action="delete">Delete</button></div>`;
-      row.querySelector('img').onload=()=>URL.revokeObjectURL(url);
-      row.querySelector('[data-action="download"]').onclick=()=>{const u=URL.createObjectURL(card.blob);const a=document.createElement('a');a.href=u;a.download=(card.name||'athlete-headshot-card')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
-      row.querySelector('[data-action="delete"]').onclick=async()=>{if(!confirm(`Delete ${card.name}?`))return;await deleteSavedCard(card.id);renderSavedCards()};
+      row.innerHTML=`<img alt="" style="width:58px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #d8e2ed;background:#eef2f7"><div><div style="font-weight:800;font-size:14px">${escapeSavedName(String(card.name||'Saved Card').replace(/\.png$/i,''))}</div><div class="hint" style="margin-top:3px">Athlete Headshot Card • Google Drive</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="tiny primary" data-action="download">Download</button><button type="button" class="tiny secondary" data-action="delete">Delete</button></div>`;
+      const img=row.querySelector('img');
+      getSavedCardBlob(card.fileId).then(blob=>{const url=URL.createObjectURL(blob);img.src=url;img.onload=()=>URL.revokeObjectURL(url)}).catch(err=>console.warn('Saved card thumbnail unavailable',err));
+      row.querySelector('[data-action="download"]').onclick=async()=>{try{const blob=await getSavedCardBlob(card.fileId);const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=card.name||'athlete-headshot-card.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}catch(err){console.error(err);alert('The saved card could not be downloaded from Google Drive.')}};
+      row.querySelector('[data-action="delete"]').onclick=async()=>{if(!confirm(`Delete ${String(card.name||'this saved card').replace(/\.png$/i,'')} from Google Drive?`))return;try{await deleteSavedCard(card.fileId);await renderSavedCards()}catch(err){console.error(err);alert('The saved card could not be deleted from Google Drive.')}};
       list.appendChild(row);
     }
   }
