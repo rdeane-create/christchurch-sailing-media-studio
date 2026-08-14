@@ -21,65 +21,34 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import base64, hashlib
-
-          root = Path('assets/Reference')
-          legacy = root / '.amh-transfer'
-          final = root / '.amh-overlay-final'
-          expected_sha256 = '4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14'
-          alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
-
-          def git_blob_sha(text):
-              data = text.encode()
-              return hashlib.sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
-
-          def read_exact(path, target_sha, expected_len):
-              s = Path(path).read_text().strip()
-              if len(s) != expected_len:
-                  raise SystemExit(f'{path}: expected {expected_len}, got {len(s)}')
-              actual = git_blob_sha(s)
-              if actual != target_sha:
-                  raise SystemExit(f'{path}: Git blob mismatch {actual}')
-              return s
-
-          def repair_insert_one(path, target_sha, expected_len=20000):
-              s = Path(path).read_text().strip()
-              if len(s) == expected_len and git_blob_sha(s) == target_sha:
-                  return s
-              if len(s) != expected_len - 1:
-                  raise SystemExit(f'{path}: unexpected length {len(s)}')
-              for i in range(len(s) + 1):
-                  left, right = s[:i], s[i:]
-                  for ch in alphabet:
-                      candidate = left + ch + right
-                      if git_blob_sha(candidate) == target_sha:
-                          print(f'REPAIRED {path} at {i}')
-                          return candidate
-              raise SystemExit(f'{path}: no single-character insertion matched exact Git SHA')
-
-          parts = [
-              read_exact(final/'o000000-008000.b64', '592412132b8c389b65e813736b34dd0a95bfa070', 8000),
-              read_exact(final/'o008000-016000.b64', '10adfd9348b85ff7beaa47e9e0adb56e2663cc5e', 8000),
-              repair_insert_one(legacy/'overlay-002.b64', 'd64bb228b30f9c0e8a85792753186fff61e7d9f8'),
-              repair_insert_one(legacy/'overlay-003.b64', '095ebd5a40403041e1a440d3c7becd8a1f90474d'),
-              repair_insert_one(legacy/'overlay-004.b64', '6a8f1810bbbb67dc41b85f4455eae613e7fdd2e5'),
-              read_exact(final/'o076000-086000.b64', 'bc9a518faca64667f82900e85e83ef6491b05b77', 10000),
-              read_exact(final/'o086000-096000.b64', 'e408b767121d205677c8532e73528bf54cc6d98a', 10000),
-              read_exact(final/'o096000-106000.b64', '0fdabeb125f5b07e2048d2910592252f31057bc4', 10000),
-              read_exact(final/'o106000-116000.b64', '350a3c411c7185fa551d1acd676d16250531c0d8', 10000),
-              read_exact(final/'o116000-120836.b64', '530d85307f63ad0ab9c2f5b12b180e0ade7759f6', 4836),
-          ]
-
-          joined = ''.join(parts)
-          if len(joined) != 120836:
-              raise SystemExit(f'base64 length mismatch: {len(joined)}')
-          raw = base64.b64decode(joined, validate=True)
-          if len(raw) != 90626:
-              raise SystemExit(f'byte size mismatch: {len(raw)}')
-          actual = hashlib.sha256(raw).hexdigest()
-          if actual != expected_sha256:
-              raise SystemExit(f'SHA256 mismatch: {actual}')
-          out = root/'ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp'
-          out.write_bytes(raw)
+          root=Path('assets/Reference'); d=root/'.amh-overlay-final'
+          expected='4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14'
+          specs=[
+            ('o000000-008000.b64',8000,'592412132b8c389b65e813736b34dd0a95bfa070'),
+            ('o008000-016000.b64',8000,'10adfd9348b85ff7beaa47e9e0adb56e2663cc5e'),
+            ('o016000-026000.b64',10000,'46656bccff5ccb32ccba969e53dd6443726821a3'),
+            ('o026000-036000.b64',10000,'d89d1afeba71d0643c2ec9873311779491c714d7'),
+            ('o036000-046000.b64',10000,'acf1815e57ea2d04adbf160597d973e59be91f93'),
+            ('o046000-056000.b64',10000,'6b145b9142cbe27cccf44da50c148f0d44d43971'),
+            ('o056000-066000.b64',10000,'707416c70c472b3792e833f0419cae204ec7211d'),
+            ('o066000-076000.b64',10000,'14dd43ec9d8c92b931e0ef20deebfb64ace0d7d4'),
+            ('o076000-086000.b64',10000,'bc9a518faca64667f82900e85e83ef6491b05b77'),
+            ('o086000-096000.b64',10000,'e408b767121d205677c8532e73528bf54cc6d98a'),
+            ('o096000-106000.b64',10000,'0fdabeb125f5b07e2048d2910592252f31057bc4'),
+            ('o106000-116000.b64',10000,'350a3c411c7185fa551d1acd676d16250531c0d8'),
+            ('o116000-120836.b64',4836,'530d85307f63ad0ab9c2f5b12b180e0ade7759f6')]
+          parts=[]
+          for name,n,sha in specs:
+            s=(d/name).read_text().strip(); data=s.encode()
+            actual=hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
+            if len(s)!=n or actual!=sha: raise SystemExit(f'{name} invalid len={len(s)} sha={actual}')
+            parts.append(s)
+          joined=''.join(parts)
+          if len(joined)!=120836: raise SystemExit(f'base64 length {len(joined)}')
+          raw=base64.b64decode(joined,validate=True)
+          actual=hashlib.sha256(raw).hexdigest()
+          if len(raw)!=90626 or actual!=expected: raise SystemExit(f'overlay invalid size={len(raw)} sha={actual}')
+          out=root/'ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp'; out.write_bytes(raw)
           print(f'VERIFIED {out} {len(raw)} bytes {actual}')
           PY
       - name: Commit exact local overlay
@@ -87,9 +56,6 @@ jobs:
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp
-          if git diff --cached --quiet; then
-            echo 'Exact overlay already committed.'
-            exit 0
-          fi
+          if git diff --cached --quiet; then echo 'Exact overlay already committed.'; exit 0; fi
           git commit -m 'Install exact approved Athlete Main Headshot locked overlay'
           git push origin HEAD:amh-exact-assets-transfer
