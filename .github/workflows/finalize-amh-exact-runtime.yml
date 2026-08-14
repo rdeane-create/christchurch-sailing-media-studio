@@ -15,117 +15,81 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: amh-atlas-final-transfer
-      - name: Reconstruct exact approved glyph atlas
+          ref: amh-exact-assets-transfer
+      - name: Reconstruct exact approved locked overlay
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import base64, hashlib
 
           root = Path('assets/Reference')
-          canon = root / '.amh-canon'
-          clean = root / '.amh-clean'
-          atlas_sha256 = 'ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f'
+          legacy = root / '.amh-transfer'
+          final = root / '.amh-overlay-final'
+          expected_sha256 = '4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14'
+          alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
 
           def git_blob_sha(text):
               data = text.encode()
               return hashlib.sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
 
-          def exact_delete_one(text, target_sha):
-              if git_blob_sha(text) == target_sha:
-                  return text
-              if len(text) != 10001:
-                  raise SystemExit(f'delete-repair unexpected length {len(text)}')
-              for i in range(len(text)):
-                  candidate = text[:i] + text[i+1:]
-                  if git_blob_sha(candidate) == target_sha:
-                      return candidate
-              raise SystemExit('could not repair extra character by Git blob SHA')
+          def read_exact(path, target_sha, expected_len):
+              s = Path(path).read_text().strip()
+              if len(s) != expected_len:
+                  raise SystemExit(f'{path}: expected {expected_len}, got {len(s)}')
+              actual = git_blob_sha(s)
+              if actual != target_sha:
+                  raise SystemExit(f'{path}: Git blob mismatch {actual}')
+              return s
 
-          def exact_insert_one(text, target_sha):
-              if git_blob_sha(text) == target_sha:
-                  return text
-              if len(text) != 9999:
-                  raise SystemExit(f'insert-repair unexpected length {len(text)}')
-              alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
-              for i in range(len(text)+1):
-                  left, right = text[:i], text[i:]
+          def repair_insert_one(path, target_sha, expected_len=20000):
+              s = Path(path).read_text().strip()
+              if len(s) == expected_len and git_blob_sha(s) == target_sha:
+                  return s
+              if len(s) != expected_len - 1:
+                  raise SystemExit(f'{path}: unexpected length {len(s)}')
+              for i in range(len(s) + 1):
+                  left, right = s[:i], s[i:]
                   for ch in alphabet:
                       candidate = left + ch + right
                       if git_blob_sha(candidate) == target_sha:
+                          print(f'REPAIRED {path} at {i}')
                           return candidate
-              raise SystemExit('could not repair missing character by Git blob SHA')
+              raise SystemExit(f'{path}: no single-character insertion matched exact Git SHA')
 
-          def revfile(path, prefix=''):
-              s = Path(path).read_text().strip()
-              return (prefix + s)[::-1]
-
-          parts = []
-          def add(label, text, expected_len):
-              if len(text) != expected_len:
-                  raise SystemExit(f'{label}: expected {expected_len} chars, got {len(text)}')
-              parts.append(text)
-
-          bad0 = (canon/'r000000-010000.rev').read_text().strip()
-          fixed0 = exact_delete_one(bad0, 'ac80defd2cc6834a598a837ed1e8227202395ecb')
-          add('0-10000', fixed0[::-1], 10000)
-
-          for start in range(10000, 80000, 10000):
-              end = start + 10000
-              add(f'{start}-{end}', revfile(canon / f'r{start:06d}-{end:06d}.rev'), 10000)
-
-          add('80000-100000', revfile(clean/'atlas-008009.rev', 'f'), 20000)
-          add('100000-120000', revfile(clean/'atlas-r100-120.rev', 'e'), 20000)
-          add('120000-140000', revfile(clean/'atlas-r120-140.rev', 'Y'), 20000)
-          add('140000-160000', revfile(clean/'atlas-r140-160.rev', 'O'), 20000)
-          add('160000-180000', revfile(clean/'atlas-r160-200.rev', 'I'), 20000)
-          add('180000-190000', revfile(canon/'r180000-190000.rev'), 10000)
-          add('190000-200000', revfile(clean/'atlas-f190-200.rev'), 10000)
-          add('200000-220000', revfile(clean/'atlas-r010.rev', 'X'), 20000)
-          add('220000-240000', revfile(clean/'atlas-r011.rev', 'N'), 20000)
-          add('240000-260000', revfile(clean/'atlas-r012-013.rev', 'u'), 20000)
-          add('260000-270000', revfile(clean/'atlas-f260-270.rev'), 10000)
-          add('270000-280000', revfile(clean/'atlas-f270-280.rev'), 10000)
-
-          add('280000-290000', revfile(canon/'r280000-290000.rev'), 10000)
-          bad290 = (canon/'r290000-300000.rev').read_text().strip()
-          fixed290 = exact_insert_one(bad290, '8c6f0762acd927c4848e23ec6b5db9a5a9cfa5a8')
-          add('290000-300000', fixed290[::-1], 10000)
-          add('300000-310000', revfile(canon/'r300000-310000.rev'), 10000)
-          add('310000-320000', revfile(canon/'r310000-320000.rev'), 10000)
-
-          add('320000-330000', revfile(clean/'atlas-r320-330.rev'), 10000)
-          add('330000-340000', revfile(clean/'atlas-r330-340.rev'), 10000)
-          add('340000-350000', revfile(canon/'r340000-350000.rev'), 10000)
-          add('350000-360000', revfile(clean/'atlas-r340-360.rev'), 10000)
-          add('360000-380000', revfile(clean/'atlas-r018-019.rev', '8'), 20000)
-          add('380000-390000', revfile(canon/'r380000-390000.rev'), 10000)
-          add('390000-400000', revfile(canon/'r390000-400000.rev'), 10000)
-          add('400000-420000', revfile(clean/'atlas-r020-tail.rev', 'C'), 20000)
-          add('420000-430736', revfile(clean/'atlas-r420-430736.rev'), 10736)
+          parts = [
+              read_exact(final/'o000000-008000.b64', '592412132b8c389b65e813736b34dd0a95bfa070', 8000),
+              read_exact(final/'o008000-016000.b64', '10adfd9348b85ff7beaa47e9e0adb56e2663cc5e', 8000),
+              repair_insert_one(legacy/'overlay-002.b64', 'd64bb228b30f9c0e8a85792753186fff61e7d9f8'),
+              repair_insert_one(legacy/'overlay-003.b64', '095ebd5a40403041e1a440d3c7becd8a1f90474d'),
+              repair_insert_one(legacy/'overlay-004.b64', '6a8f1810bbbb67dc41b85f4455eae613e7fdd2e5'),
+              read_exact(final/'o076000-086000.b64', 'bc9a518faca64667f82900e85e83ef6491b05b77', 10000),
+              read_exact(final/'o086000-096000.b64', 'e408b767121d205677c8532e73528bf54cc6d98a', 10000),
+              read_exact(final/'o096000-106000.b64', '0fdabeb125f5b07e2048d2910592252f31057bc4', 10000),
+              read_exact(final/'o106000-116000.b64', '350a3c411c7185fa551d1acd676d16250531c0d8', 10000),
+              read_exact(final/'o116000-120836.b64', '530d85307f63ad0ab9c2f5b12b180e0ade7759f6', 4836),
+          ]
 
           joined = ''.join(parts)
-          if len(joined) != 430736:
+          if len(joined) != 120836:
               raise SystemExit(f'base64 length mismatch: {len(joined)}')
           raw = base64.b64decode(joined, validate=True)
-          if len(raw) != 323050:
+          if len(raw) != 90626:
               raise SystemExit(f'byte size mismatch: {len(raw)}')
           actual = hashlib.sha256(raw).hexdigest()
-          if actual != atlas_sha256:
+          if actual != expected_sha256:
               raise SystemExit(f'SHA256 mismatch: {actual}')
-
-          out = root/'ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp'
+          out = root/'ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp'
           out.write_bytes(raw)
           print(f'VERIFIED {out} {len(raw)} bytes {actual}')
           PY
-      - name: Commit exact local atlas
+      - name: Commit exact local overlay
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp
+          git add assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp
           if git diff --cached --quiet; then
-            echo 'Exact atlas already committed.'
+            echo 'Exact overlay already committed.'
             exit 0
           fi
-          git commit -m 'Install exact approved Athlete Main Headshot glyph atlas'
-          git push origin HEAD:amh-atlas-final-transfer
+          git commit -m 'Install exact approved Athlete Main Headshot locked overlay'
+          git push origin HEAD:amh-exact-assets-transfer
