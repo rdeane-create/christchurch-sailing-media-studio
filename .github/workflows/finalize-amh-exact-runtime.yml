@@ -24,25 +24,36 @@ jobs:
           test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp | awk '{print $1}')" = "ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f"
           ! grep -q "const BRIDGE=" athlete-main-headshot-approved-exact.js
           ! grep -q "bridgeJson" athlete-main-headshot-approved-exact.js
-          grep -q "20260814-exact-local-final" athlete-main-headshot-approved-exact.js
-      - name: Set final renderer cache token
+      - name: Tighten last name and update cache token
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
+          r=Path('athlete-main-headshot-approved-exact.js')
+          s=r.read_text()
+          old="drawRasterText(ctx,S.last,'large',48,905,255,4,930);"
+          new="drawRasterText(ctx,S.last,'large',48,940,205,-3,960);"
+          if old in s:
+              s=s.replace(old,new,1)
+          elif new not in s:
+              raise SystemExit('Last-name render call not found')
+          s=s.replace("const VERSION='20260814-exact-local-final';","const VERSION='20260814-lastname-1';")
+          s=s.replace("?v=20260814-exact-local-final","?v=20260814-lastname-1")
+          r.write_text(s)
+
           p=Path('index.html')
-          s=p.read_text()
-          new,n=re.subn(r'athlete-main-headshot-approved-exact\.js\?v=[^"\']+', 'athlete-main-headshot-approved-exact.js?v=20260814-exact-local-final', s)
+          t=p.read_text()
+          t,n=re.subn(r'athlete-main-headshot-approved-exact\.js\?v=[^"\']+', 'athlete-main-headshot-approved-exact.js?v=20260814-lastname-1', t)
           if n < 1:
               raise SystemExit('Exact renderer script tag not found in index.html')
-          p.write_text(new)
-          print(f'Updated {n} exact renderer script reference(s).')
+          p.write_text(t)
+          print('Last name: y=940, height=205, tracking=-3, maxWidth=960')
           PY
-      - name: Commit final Studio wiring
+      - name: Commit last-name refinement
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add index.html
-          if git diff --cached --quiet; then echo 'Final cache wiring already installed.'; exit 0; fi
-          git commit -m 'Finalize Athlete Main Headshot local cache wiring'
+          git add athlete-main-headshot-approved-exact.js index.html
+          if git diff --cached --quiet; then echo 'Last-name refinement already installed.'; exit 0; fi
+          git commit -m 'Refine Athlete Main Headshot last name scale and spacing'
           git push origin HEAD:main
