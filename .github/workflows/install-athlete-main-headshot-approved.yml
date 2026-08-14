@@ -49,7 +49,7 @@ jobs:
           grep -q "savedCardBridgeCall('listSavedCards'" athlete-main-headshot-approved-exact.js
           grep -q "savedCardBridgeCall('getSavedCard'" athlete-main-headshot-approved-exact.js
           grep -q "savedCardBridgeCall('deleteSavedCard'" athlete-main-headshot-approved-exact.js
-          grep -q '20260814-drive-saved-cards-18' index.html
+          grep -q '20260814-drive-saved-cards-19' index.html
 
       - name: Commit Drive-backed Saved Cards wiring
         run: |
@@ -60,5 +60,5 @@ jobs:
             echo 'Drive-backed Saved Cards already installed.'
             exit 0
           fi
-          git commit -m 'Install Drive-backed Saved Cards'
+          git commit -m 'Install responsive Drive-backed Saved Cards'
           git push
