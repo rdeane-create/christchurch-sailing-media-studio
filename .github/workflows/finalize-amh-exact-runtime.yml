@@ -25,18 +25,19 @@ jobs:
           root = Path('assets/Reference')
           canon = root / '.amh-canon'
           clean = root / '.amh-clean'
+          expected = 'ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f'
 
           def revfile(path, prefix=''):
               s = Path(path).read_text().strip()
               return (prefix + s)[::-1]
 
-          parts = []
-          def add(label, text, expected):
-              if len(text) != expected:
-                  raise SystemExit(f'{label}: expected {expected} chars, got {len(text)}')
-              parts.append(text)
+          rest = []
+          def add(label, text, expected_len):
+              if len(text) != expected_len:
+                  raise SystemExit(f'{label}: expected {expected_len} chars, got {len(text)}')
+              rest.append(text)
 
-          for start in range(0, 80000, 10000):
+          for start in range(10000, 80000, 10000):
               end = start + 10000
               add(f'{start}-{end}', revfile(canon / f'r{start:06d}-{end:06d}.rev'), 10000)
 
@@ -67,19 +68,36 @@ jobs:
           add('400000-420000', revfile(clean/'atlas-r020-tail.rev', 'C'), 20000)
           add('420000-430736', revfile(clean/'atlas-r420-430736.rev'), 10736)
 
-          joined = ''.join(parts)
-          if len(joined) != 430736:
-              raise SystemExit(f'base64 length mismatch: {len(joined)}')
-          raw = base64.b64decode(joined, validate=True)
-          if len(raw) != 323050:
-              raise SystemExit(f'byte size mismatch: {len(raw)}')
-          expected = 'ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f'
-          actual = hashlib.sha256(raw).hexdigest()
-          if actual != expected:
-              raise SystemExit(f'SHA256 mismatch: {actual}')
+          suffix = ''.join(rest)
+          bad = (canon/'r000000-010000.rev').read_text().strip()
+          if len(bad) == 10000:
+              candidates = [bad]
+          elif len(bad) == 10001:
+              candidates = (bad[:i] + bad[i+1:] for i in range(len(bad)))
+          else:
+              raise SystemExit(f'first chunk unexpected length: {len(bad)}')
+
+          raw = None
+          for candidate_rev in candidates:
+              joined = candidate_rev[::-1] + suffix
+              if len(joined) != 430736:
+                  continue
+              try:
+                  trial = base64.b64decode(joined, validate=True)
+              except Exception:
+                  continue
+              if len(trial) != 323050:
+                  continue
+              if hashlib.sha256(trial).hexdigest() == expected:
+                  raw = trial
+                  break
+
+          if raw is None:
+              raise SystemExit('No single-character repair produced the approved SHA256')
+
           out = root/'ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp'
           out.write_bytes(raw)
-          print(f'VERIFIED {out} {len(raw)} bytes {actual}')
+          print(f'VERIFIED {out} {len(raw)} bytes {expected}')
           PY
       - name: Verify approved overlay
         run: |
