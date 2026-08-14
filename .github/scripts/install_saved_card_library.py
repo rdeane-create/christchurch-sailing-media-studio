@@ -1,118 +1,107 @@
 from pathlib import Path
 import re
 
-r = Path('athlete-main-headshot-approved-exact.js')
-s = r.read_text()
+renderer = Path('athlete-main-headshot-approved-exact.js')
+s = renderer.read_text()
 
-# Idempotent install: if already present, only ensure cache version below.
-if 'function saveFinishedCard()' not in s:
-    s = s.replace("classLine:'CLASS OF 2027',overlay:null", "classLine:'CLASS OF 2027',cardNameDirty:false,overlay:null", 1)
+start = "  const SAVED_DB='ccs-sailing-media-studio-output-library';"
+end = "  function ensureSavedCardsPanel(){"
 
-    marker = "  function buildCard(){"
-    if marker not in s:
-        raise SystemExit('buildCard marker not found')
-
-    helpers = r'''  function suggestedCardName(){
-    const last=String(S.last||'').trim()||'LAST NAME';
-    const first=String(S.first||'').trim()||'FIRST NAME';
-    return `${last}, ${first}, ATHLETE HEADSHOT CARD`;
-  }
-  function syncCardName(force){
-    const input=q('aCardName');if(!input)return;
-    if(force||!S.cardNameDirty)input.value=suggestedCardName();
-  }
-  const SAVED_DB='ccs-sailing-media-studio-output-library';
-  const SAVED_STORE='cards';
-  function openSavedDB(){
+if start in s and end in s:
+    a = s.index(start)
+    b = s.index(end, a)
+    helpers = r'''  // ===== CSMS DRIVE-BACKED SAVED CARDS V1 =====
+  function savedCardBlobToBase64(blob){
     return new Promise((resolve,reject)=>{
-      const req=indexedDB.open(SAVED_DB,1);
-      req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(SAVED_STORE))db.createObjectStore(SAVED_STORE,{keyPath:'id'})};
-      req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+      const reader=new FileReader();
+      reader.onload=()=>{const text=String(reader.result||'');const comma=text.indexOf(',');resolve(comma>=0?text.slice(comma+1):text)};
+      reader.onerror=()=>reject(reader.error||new Error('Could not read saved card PNG'));
+      reader.readAsDataURL(blob);
     });
   }
+  function savedCardBase64ToBlob(base64,mimeType){
+    const binary=atob(base64);const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    return new Blob([bytes],{type:mimeType||'image/png'});
+  }
+  async function savedCardBridgeCall(action,payload={}){
+    if(typeof csmsAuthenticatedBridgeCall!=='function')throw new Error('Google Drive Bridge is unavailable. Refresh Studio and connect Google Drive.');
+    return await csmsAuthenticatedBridgeCall(action,payload,{userInitiated:true});
+  }
   async function putSavedCard(card){
-    const db=await openSavedDB();
-    return new Promise((resolve,reject)=>{const tx=db.transaction(SAVED_STORE,'readwrite');tx.objectStore(SAVED_STORE).put(card);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}});
+    const data=await savedCardBlobToBase64(card.blob);
+    const result=await savedCardBridgeCall('saveCard',{
+      name:card.name,
+      cardType:card.type||'ATHLETE HEADSHOT CARD',
+      first:card.first||'',
+      last:card.last||'',
+      classLine:card.classLine||'',
+      data
+    });
+    if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive did not save the card');
+    return result.card;
   }
   async function getSavedCards(){
-    const db=await openSavedDB();
-    return new Promise((resolve,reject)=>{const tx=db.transaction(SAVED_STORE,'readonly');const req=tx.objectStore(SAVED_STORE).getAll();req.onsuccess=()=>{db.close();resolve(req.result||[])};req.onerror=()=>{db.close();reject(req.error)}});
+    const result=await savedCardBridgeCall('listSavedCards',{});
+    if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive Saved Cards library is unavailable');
+    return Array.isArray(result.cards)?result.cards:[];
   }
-  async function deleteSavedCard(id){
-    const db=await openSavedDB();
-    return new Promise((resolve,reject)=>{const tx=db.transaction(SAVED_STORE,'readwrite');tx.objectStore(SAVED_STORE).delete(id);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}});
+  async function getSavedCardBlob(fileId){
+    const result=await savedCardBridgeCall('getSavedCard',{fileId});
+    if(!result||!result.ok||!result.card||!result.card.data)throw new Error('Saved card PNG could not be loaded from Drive');
+    return savedCardBase64ToBlob(result.card.data,result.card.mimeType||'image/png');
   }
-  function ensureSavedCardsPanel(){
-    let panel=q('amhSavedCardsPanel');if(panel)return panel;
-    const list=q('templateLibraryList');if(!list)return null;
-    panel=document.createElement('section');panel.id='amhSavedCardsPanel';panel.className='panel';panel.style.marginTop='14px';
-    panel.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px"><h2 style="margin:0">Saved Cards</h2><span class="hint">Finished Studio cards</span></div><div id="amhSavedCardsList" style="display:grid;gap:10px"></div>';
-    const host=list.parentElement||list;host.insertAdjacentElement('afterend',panel);return panel;
+  async function deleteSavedCard(fileId){
+    const result=await savedCardBridgeCall('deleteSavedCard',{fileId});
+    if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive could not delete the saved card');
+    return result;
   }
-  function escapeSavedName(v){return String(v||'Saved Card').replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]))}
-  async function renderSavedCards(){
+'''
+    s = s[:a] + helpers + s[b:]
+elif 'CSMS DRIVE-BACKED SAVED CARDS V1' not in s:
+    raise SystemExit('Saved Cards browser-storage block not found')
+
+render_start = "  async function renderSavedCards(){"
+canvas_marker = "  function canvasBlob(canvas){"
+if render_start not in s or canvas_marker not in s:
+    raise SystemExit('Saved Cards renderer markers not found')
+
+a = s.index(render_start)
+b = s.index(canvas_marker, a)
+renderer_block = r'''  async function renderSavedCards(){
     const panel=ensureSavedCardsPanel();if(!panel)return;
     const list=q('amhSavedCardsList');if(!list)return;
-    let cards=[];try{cards=await getSavedCards()}catch(err){console.error('Saved card library unavailable',err);return}
-    cards.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));list.innerHTML='';
-    if(!cards.length){list.innerHTML='<div class="hint">No finished cards saved yet.</div>';return}
+    list.innerHTML='<div class="hint">Loading saved cards from Google Drive…</div>';
+    let cards=[];
+    try{cards=await getSavedCards()}catch(err){console.error('Drive Saved Cards library unavailable',err);list.innerHTML='<div class="hint">Connect Google Drive to load Saved Cards.</div>';return}
+    cards.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0));list.innerHTML='';
+    if(!cards.length){list.innerHTML='<div class="hint">No finished cards saved in Drive yet.</div>';return}
     for(const card of cards){
       const row=document.createElement('div');row.className='athleteItem';row.style.gridTemplateColumns='72px 1fr auto';row.style.padding='10px';
-      const url=URL.createObjectURL(card.blob);
-      row.innerHTML=`<img alt="" style="width:58px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #d8e2ed" src="${url}"><div><div style="font-weight:800;font-size:14px">${escapeSavedName(card.name)}</div><div class="hint" style="margin-top:3px">Athlete Headshot Card</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="tiny primary" data-action="download">Download</button><button type="button" class="tiny secondary" data-action="delete">Delete</button></div>`;
-      row.querySelector('img').onload=()=>URL.revokeObjectURL(url);
-      row.querySelector('[data-action="download"]').onclick=()=>{const u=URL.createObjectURL(card.blob);const a=document.createElement('a');a.href=u;a.download=(card.name||'athlete-headshot-card')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
-      row.querySelector('[data-action="delete"]').onclick=async()=>{if(!confirm(`Delete ${card.name}?`))return;await deleteSavedCard(card.id);renderSavedCards()};
+      row.innerHTML=`<img alt="" style="width:58px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #d8e2ed;background:#eef2f7"><div><div style="font-weight:800;font-size:14px">${escapeSavedName(String(card.name||'Saved Card').replace(/\.png$/i,''))}</div><div class="hint" style="margin-top:3px">Athlete Headshot Card • Google Drive</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="tiny primary" data-action="download">Download</button><button type="button" class="tiny secondary" data-action="delete">Delete</button></div>`;
+      const img=row.querySelector('img');
+      getSavedCardBlob(card.fileId).then(blob=>{const url=URL.createObjectURL(blob);img.src=url;img.onload=()=>URL.revokeObjectURL(url)}).catch(err=>console.warn('Saved card thumbnail unavailable',err));
+      row.querySelector('[data-action="download"]').onclick=async()=>{try{const blob=await getSavedCardBlob(card.fileId);const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=card.name||'athlete-headshot-card.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}catch(err){console.error(err);alert('The saved card could not be downloaded from Google Drive.')}};
+      row.querySelector('[data-action="delete"]').onclick=async()=>{if(!confirm(`Delete ${String(card.name||'this saved card').replace(/\.png$/i,'')} from Google Drive?`))return;try{await deleteSavedCard(card.fileId);await renderSavedCards()}catch(err){console.error(err);alert('The saved card could not be deleted from Google Drive.')}};
       list.appendChild(row);
     }
   }
-  function canvasBlob(canvas){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('PNG save failed')),'image/png'))}
-  async function saveFinishedCard(){
-    const c=q('aCanvas');if(!c)return;
-    draw();
-    const name=(q('aCardName')?.value||suggestedCardName()).trim()||suggestedCardName();
-    try{
-      const blob=await canvasBlob(c);
-      const id=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(36).slice(2));
-      await putSavedCard({id,name,type:'ATHLETE HEADSHOT CARD',first:S.first,last:S.last,classLine:S.classLine,createdAt:Date.now(),blob});
-      S.cardNameDirty=false;syncCardName(true);await renderSavedCards();
-      const btn=q('aSave');if(btn){const old=btn.textContent;btn.textContent='Saved ✓';setTimeout(()=>btn.textContent=old,1400)}
-    }catch(err){console.error(err);alert('The finished card could not be saved to the Studio library.')}
-  }
 '''
-    s = s.replace(marker, helpers + marker, 1)
+s = s[:a] + renderer_block + s[b:]
 
-    old = '<div class="control"><label>Class line</label><input id="aClass" value="CLASS OF 2027"></div><button id="aReset" class="secondary" type="button" style="width:100%">Reset image</button><button id="aDownload" class="primary" type="button" style="width:100%;margin-top:8px">Download PNG</button>'
-    new = '<div class="control"><label>Class line</label><input id="aClass" value="CLASS OF 2027"></div><div class="control"><label>Card name</label><input id="aCardName" value="SMITH, WYLDER, ATHLETE HEADSHOT CARD"></div><button id="aReset" class="secondary" type="button" style="width:100%">Reset image</button><button id="aSave" class="primary" type="button" style="width:100%;margin-top:8px">Save Card</button><button id="aDownload" class="secondary" type="button" style="width:100%;margin-top:8px">Download PNG</button>'
-    if old not in s:
-        raise SystemExit('Controls block not found')
-    s = s.replace(old, new, 1)
+s = re.sub(r"const VERSION='[^']+';", "const VERSION='20260814-drive-saved-cards-18';", s, count=1)
+s = re.sub(r"\?v=20260814-[^'\"]+", "?v=20260814-drive-saved-cards-18", s)
+renderer.write_text(s)
 
-    old = "q('aFirst').oninput=e=>{S.first=e.target.value.toUpperCase();draw()};q('aLast').oninput=e=>{S.last=e.target.value.toUpperCase();draw()};q('aClass').oninput=e=>{S.classLine=e.target.value.toUpperCase();draw()};q('aReset').onclick="
-    new = "q('aFirst').oninput=e=>{S.first=e.target.value.toUpperCase();syncCardName(false);draw()};q('aLast').oninput=e=>{S.last=e.target.value.toUpperCase();syncCardName(false);draw()};q('aClass').oninput=e=>{S.classLine=e.target.value.toUpperCase();draw()};q('aCardName').oninput=()=>{S.cardNameDirty=true};q('aSave').onclick=saveFinishedCard;q('aReset').onclick="
-    if old not in s:
-        raise SystemExit('Wire handlers block not found')
-    s = s.replace(old, new, 1)
-
-    old = "appendChild(p);wire(p)}p.hidden=false;ensureAssets().then(draw);"
-    new = "appendChild(p);wire(p);syncCardName(true);renderSavedCards()}p.hidden=false;ensureAssets().then(draw);"
-    if old not in s:
-        raise SystemExit('Workspace initialization block not found')
-    s = s.replace(old, new, 1)
-
-    old = "function init(){buildCard();new MutationObserver(buildCard).observe(document.body,{childList:true,subtree:true});ensureAssets()}"
-    new = "function init(){buildCard();ensureSavedCardsPanel();renderSavedCards();new MutationObserver(()=>{buildCard();ensureSavedCardsPanel()}).observe(document.body,{childList:true,subtree:true});ensureAssets()}"
-    if old not in s:
-        raise SystemExit('Init block not found')
-    s = s.replace(old, new, 1)
-
-s = re.sub(r"const VERSION='[^']+';", "const VERSION='20260814-saved-card-library-17';", s, count=1)
-s = re.sub(r"\?v=20260814-[^'\"]+", "?v=20260814-saved-card-library-17", s)
-r.write_text(s)
-
-p = Path('index.html')
-t = p.read_text()
-t, n = re.subn(r'athlete-main-headshot-approved-exact\.js\?v=[^"\']+', 'athlete-main-headshot-approved-exact.js?v=20260814-saved-card-library-17', t)
+index = Path('index.html')
+t = index.read_text()
+t, n = re.subn(
+    r'athlete-main-headshot-approved-exact\.js\?v=[^"\']+',
+    'athlete-main-headshot-approved-exact.js?v=20260814-drive-saved-cards-18',
+    t
+)
 if n < 1:
     raise SystemExit('Renderer script tag not found')
-p.write_text(t)
+index.write_text(t)
+
+print('Drive-backed Saved Cards installer applied.')
