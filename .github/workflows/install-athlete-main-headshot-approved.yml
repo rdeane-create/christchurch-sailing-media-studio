@@ -17,49 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Transfer exact locked assets from Studio Drive bridge
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import urllib.parse, urllib.request, json, base64, hashlib
-
-          BRIDGE='https://script.google.com/a/macros/christchurchschool.org/s/AKfycbwVpWix_ivzxwpEQxNTBGvJNpThQYjfRRG8T7CYMNPz3r9lB-JI6CowrskoQUAs67lt/exec'
-          assets=[
-            ('ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp','4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14'),
-            ('ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp','ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f'),
-          ]
-          dest=Path('assets/Reference')
-          dest.mkdir(parents=True,exist_ok=True)
-
-          def get_json(params):
-              url=BRIDGE+'?'+urllib.parse.urlencode(params)
-              req=urllib.request.Request(url,headers={'User-Agent':'Christchurch-Media-Studio-Installer/1.0'})
-              with urllib.request.urlopen(req,timeout=90) as r:
-                  return json.loads(r.read().decode('utf-8'))
-
-          for name,expected in assets:
-              found=get_json({'action':'findfilerecursive','name':name})
-              matches=found.get('matches') or []
-              if not matches:
-                  raise SystemExit(f'Exact locked asset not found in Drive: {name}')
-              ok=False
-              for match in matches:
-                  try:
-                      payload=get_json({'action':'file','fileId':match['id']})
-                      raw=base64.b64decode(payload.get('data') or '',validate=True)
-                  except Exception:
-                      continue
-                  actual=hashlib.sha256(raw).hexdigest()
-                  if actual==expected:
-                      (dest/name).write_bytes(raw)
-                      print(f'Verified exact asset {name}: {actual}')
-                      ok=True
-                      break
-              if not ok:
-                  raise SystemExit(f'No byte-exact Drive match found for {name}')
-          PY
-
-      - name: Wire Studio to the exact renderer only
+      - name: Preserve exact approved renderer wiring
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -93,15 +51,13 @@ jobs:
           grep -q "savedCardBridgeCall('deleteSavedCard'" athlete-main-headshot-approved-exact.js
           grep -q '20260814-drive-saved-cards-18' index.html
 
-      - name: Commit exact assets and Studio wiring
+      - name: Commit Drive-backed Saved Cards wiring
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add index.html athlete-main-headshot-approved-exact.js \
-            assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp \
-            assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp
+          git add index.html athlete-main-headshot-approved-exact.js
           if git diff --cached --quiet; then
-            echo 'Exact template and Drive-backed Saved Cards already installed.'
+            echo 'Drive-backed Saved Cards already installed.'
             exit 0
           fi
           git commit -m 'Install Drive-backed Saved Cards'
