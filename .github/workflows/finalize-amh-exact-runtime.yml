@@ -15,49 +15,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: amh-exact-assets-transfer
-      - name: Reconstruct exact approved locked overlay
+          ref: main
+      - name: Verify exact approved assets
+        run: |
+          test "$(wc -c < assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp)" = "90626"
+          test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp | awk '{print $1}')" = "4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14"
+          test "$(wc -c < assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp)" = "323050"
+          test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp | awk '{print $1}')" = "ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f"
+      - name: Switch exact renderer to local-only assets
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import base64, hashlib
-          root=Path('assets/Reference'); d=root/'.amh-overlay-final'
-          expected='4507debfa0392b50a31a82c1b71b406f4bb841af5e94ae40e761edf56c94bf14'
-          specs=[
-            ('o000000-008000.b64',8000,'592412132b8c389b65e813736b34dd0a95bfa070'),
-            ('o008000-016000.b64',8000,'10adfd9348b85ff7beaa47e9e0adb56e2663cc5e'),
-            ('o016000-026000.b64',10000,'46656bccff5ccb32ccba969e53dd6443726821a3'),
-            ('o026000-036000.b64',10000,'d89d1afeba71d0643c2ec9873311779491c714d7'),
-            ('o036000-046000.b64',10000,'acf1815e57ea2d04adbf160597d973e59be91f93'),
-            ('o046000-056000.b64',10000,'6b145b9142cbe27cccf44da50c148f0d44d43971'),
-            ('o056000-066000.b64',10000,'707416c70c472b3792e833f0419cae204ec7211d'),
-            ('o066000-076000.b64',10000,'14dd43ec9d8c92b931e0ef20deebfb64ace0d7d4'),
-            ('o076000-086000.b64',10000,'bc9a518faca64667f82900e85e83ef6491b05b77'),
-            ('o086000-096000.b64',10000,'e408b767121d205677c8532e73528bf54cc6d98a'),
-            ('o096000-106000.b64',10000,'0fdabeb125f5b07e2048d2910592252f31057bc4'),
-            ('o106000-116000.b64',10000,'350a3c411c7185fa551d1acd676d16250531c0d8'),
-            ('o116000-118000.b64',2000,'d41ef51ba63ec32942d3395400f5222dc62b73d4'),
-            ('o118000-120000.b64',2000,'3b3959337e179e3a4f8011987d2be64cea9bb940'),
-            ('o120000-120836.b64',836,'9eb94fc7ce5d40b04ae7ecf9c75cbc47c9c97351')]
-          parts=[]
-          for name,n,sha in specs:
-            s=(d/name).read_text().strip(); data=s.encode()
-            actual=hashlib.sha1(f'blob {len(data)}\0'.encode()+data).hexdigest()
-            if len(s)!=n or actual!=sha: raise SystemExit(f'{name} invalid len={len(s)} sha={actual}')
-            parts.append(s)
-          joined=''.join(parts)
-          if len(joined)!=120836: raise SystemExit(f'base64 length {len(joined)}')
-          raw=base64.b64decode(joined,validate=True)
-          actual=hashlib.sha256(raw).hexdigest()
-          if len(raw)!=90626 or actual!=expected: raise SystemExit(f'overlay invalid size={len(raw)} sha={actual}')
-          out=root/'ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp'; out.write_bytes(raw)
-          print(f'VERIFIED {out} {len(raw)} bytes {actual}')
+          p=Path('athlete-main-headshot-approved-exact.js')
+          s=p.read_text()
+          start=s.index("  const BRIDGE=")
+          end=s.index("  function buildCard()", start)
+          local="""  function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Exact approved local asset unavailable: '+src));i.src=src+'?v=20260814-exact-local-final';});}\n"""
+          s=s[:start]+local+s[end:]
+          s=s.replace("const VERSION='20260813-exact-bridge-2';","const VERSION='20260814-exact-local-final';")
+          if 'const BRIDGE=' in s or 'bridgeJson' in s or 'findfilerecursive' in s:
+              raise SystemExit('bridge code remains')
+          if "ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp" not in s or "ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp" not in s:
+              raise SystemExit('exact local asset paths missing')
+          p.write_text(s)
           PY
-      - name: Commit exact local overlay
+      - name: Commit local-only exact runtime
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
-          git add assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp
-          if git diff --cached --quiet; then echo 'Exact overlay already committed.'; exit 0; fi
-          git commit -m 'Install exact approved Athlete Main Headshot locked overlay'
-          git push origin HEAD:amh-exact-assets-transfer
+          git add athlete-main-headshot-approved-exact.js
+          if git diff --cached --quiet; then echo 'Renderer already local-only.'; exit 0; fi
+          git commit -m 'Make Athlete Main Headshot exact runtime fully local'
+          git push origin HEAD:main
