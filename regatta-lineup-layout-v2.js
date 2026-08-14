@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260814-regatta-lineup-layout-v4';
+const VERSION='20260814-regatta-lineup-layout-v5';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -33,19 +33,27 @@ function videoPanel(){
   }
   return w.querySelector('section.panel')||w.querySelector('.panel')||w;
 }
+function previewPanel(){
+  const w=workspace();if(!w)return null;
+  const panels=[...w.querySelectorAll('section.panel,.panel')];
+  const left=videoPanel();
+  return panels.find(p=>p!==left&&(p.querySelector('canvas,video')||/preview/i.test(norm(p.textContent))))||
+    [...w.children].find(el=>el!==left&&(el.querySelector?.('canvas,video')||/preview/i.test(norm(el.textContent))))||null;
+}
 function addStyles(){
-  if(q('csmsRegattaLayoutStylesV4'))return;
-  q('csmsRegattaLayoutStylesV3')?.remove();
-  q('csmsRegattaLayoutStyles')?.remove();
-  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV4';s.textContent=`
-#workspace-video .csmsRegattaTitle{background:#07152f;border-radius:16px;padding:18px 20px 16px;margin:0 0 20px;overflow:hidden}
-#workspace-video .csmsRegattaEyebrow{color:#fff;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;font-weight:900;letter-spacing:.28em;text-transform:uppercase;margin-bottom:7px}
-#workspace-video .csmsRegattaTitleText{display:inline-block;color:#fff;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:44px;font-weight:900;font-style:italic;letter-spacing:-.055em;line-height:.9;transform:skewX(-9deg);transform-origin:left center;text-transform:uppercase}
-#workspace-video .csmsRegattaTitleRule{height:5px;background:#f15a24;width:82%;max-width:390px;margin-top:12px}
+  if(q('csmsRegattaLayoutStylesV5'))return;
+  ['csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
+  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV5';s.textContent=`
+#workspace-video .csmsRegattaTitle{padding:2px 0 16px;margin:0 0 18px;border-bottom:1px solid #d8e2ed;overflow:hidden}
+#workspace-video .csmsRegattaEyebrow{color:#10213c;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;margin:0 0 6px 2px}
+#workspace-video .csmsRegattaTitleText{display:inline-block;color:#07152f;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:42px;font-weight:900;font-style:italic;letter-spacing:-.06em;line-height:.92;transform:skewX(-9deg);transform-origin:left center;text-transform:uppercase}
+#workspace-video .csmsRegattaTitleRule{height:5px;background:#f15a24;width:76%;max-width:360px;margin-top:10px}
 #workspace-video .csmsDriveAthleteHint{font-size:12px;line-height:1.35;color:#536174;margin:7px 0 0}
-#workspace-video .csmsRegattaMetaBottom{margin-top:24px;padding-top:18px;border-top:2px solid #d8e2ed}
+#workspace-video .csmsRegattaMetaBottom{margin-top:26px;padding-top:18px;border-top:2px solid #d8e2ed}
 #workspace-video .csmsRegattaMetaBottom h2{margin:0 0 12px;color:#10213c;font-size:20px}
 #workspace-video .csmsRegattaMetaBottom .control{margin-bottom:12px}
+#workspace-video .csmsPreviewActionBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;background:#f8fafc;border:1px solid #d8e2ed;border-radius:12px}
+#workspace-video .csmsPreviewActionBar button,#workspace-video .csmsPreviewActionBar a{margin:0!important;flex:1 1 auto;min-width:120px}
 `;
   document.head.appendChild(s);
 }
@@ -65,11 +73,9 @@ function findAthleteHeading(){
 }
 function findNativeAthleteSelect(){
   const w=workspace();if(!w)return null;
-  const candidates=[...w.querySelectorAll('select')];
-  for(const sel of candidates){
+  for(const sel of [...w.querySelectorAll('select')]){
     const block=sel.closest('.control')||sel.parentElement;
-    const text=norm(block?.textContent).toLowerCase();
-    if(text.includes('add athletes from'))return sel;
+    if(norm(block?.textContent).toLowerCase().includes('add athletes from'))return sel;
   }
   const heading=findAthleteHeading();
   if(heading){
@@ -83,17 +89,14 @@ function findNativeAthleteSelect(){
 }
 async function loadSavedCards(){
   const sel=findNativeAthleteSelect();if(!sel||loadingCards)return;
-  loadingCards=true;
-  sel.dataset.csmsDriveAthletes='1';
+  loadingCards=true;sel.dataset.csmsDriveAthletes='1';
   sel.innerHTML='<option value="">Loading saved Athlete Cards…</option>';
   try{
     const result=await bridgeCall('listSavedCards',{});
     savedCards=(result&&Array.isArray(result.cards)?result.cards:[]).filter(c=>/athlete/i.test(String(c.cardType||c.name||'')));
     savedCards.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
     sel.innerHTML='<option value="">Choose saved Athlete Card…</option>';
-    savedCards.forEach(card=>{
-      const o=document.createElement('option');o.value=card.fileId;o.textContent=String(card.name||'Athlete Card').replace(/\.png$/i,'');sel.appendChild(o);
-    });
+    savedCards.forEach(card=>{const o=document.createElement('option');o.value=card.fileId;o.textContent=String(card.name||'Athlete Card').replace(/\.png$/i,'');sel.appendChild(o);});
     let hint=q('csmsDriveAthleteHint');
     if(!hint){hint=document.createElement('div');hint.id='csmsDriveAthleteHint';hint.className='csmsDriveAthleteHint';sel.insertAdjacentElement('afterend',hint);}
     hint.textContent=savedCards.length?`${savedCards.length} Athlete Card${savedCards.length===1?'':'s'} available from Google Drive.`:'No saved Athlete Cards found in Google Drive yet.';
@@ -106,8 +109,7 @@ async function loadSavedCards(){
   }finally{loadingCards=false;}
 }
 async function addCardById(id){
-  const input=q('athleteFiles');
-  if(!id||!input)return;
+  const input=q('athleteFiles');if(!id||!input)return;
   const meta=savedCards.find(c=>c.fileId===id);if(!meta)return;
   const hint=q('csmsDriveAthleteHint');
   try{
@@ -119,15 +121,10 @@ async function addCardById(id){
       loadedFiles.set(id,new File([blob],meta.name||'athlete-card.png',{type:result.card.mimeType||'image/png'}));
     }
     if(!selectedCardIds.includes(id))selectedCardIds.push(id);
-    const dt=new DataTransfer();
-    selectedCardIds.forEach(cardId=>{const f=loadedFiles.get(cardId);if(f)dt.items.add(f);});
-    input.files=dt.files;
-    input.dispatchEvent(new Event('change',{bubbles:true}));
+    const dt=new DataTransfer();selectedCardIds.forEach(cardId=>{const f=loadedFiles.get(cardId);if(f)dt.items.add(f);});
+    input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));
     if(hint)hint.textContent=`Added ${String(meta.name||'Athlete Card').replace(/\.png$/i,'')} • ${selectedCardIds.length} athlete card${selectedCardIds.length===1?'':'s'} in lineup.`;
-  }catch(err){
-    console.error('Add Regatta athlete card failed',err);
-    if(hint)hint.textContent=err?.message||'Could not add Athlete Card.';
-  }
+  }catch(err){console.error('Add Regatta athlete card failed',err);if(hint)hint.textContent=err?.message||'Could not add Athlete Card.';}
 }
 function wireNativeAthleteSelect(){
   q('csmsRegattaAthleteCards')?.remove();
@@ -139,25 +136,16 @@ function wireNativeAthleteSelect(){
   if(sel.dataset.csmsDriveAthletes!=='1')loadSavedCards();
 }
 function controlText(c){
-  const label=norm(c.querySelector?.('label')?.textContent);
-  if(label)return label;
-  const clone=c.cloneNode(true);
-  clone.querySelectorAll?.('input,select,textarea,button').forEach(el=>el.remove());
-  return norm(clone.textContent);
+  const label=norm(c.querySelector?.('label')?.textContent);if(label)return label;
+  const clone=c.cloneNode(true);clone.querySelectorAll?.('input,select,textarea,button').forEach(el=>el.remove());return norm(clone.textContent);
 }
 function findRegattaControls(panel){
-  const out=[];
-  const controls=[...panel.querySelectorAll('.control')];
+  const out=[];const controls=[...panel.querySelectorAll('.control')];
   for(const c of controls){
     if(c.closest('#csmsRegattaMetaBottom'))continue;
-    const t=controlText(c).toLowerCase();
-    if(t==='regatta lineup'||t==='regatta'||t==='location'||t.startsWith('regatta lineup ')||t.startsWith('location '))out.push(c);
-  }
-  if(!out.length){
-    for(const c of controls){
-      const t=norm(c.textContent).toLowerCase();
-      if(/^regatta lineup\b/.test(t)||/^regatta\b/.test(t)||/^location\b/.test(t))out.push(c);
-    }
+    const label=controlText(c).toLowerCase();
+    const full=norm(c.textContent).toLowerCase();
+    if(/^(regatta lineup|regatta|location)(\b|$)/.test(label)||/^(regatta lineup|regatta|location)(\b|$)/.test(full))out.push(c);
   }
   return [...new Set(out)];
 }
@@ -165,14 +153,36 @@ function moveRegattaDetails(){
   const panel=videoPanel();if(!panel)return;
   let box=q('csmsRegattaMetaBottom');
   if(!box){box=document.createElement('div');box.id='csmsRegattaMetaBottom';box.className='csmsRegattaMetaBottom';box.innerHTML='<h2>Regatta Details</h2>';}
-  const controls=findRegattaControls(panel);
-  controls.forEach(c=>box.appendChild(c));
-  if(controls.length||box.childElementCount>1)panel.appendChild(box);
+  findRegattaControls(panel).forEach(c=>box.appendChild(c));
+  if(box.childElementCount>1)panel.appendChild(box);
 }
-function refresh(){
-  addStyles();ensureTitle();wireNativeAthleteSelect();moveRegattaDetails();
+function buttonLabel(btn){return norm(btn.textContent||btn.value||btn.getAttribute('aria-label')||btn.title).toLowerCase();}
+function isPreviewAction(btn){
+  const t=buttonLabel(btn);
+  if(!t)return false;
+  if(t.includes('preview selected title'))return false;
+  return t==='preview'||t==='preview layout'||t==='preview video'||t==='save'||t==='save video'||t==='save project'||t==='download'||t==='download video'||t==='download mp4';
 }
-function scheduleRefresh(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,60);}
+function movePreviewActions(){
+  const w=workspace(),target=previewPanel();if(!w||!target)return;
+  let bar=q('csmsPreviewActionBar');
+  if(!bar){bar=document.createElement('div');bar.id='csmsPreviewActionBar';bar.className='csmsPreviewActionBar';}
+  const buttons=[...w.querySelectorAll('button,a')].filter(isPreviewAction);
+  const preferred=[];
+  const seen=new Set();
+  for(const b of buttons){
+    const t=buttonLabel(b);
+    const key=t.includes('download')?'download':t.includes('save')?'save':'preview';
+    if(!seen.has(key)){seen.add(key);preferred.push(b);}
+  }
+  preferred.forEach(b=>bar.appendChild(b));
+  if(preferred.length){
+    const firstVisual=[...target.children].find(el=>el!==bar&&(el.querySelector?.('canvas,video')||el.matches?.('canvas,video')));
+    if(firstVisual)target.insertBefore(bar,firstVisual);else target.insertBefore(bar,target.firstChild);
+  }
+}
+function refresh(){addStyles();ensureTitle();wireNativeAthleteSelect();moveRegattaDetails();movePreviewActions();}
+function scheduleRefresh(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,80);}
 function init(){refresh();new MutationObserver(scheduleRefresh).observe(document.body,{childList:true,subtree:true});}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 window.__CSMS_REGATTA_LINEUP_LAYOUT__={version:VERSION,refresh,loadSavedCards};
