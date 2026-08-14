@@ -1,4 +1,4 @@
-# deploy marker: 20260814-white-core-balance-15
+# deploy marker: 20260814-white-core-balance-16
 name: Finalize AMH Exact Runtime
 
 on:
@@ -25,7 +25,7 @@ jobs:
           test "$(sha256sum assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp | awk '{print $1}')" = "ab764e51db0ee2d46fbaa1ca3e43d6dc5c18f5cb0e994229566336864dec9b1f"
           ! grep -q "const BRIDGE=" athlete-main-headshot-approved-exact.js
           ! grep -q "bridgeJson" athlete-main-headshot-approved-exact.js
-      - name: Loosen surname spacing slightly
+      - name: Shift first name right slightly
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -34,36 +34,36 @@ jobs:
           r=Path('athlete-main-headshot-approved-exact.js')
           s=r.read_text()
 
-          old="const target=style==='large'?7:7;"
-          new="const target=style==='large'?9:7;"
+          old="drawRasterText(ctx,S.first,'small',76,897,58,0,710);"
+          new="drawRasterText(ctx,S.first,'small',82,897,58,0,710);"
           if old not in s:
-              raise SystemExit('Current balanced spacing target not found')
+              raise SystemExit('Current first-name placement not found')
           s=s.replace(old,new,1)
 
-          s=re.sub(r"const VERSION='[^']+';","const VERSION='20260814-white-core-balance-15';",s,count=1)
-          s=re.sub(r"\?v=20260814-[^'\"]+","?v=20260814-white-core-balance-15",s)
+          s=re.sub(r"const VERSION='[^']+';","const VERSION='20260814-white-core-balance-16';",s,count=1)
+          s=re.sub(r"\?v=20260814-[^'\"]+","?v=20260814-white-core-balance-16",s)
           r.write_text(s)
 
           p=Path('index.html')
           t=p.read_text()
           t,n=re.subn(r'athlete-main-headshot-approved-exact\.js\?v=[^"\']+',
-                      'athlete-main-headshot-approved-exact.js?v=20260814-white-core-balance-15',t)
+                      'athlete-main-headshot-approved-exact.js?v=20260814-white-core-balance-16',t)
           if n < 1:
               raise SystemExit('Exact renderer script tag not found in index.html')
           p.write_text(t)
-          print('Loosened last-name white-core gap by 2px; first-name spacing and all positions unchanged.')
+          print('Shifted first-name line right 6px; all other typography unchanged.')
           PY
-      - name: Verify surname spacing refinement
+      - name: Verify first-name alignment refinement
         run: |
+          grep -q "drawRasterText(ctx,S.first,'small',82,897,58,0,710)" athlete-main-headshot-approved-exact.js
           grep -q "const target=style==='large'?9:7" athlete-main-headshot-approved-exact.js
-          grep -q "drawRasterText(ctx,S.first,'small',76,897,58,0,710)" athlete-main-headshot-approved-exact.js
-          grep -q "20260814-white-core-balance-15" athlete-main-headshot-approved-exact.js
+          grep -q "20260814-white-core-balance-16" athlete-main-headshot-approved-exact.js
           ! grep -q "PAIR_KERN" athlete-main-headshot-approved-exact.js
-      - name: Commit surname spacing refinement
+      - name: Commit first-name alignment refinement
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add athlete-main-headshot-approved-exact.js index.html
-          if git diff --cached --quiet; then echo 'Surname spacing refinement already installed.'; exit 0; fi
-          git commit -m 'Loosen Athlete Main Headshot surname spacing slightly'
+          if git diff --cached --quiet; then echo 'First-name alignment refinement already installed.'; exit 0; fi
+          git commit -m 'Shift Athlete Main Headshot first name right slightly'
           git push origin HEAD:main
