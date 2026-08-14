@@ -1,0 +1,50 @@
+name: Install Regatta Lineup Video Route
+
+on:
+  push:
+    paths:
+      - 'regatta-lineup-video-route.js'
+      - '.github/workflows/install-regatta-lineup-video-route.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Regatta Lineup video route
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          t=p.read_text()
+          marker='<script src="regatta-lineup-video-route.js?v=20260814-1"></script>'
+          t=re.sub(r'\s*<script src="regatta-lineup-video-route\.js\?v=[^"]+"></script>\s*','\n',t)
+          if '</body>' not in t:
+              raise SystemExit('Missing </body>')
+          t=t.replace('</body>',marker+'\n</body>',1)
+          p.write_text(t)
+          PY
+
+      - name: Validate Regatta Lineup video workspace
+        run: |
+          grep -q 'id="workspace-video"' index.html
+          grep -q 'id="renderBtn"' index.html
+          grep -q 'regatta-lineup-video-route.js?v=20260814-1' index.html
+
+      - name: Commit route install
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add index.html
+          if git diff --cached --quiet; then
+            echo 'Regatta Lineup route already installed.'
+            exit 0
+          fi
+          git commit -m 'Install Regatta Lineup video template route'
+          git push
