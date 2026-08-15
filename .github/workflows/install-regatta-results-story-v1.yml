@@ -1,0 +1,50 @@
+name: Install Regatta Results Story v1
+on:
+  push:
+    paths:
+      - '.github/workflows/install-regatta-results-story-v1.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record locked hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
+          sha256sum college-acceptance.js > /tmp/college.before
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.before
+      - name: Install Regatta Results Story
+        run: python .github/scripts/install_regatta_results_story_v1.py
+      - name: Validate isolated install
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          idx=Path('index.html').read_text()
+          js=Path('regatta-results-story.js').read_text()
+          assert '<script src="regatta-results-story.js?v=20260815-v1"></script>' in idx
+          assert "REGATTA RESULTS STORY — BUILD v1" in js
+          assert "const W=1080,H=1920" in js
+          assert "templateLibraryList" in js
+          assert "Optional photos/video" in js
+          assert "Upcoming events" in js
+          print('Regatta Results Story framework validated')
+          PY
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
+          sha256sum college-acceptance.js > /tmp/college.after
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.after
+          diff -u /tmp/main.before /tmp/main.after
+          diff -u /tmp/college.before /tmp/college.after
+          diff -u /tmp/welcome.before /tmp/welcome.after
+      - name: Commit Studio install
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add index.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Install Regatta Results Story in Studio"
+          git push
