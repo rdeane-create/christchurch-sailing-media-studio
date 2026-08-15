@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v10-white-top-orange-bottom';
+const VERSION='20260815-welcome-athlete-main-drive-v11-lower-right-wedge';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -112,81 +112,74 @@ async function loadWelcomeHero(id){const e=welcomeEls(),record=welcomeHeroRecord
 function drawWelcomeOverlay(ctx,progress=1){
   const p=Math.max(0,Math.min(1,progress)),eased=1-Math.pow(1-p,3);
   const slide=(1-eased)*470;
-  const topX=808+slide,bottomX=625+slide,rightX=1080+slide;
 
-  // Build the editorial panel on a transparent layer. The upper field fades
-  // to white before reaching the athlete's face, while the lower field stays
-  // strongly orange with only a restrained navy blend at the very bottom.
+  // Lower-right announcement wedge only. It begins at the bottom of the card
+  // and stops at the lower edge of the athlete's face, leaving the upper image
+  // completely untouched. The left edge stays well right of the name block so
+  // longer athlete names have a generous safe area.
+  const topY=620;
+  const leftTop=900+slide;
+  const leftBottom=790+slide;
+  const rightX=1080+slide;
+
   const layer=document.createElement('canvas');
   layer.width=1080;layer.height=1350;
   const lx=layer.getContext('2d');
 
-  const grad=lx.createLinearGradient(0,220,0,1350);
-  grad.addColorStop(0,'rgba(255,255,255,.98)');
-  grad.addColorStop(.20,'rgba(255,255,255,.96)');
-  grad.addColorStop(.34,'rgba(255,247,242,.94)');
-  grad.addColorStop(.47,'rgba(255,194,162,.96)');
-  grad.addColorStop(.60,'#ff6a2f');
-  grad.addColorStop(.73,'#f4511e');
-  grad.addColorStop(.89,'#f4511e');
-  grad.addColorStop(.96,'#cf401f');
-  grad.addColorStop(1,'#17304d');
+  // Strong Christchurch orange through the body of the wedge with only a
+  // restrained navy blend at the very bottom to marry into the Athlete Main card.
+  const grad=lx.createLinearGradient(0,topY,0,1350);
+  grad.addColorStop(0,'#ff672d');
+  grad.addColorStop(.18,'#f85a24');
+  grad.addColorStop(.42,'#f4511e');
+  grad.addColorStop(.78,'#f4511e');
+  grad.addColorStop(.92,'#dc4822');
+  grad.addColorStop(1,'#563343');
 
   lx.beginPath();
-  lx.moveTo(topX,0);
-  lx.lineTo(rightX,0);
+  lx.moveTo(leftTop,topY);
+  lx.lineTo(rightX,topY);
   lx.lineTo(rightX,1350);
-  lx.lineTo(bottomX,1350);
+  lx.lineTo(leftBottom,1350);
   lx.closePath();
   lx.fillStyle=grad;
   lx.fill();
 
-  // Keep the diagonal edge dimensional but quiet so it does not compete
-  // with the athlete or the type.
+  // Quiet depth along the diagonal athlete-side edge.
   lx.save();
   lx.beginPath();
-  lx.moveTo(topX-8,0);
-  lx.lineTo(topX+14,0);
-  lx.lineTo(bottomX+14,1350);
-  lx.lineTo(bottomX-8,1350);
+  lx.moveTo(leftTop-8,topY);
+  lx.lineTo(leftTop+14,topY);
+  lx.lineTo(leftBottom+14,1350);
+  lx.lineTo(leftBottom-8,1350);
   lx.closePath();
-  lx.shadowColor='rgba(2,18,40,.18)';
+  lx.shadowColor='rgba(2,18,40,.20)';
   lx.shadowBlur=14;
-  lx.fillStyle='rgba(2,18,40,.08)';
+  lx.fillStyle='rgba(2,18,40,.09)';
   lx.fill();
   lx.restore();
 
+  // Double white editorial rails run only along the lower wedge edge.
   const rail=(offset,width,alpha)=>{
     lx.save();
     lx.beginPath();
-    lx.moveTo(topX+offset,0);
-    lx.lineTo(bottomX+offset,1350);
+    lx.moveTo(leftTop+offset,topY);
+    lx.lineTo(leftBottom+offset,1350);
     lx.lineWidth=width;
     lx.strokeStyle=`rgba(255,255,255,${alpha})`;
     lx.stroke();
     lx.restore();
   };
-  rail(16,8,.96);
-  rail(30,3,.72);
-
-  // Soften only the very top edge into the white header/photo area. The panel
-  // is already white here, so this creates a natural visual disappearance
-  // before the athlete's face rather than a hard orange wall beside it.
-  lx.globalCompositeOperation='destination-in';
-  const topMask=lx.createLinearGradient(0,180,0,610);
-  topMask.addColorStop(0,'rgba(0,0,0,.34)');
-  topMask.addColorStop(.30,'rgba(0,0,0,.58)');
-  topMask.addColorStop(.66,'rgba(0,0,0,.88)');
-  topMask.addColorStop(1,'rgba(0,0,0,1)');
-  lx.fillStyle=topMask;
-  lx.fillRect(0,0,1080,700);
-  lx.globalCompositeOperation='source-over';
+  rail(15,8,.96);
+  rail(29,3,.72);
 
   ctx.drawImage(layer,0,0);
 
-  // Keep the announcement aligned with the athlete-name band.
-  const leftAtText=topX+(bottomX-topX)*(955/1350);
-  const midX=(leftAtText+1080)/2+10;
+  // Welcome Aboard sits in the same visual band as the athlete name while
+  // remaining entirely inside the right-side wedge.
+  const textY=955;
+  const leftAtText=leftTop+(leftBottom-leftTop)*((textY-topY)/(1350-topY));
+  const midX=(leftAtText+1080)/2+8;
   ctx.save();
   ctx.textAlign='center';
   ctx.textBaseline='middle';
@@ -197,11 +190,11 @@ function drawWelcomeOverlay(ctx,progress=1){
   const family='"Avenir Next Condensed","Helvetica Neue Condensed","Arial Narrow",Impact,sans-serif';
   ctx.font=`700 42px ${family}`;
   ctx.fillText('WELCOME',midX,908);
-  ctx.font=`900 88px ${family}`;
+  ctx.font=`900 84px ${family}`;
   ctx.fillText('ABOARD',midX,997);
   ctx.shadowColor='transparent';
   ctx.fillStyle='rgba(255,255,255,.94)';
-  ctx.fillRect(midX-52,1060,104,4);
+  ctx.fillRect(midX-50,1060,100,4);
   ctx.restore();
 }
 function drawWelcomeCard(){const e=welcomeEls();if(!e.canvas)return;if(e.canvas.width!==INSTAGRAM_W)e.canvas.width=INSTAGRAM_W;if(e.canvas.height!==INSTAGRAM_H)e.canvas.height=INSTAGRAM_H;const ctx=e.canvas.getContext('2d');ctx.clearRect(0,0,INSTAGRAM_W,INSTAGRAM_H);if(welcomeHeroImage){ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(welcomeHeroImage,0,0,INSTAGRAM_W,INSTAGRAM_H);drawWelcomeOverlay(ctx,welcomeDropProgress);}else{ctx.fillStyle='#06142c';ctx.fillRect(0,0,INSTAGRAM_W,INSTAGRAM_H);ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot card',INSTAGRAM_W/2,INSTAGRAM_H/2);}}
