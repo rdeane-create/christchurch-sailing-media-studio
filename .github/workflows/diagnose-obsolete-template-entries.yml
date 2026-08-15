@@ -11,11 +11,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Find obsolete template entries
         run: |
-          echo '--- COLLEGE ANNOUNCEMENT MASTER ---'
-          grep -n -C 8 -F 'COLLEGE ANNOUNCEMENT — MASTER v1.0' index.html || true
-          grep -n -C 8 -F 'COLLEGE ANNOUNCEMENT' index.html || true
-          echo '--- CHRISTCHURCH HERO CARD MASTER ---'
-          grep -n -C 8 -F 'CHRISTCHURCH HERO CARD — MASTER v1.0' index.html || true
-          grep -n -C 8 -F 'CHRISTCHURCH HERO CARD' index.html || true
-          echo '--- ATHLETE MAIN HEADSHOT (DO NOT CHANGE) ---'
-          grep -n -C 3 -F 'Athlete Main Headshot' index.html | head -80 || true
+          echo '--- COLLEGE ANNOUNCEMENT MASTER (REPO-WIDE) ---'
+          grep -RIn -C 6 --exclude-dir=.git -F 'COLLEGE ANNOUNCEMENT' . || true
+          echo '--- CHRISTCHURCH HERO CARD MASTER (REPO-WIDE) ---'
+          grep -RIn -C 6 --exclude-dir=.git -F 'CHRISTCHURCH HERO CARD' . || true
+          echo '--- TEMPLATE DELETE HELPERS ---'
+          grep -n -C 3 -E 'media(Delete|Remove)|deleteTemplate|mediaGetAll|ensureDefaultTemplates' index.html | head -160 || true
+          echo '--- ATHLETE MAIN HEADSHOT HASH (DO NOT CHANGE) ---'
+          sha256sum athlete-main-headshot-approved-exact.js
