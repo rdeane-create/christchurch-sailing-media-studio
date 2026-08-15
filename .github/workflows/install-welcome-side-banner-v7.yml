@@ -1,4 +1,4 @@
-name: Install Welcome Aboard Continuous Photo Fade Wedge v14
+name: Install Welcome Aboard Rail-Free Refined Blend v15
 on:
   push:
     paths:
@@ -17,23 +17,24 @@ jobs:
         run: |
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
           sha256sum college-acceptance.js > /tmp/college.before
-      - name: Install continuous photo-fade wedge
+      - name: Install rail-free refined wedge
         run: python .github/scripts/install_welcome_side_banner_v7.py
-      - name: Validate continuous wedge and locked files
+      - name: Validate rail-free blend and locked files
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('csms-template-recovery-v1.js').read_text()
           block=s[s.index('function drawWelcomeOverlay'):s.index('function drawWelcomeCard')]
-          assert "20260815-welcome-athlete-main-drive-v14-continuous-photo-fade-wedge" in s
+          assert "20260815-welcome-athlete-main-drive-v15-rail-free-refined-blend" in s
+          assert "const rail=" not in block
+          assert "rail(15" not in block
+          assert "rail(29" not in block
+          assert "grad.addColorStop(.985,'#4a3749')" in block
+          assert "const warmth=lx.createRadialGradient" in block
           assert "photoFade.addColorStop(.38,'rgba(0,0,0,1)')" in block
-          assert "photoFade.addColorStop(1,'rgba(0,0,0,1)')" in block
-          assert "lx.fillRect(0,topY,1080,1350-topY)" in block
           assert "ctx.fillText('WELCOME',midX,1004)" in block
           assert "ctx.fillText('ABOARD',midX,1094)" in block
-          assert "rgba(255,255,255,.98)" not in block
-          assert "ctx.translate(midX-27,810)" not in block
-          print('Verified continuous wedge, photo fade at top, orange behind type, smooth navy bottom, and no flag')
+          print('Verified no white rails, refined orange/navy blend, photo fade, and preserved type')
           PY
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
           sha256sum college-acceptance.js > /tmp/college.after
@@ -45,5 +46,5 @@ jobs:
           git config user.email "rdeane@christchurchschool.org"
           git add csms-template-recovery-v1.js
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Make Welcome Aboard wedge continuous"
+          git commit -m "Remove Welcome Aboard rails and refine lower blend"
           git push
