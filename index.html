@@ -14341,6 +14341,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       drawCard(img,x,y,w,h,j);
     }
     drawOutroOverlay(t,dur);
+  
+    if(window.__CSMS_REGATTA_OUTPUT_BRANDING__?.drawOverlay)window.__CSMS_REGATTA_OUTPUT_BRANDING__.drawOverlay();
   }
 
   async function preview(){
@@ -22133,7 +22135,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="athlete-main-headshot-template.js?v=20260813-2"></script>
 <script src="athlete-main-headshot-approved-exact.js?v=20260814-drive-saved-cards-20"></script>
 <script src="regatta-lineup-video-route.js?v=20260814-2"></script>
-<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v7"></script>
 <script src="regatta-lineup-layout-v2.js?v=20260814-regatta-lineup-layout-v7"></script>
+<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
 </body>
 </html>
