@@ -1,0 +1,51 @@
+name: Install Regatta Results Story v17 Fill Header No Distortion
+on:
+  push:
+    paths:
+      - '.github/workflows/install-regatta-results-story-v17-fill-header-no-distortion.yml'
+      - '.github/scripts/install_regatta_results_story_v17_fill_header_without_distortion.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record protected template hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
+          sha256sum college-acceptance.js > /tmp/college.before
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.before
+      - name: Install full-width undistorted approved header
+        run: python .github/scripts/install_regatta_results_story_v17_fill_header_without_distortion.py
+      - name: Validate isolated header fill fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          js=Path('regatta-results-story.js').read_text()
+          assert 'REGATTA RESULTS STORY — BUILD v17' in js
+          assert '20260815-regatta-results-story-v17-fill-header-no-distortion' in js
+          assert 'const srcW=1023,srcH=218,dstW=1080,dstH=srcH*(dstW/srcW),dstY=(209-dstH)/2' in js
+          assert 'ctx.drawImage(headerImg,0,0,srcW,srcH,0,dstY,dstW,dstH)' in js
+          assert 'const leftY=1370,rightY=1185' in js
+          cover=js[js.index('function drawCover(ctx){'):js.index('\nfunction drawScore(ctx){')]
+          assert 'drawAthleteMainExactStage(ctx);drawLockedHeroHeaderContract(ctx);drawCoverBand(ctx);' in cover
+          print('Regatta Results v17 full-width undistorted header validated')
+          PY
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
+          sha256sum college-acceptance.js > /tmp/college.after
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.after
+          diff -u /tmp/main.before /tmp/main.after
+          diff -u /tmp/college.before /tmp/college.after
+          diff -u /tmp/welcome.before /tmp/welcome.after
+      - name: Commit Studio install
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add regatta-results-story.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Fill Regatta Results header without distorting approved logo"
+          git push
