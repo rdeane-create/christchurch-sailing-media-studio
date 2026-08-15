@@ -1,0 +1,29 @@
+name: Adjust College Acceptance Floating Cutout v5
+on:
+  push:
+    paths:
+      - '.github/workflows/adjust-college-acceptance-floating-cutout-v5.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record locked Main Headshot hash
+        run: shasum -a 256 athlete-main-headshot-approved-exact.js > /tmp/main_before.sha
+      - name: Apply floating cutout treatment
+        run: python3 .github/scripts/adjust_college_acceptance_floating_cutout_v5.py
+      - name: Validate locked Main Headshot and College Acceptance
+        run: |
+          shasum -a 256 -c /tmp/main_before.sha
+          grep -q "college-acceptance-v5-floating-cutout" college-acceptance.js
+          grep -q "shadowBlur=70" college-acceptance.js
+      - name: Commit College Acceptance change
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add college-acceptance.js
+          git commit -m "Make College Acceptance logo visibly float" || exit 0
+          git push
