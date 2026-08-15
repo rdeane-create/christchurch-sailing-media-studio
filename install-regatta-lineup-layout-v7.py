@@ -1,0 +1,58 @@
+from pathlib import Path
+import re
+
+js_path = Path('regatta-lineup-layout-v2.js')
+js = js_path.read_text()
+
+js = js.replace("const VERSION='20260814-regatta-lineup-layout-v6';", "const VERSION='20260814-regatta-lineup-layout-v7';")
+js = js.replace("if(q('csmsRegattaLayoutStylesV6'))return;", "if(q('csmsRegattaLayoutStylesV7'))return;")
+js = js.replace(
+    "['csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles']",
+    "['csmsRegattaLayoutStylesV6','csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles']"
+)
+js = js.replace("s.id='csmsRegattaLayoutStylesV6';", "s.id='csmsRegattaLayoutStylesV7';")
+
+old_details = "  if(box.childElementCount>1)panel.appendChild(box);"
+new_details = "  if(box.childElementCount>1&&box.parentElement!==panel)panel.appendChild(box);"
+if old_details in js:
+    js = js.replace(old_details, new_details, 1)
+elif new_details not in js:
+    raise SystemExit('Could not stabilize Regatta Details container')
+
+old_actions = """  ['preview','render','save','export'].forEach(kind=>{const b=byKind.get(kind);if(b)bar.appendChild(b);});
+  if(bar.childElementCount){
+    const heading=[...target.querySelectorAll(':scope > h1,:scope > h2,:scope > h3,:scope > h4')].find(el=>/^preview$/i.test(norm(el.textContent)))||
+      [...target.querySelectorAll('h1,h2,h3,h4')].find(el=>/^preview$/i.test(norm(el.textContent)));
+    if(heading&&heading.parentElement===target){heading.insertAdjacentElement('afterend',bar);}
+    else target.insertBefore(bar,target.firstChild);
+  }"""
+new_actions = """  const desired=['preview','render','save','export'].map(kind=>byKind.get(kind)).filter(Boolean);
+  desired.forEach((b,i)=>{
+    const current=bar.children[i]||null;
+    if(current!==b)bar.insertBefore(b,current);
+  });
+  [...bar.children].forEach(b=>{if(!desired.includes(b))b.remove();});
+  if(bar.childElementCount){
+    const heading=[...target.querySelectorAll(':scope > h1,:scope > h2,:scope > h3,:scope > h4')].find(el=>/^preview$/i.test(norm(el.textContent)))||
+      [...target.querySelectorAll('h1,h2,h3,h4')].find(el=>/^preview$/i.test(norm(el.textContent)));
+    if(heading&&heading.parentElement===target){
+      if(heading.nextElementSibling!==bar)heading.insertAdjacentElement('afterend',bar);
+    }else if(target.firstElementChild!==bar){
+      target.insertBefore(bar,target.firstChild);
+    }
+  }"""
+if old_actions in js:
+    js = js.replace(old_actions, new_actions, 1)
+elif "if(heading.nextElementSibling!==bar)" not in js:
+    raise SystemExit('Could not stabilize Preview action bar')
+
+js_path.write_text(js)
+
+p = Path('index.html')
+t = p.read_text()
+t = re.sub(r'\s*<script src="regatta-lineup-layout-v2\.js\?v=[^"]+"></script>\s*', '\n', t)
+marker = '<script src="regatta-lineup-layout-v2.js?v=20260814-regatta-lineup-layout-v7"></script>'
+if '</body>' not in t:
+    raise SystemExit('Missing </body>')
+t = t.replace('</body>', marker + '\n</body>', 1)
+p.write_text(t)
