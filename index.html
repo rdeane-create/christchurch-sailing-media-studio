@@ -5274,6 +5274,16 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const byId=new Map();
     [...dbTemplates,...creativeTemplates].forEach(item=>{if(!byId.has(item.id))byId.set(item.id,item);});
     let items=[...byId.values()];
+    // Final library visibility filter: hide obsolete historical templates regardless of storage source.
+    items=items.filter(item=>{
+      const name=String(item?.name||'').trim().toUpperCase();
+      const id=String(item?.id||'').trim().toLowerCase();
+      if(name.includes('COLLEGE ANNOUNCEMENT'))return false;
+      if(name==='CHRISTCHURCH HERO CARD — MASTER V1.0')return false;
+      if(id==='template_hero_v1')return false;
+      if(id==='christchurch_hero_card_template')return false;
+      return true;
+    });
     const hasCreativeHeroMaster=items.some(item=>item.source==='creative_templates_v1'&&item.id==='christchurch_hero_card_template');
     if(hasCreativeHeroMaster){
       items=items.filter(item=>!(item.source==='legacy_indexeddb'&&/hero/i.test(`${String(item.id||'')} ${String(item.name||'')} ${String(item.collection||'')}`)));
