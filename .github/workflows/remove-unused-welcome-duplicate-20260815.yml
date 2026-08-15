@@ -1,0 +1,84 @@
+name: Remove unused Welcome Aboard duplicate 2026-08-15
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/remove-unused-welcome-duplicate-20260815.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record locked hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js > /tmp/locked-before.txt
+      - name: Remove legacy Welcome Aboard duplicate
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('csms-template-recovery-v1.js')
+          s=p.read_text()
+          marker="function ensureOriginalRowIfMissing(){"
+          if marker not in s:
+              raise SystemExit('Welcome library function not found')
+          insert="""async function removeUnusedWelcomeDuplicate(){
+  const TEMPLATE_KEY='christchurch_creative_templates_v1';
+  const current=safeParse(localStorage.getItem(TEMPLATE_KEY)||'[]',[]);
+  if(Array.isArray(current)){
+    let kept=false;
+    const next=[];
+    for(const item of current){
+      const isWelcome=item&&/WELCOME ABOARD/i.test(`${String(item.id||'')} ${String(item.name||'')}`);
+      if(!isWelcome){next.push(item);continue;}
+      if(String(item.id||'')===MASTER.id&&!kept){
+        next.push({...item,id:MASTER.id,name:MASTER.name,category:item.category||MASTER.category,version:item.version||MASTER.version,locked:true,approved:true});
+        kept=true;
+      }
+    }
+    if(!kept)next.push({...MASTER,builtin:true,locked:true,approved:true,createdAt:new Date().toISOString()});
+    localStorage.setItem(TEMPLATE_KEY,JSON.stringify(next));
+  }
+  try{
+    const rows=await legacyGetAll();
+    const stale=rows.filter(item=>item&&item.type==='template'&&/WELCOME ABOARD/i.test(`${String(item.id||'')} ${String(item.name||'')}`)&&String(item.id||'')!==MASTER.id);
+    for(const item of stale){
+      if(typeof window.mediaDelete==='function'){
+        try{await window.mediaDelete(item.id);continue;}catch(_){}
+      }
+      try{
+        const db=await openLegacyDb();
+        if(db.objectStoreNames.contains(LEGACY_STORE))await new Promise((resolve,reject)=>{const tx=db.transaction(LEGACY_STORE,'readwrite');tx.objectStore(LEGACY_STORE).delete(item.id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});
+        db.close();
+      }catch(_){}
+    }
+  }catch(_){}
+}
+"""
+          s=s.replace(marker,insert+marker,1)
+          old="function ensureOriginalRowIfMissing(){const list=document.getElementById('templateLibraryList');if(!list)return false;const rows=[...list.children];if(rows.some(row=>/WELCOME ABOARD/i.test(String(row.textContent||''))))return true;const row=document.createElement('div');"
+          new="function ensureOriginalRowIfMissing(){const list=document.getElementById('templateLibraryList');if(!list)return false;const rows=[...list.children].filter(row=>/WELCOME ABOARD/i.test(String(row.textContent||'')));if(rows.length){const preferred=rows.find(row=>String(row.dataset?.csmsTemplateId||'')===MASTER.id)||rows.find(row=>![...row.querySelectorAll('button')].some(b=>/delete/i.test(String(b.textContent||''))))||rows[0];rows.forEach(row=>{if(row!==preferred)row.remove();});return true;}const row=document.createElement('div');"
+          if old not in s:
+              raise SystemExit('Expected Welcome row function body not found')
+          s=s.replace(old,new,1)
+          old_init="async function init(){injectStyles();ensureWorkspace();bindEvents();installRouting();monitorLibrary();drawWelcomeCard();"
+          new_init="async function init(){injectStyles();ensureWorkspace();bindEvents();installRouting();await removeUnusedWelcomeDuplicate();try{if(typeof window.refreshTemplateLibrary==='function')await window.refreshTemplateLibrary();}catch(_){}monitorLibrary();drawWelcomeCard();"
+          if old_init not in s:
+              raise SystemExit('Welcome init function not found')
+          s=s.replace(old_init,new_init,1)
+          p.write_text(s)
+      - name: Validate duplicate cleanup and locked files
+        run: |
+          grep -q "removeUnusedWelcomeDuplicate" csms-template-recovery-v1.js
+          grep -q "template_welcome_v1" csms-template-recovery-v1.js && exit 1 || true
+          sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js > /tmp/locked-after.txt
+          diff -u /tmp/locked-before.txt /tmp/locked-after.txt
+      - name: Commit cleanup
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add csms-template-recovery-v1.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'Remove unused Welcome Aboard duplicate'
+          git push
