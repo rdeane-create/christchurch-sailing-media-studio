@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const NAME='Lineup Headshot';
-  const VERSION='20260814-lineup-headshot-v2-blue-fade';
+  const VERSION='20260814-lineup-headshot-v3-isolated';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -76,15 +76,15 @@
     return result;
   }
   function ensureSavedCardsPanel(){
-    let panel=q('amhSavedCardsPanel');
+    let panel=q('lhSavedCardsPanel');
     const workspace=q('workspace-media');
     if(!workspace)return panel||null;
     if(!panel){
       panel=document.createElement('section');
-      panel.id='amhSavedCardsPanel';
+      panel.id='lhSavedCardsPanel';
       panel.className='panel';
       panel.style.marginTop='14px';
-      panel.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px"><h2 style="margin:0">Saved Cards</h2><span class="hint">Finished Studio cards • Google Drive</span></div><div id="amhSavedCardsList" style="display:grid;gap:10px"></div>';
+      panel.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px"><h2 style="margin:0">Saved Cards</h2><span class="hint">Finished Studio cards • Google Drive</span></div><div id="lhSavedCardsList" style="display:grid;gap:10px"></div>';
     }
     if(panel.parentElement!==workspace)workspace.appendChild(panel);
     return panel;
@@ -92,7 +92,7 @@
   function escapeSavedName(v){return String(v||'Saved Card').replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]))}
   async function renderSavedCards(){
     const panel=ensureSavedCardsPanel();if(!panel)return;
-    const list=q('amhSavedCardsList');if(!list)return;
+    const list=q('lhSavedCardsList');if(!list)return;
     list.innerHTML='<div class="hint">Loading saved cards from Google Drive…</div>';
     let cards=[];
     try{cards=await getSavedCards()}catch(err){console.error('Drive Saved Cards library unavailable',err);list.innerHTML='<div class="hint">Connect Google Drive to load Saved Cards.</div>';return}
