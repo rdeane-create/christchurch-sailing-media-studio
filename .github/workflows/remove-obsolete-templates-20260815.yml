@@ -1,0 +1,37 @@
+name: Remove obsolete Studio templates 2026-08-15
+on:
+  push:
+    paths:
+      - '.github/scripts/remove_obsolete_templates_20260815.py'
+      - '.github/workflows/remove-obsolete-templates-20260815.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record locked hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js | tee /tmp/amh_before.sha
+          sha256sum college-acceptance.js | tee /tmp/ca_before.sha
+      - name: Remove obsolete template library entries
+        run: python3 .github/scripts/remove_obsolete_templates_20260815.py
+      - name: Validate cleanup and locked templates
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js | tee /tmp/amh_after.sha
+          sha256sum college-acceptance.js | tee /tmp/ca_after.sha
+          diff /tmp/amh_before.sha /tmp/amh_after.sha
+          diff /tmp/ca_before.sha /tmp/ca_after.sha
+          grep -q "obsoleteTemplateNames=new Set" index.html
+          grep -q "COLLEGE ANNOUNCEMENT — MASTER v1.0" index.html
+          grep -q "CHRISTCHURCH HERO CARD — MASTER v1.0" index.html
+          if grep -Fq "await mediaPut({id:'template_hero_v1'" index.html; then echo 'Legacy Hero seed still present'; exit 1; fi
+      - name: Commit cleanup
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add index.html
+          git commit -m "Remove obsolete Studio template entries" || exit 0
+          git push
