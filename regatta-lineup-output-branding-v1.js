@@ -1,11 +1,12 @@
 (function(){
 'use strict';
 
-const VERSION='20260814-regatta-output-branding-v4';
+const VERSION='20260814-regatta-output-branding-v5';
 const q=id=>document.getElementById(id);
 const nativeRAF=window.requestAnimationFrame.bind(window);
-const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v4';
+const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v5';
 const APPROVED_HEADER_SOURCE_H=154;
+const STORY_CARD_TOP=205;
 let approvedOverlay=null;
 let approvedOverlayReady=false;
 let headerBuffer=null;
@@ -53,16 +54,18 @@ function makeHeaderBuffer(W){
   oc.clearRect(0,0,W,destH);
   oc.drawImage(approvedOverlay,0,0,1080,APPROVED_HEADER_SOURCE_H,0,0,W,destH);
 
-  // True alpha fade: preserve the locked artwork above, then progressively erase
-  // the lower gray/white pixels so the live navy/background beneath is revealed.
-  const fadeDepth=Math.round(destH*.24);
+  // Correct alpha mask: keep all approved title art fully opaque, then fade only
+  // the final bottom edge. The opaque fill above the gradient is essential.
+  const fadeDepth=Math.max(14,Math.round(destH*.11));
   const fadeStart=destH-fadeDepth;
+  oc.globalCompositeOperation='destination-in';
+  oc.fillStyle='rgba(0,0,0,1)';
+  oc.fillRect(0,0,W,fadeStart);
   const mask=oc.createLinearGradient(0,fadeStart,0,destH);
   mask.addColorStop(0,'rgba(0,0,0,1)');
-  mask.addColorStop(.42,'rgba(0,0,0,.96)');
-  mask.addColorStop(.72,'rgba(0,0,0,.58)');
+  mask.addColorStop(.48,'rgba(0,0,0,.98)');
+  mask.addColorStop(.78,'rgba(0,0,0,.68)');
   mask.addColorStop(1,'rgba(0,0,0,0)');
-  oc.globalCompositeOperation='destination-in';
   oc.fillStyle=mask;
   oc.fillRect(0,fadeStart,W,fadeDepth);
   oc.globalCompositeOperation='source-over';
@@ -74,8 +77,23 @@ function makeHeaderBuffer(W){
 function drawExactApprovedHeader(ctx,W){
   const buffer=makeHeaderBuffer(W);
   if(!buffer)return;
+  const destH=buffer.height;
+  const fadeStart=destH-Math.max(14,Math.round(destH*.11));
+  const transitionEnd=Math.round(W*(STORY_CARD_TOP/1080));
+
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
+
+  // Navy foundation beneath the fading gray edge so the visual transition is
+  // gray -> Christchurch navy, not gray -> background photograph.
+  const navy=ctx.createLinearGradient(0,fadeStart,0,transitionEnd);
+  navy.addColorStop(0,'rgba(7,21,47,0)');
+  navy.addColorStop(.34,'rgba(7,21,47,.62)');
+  navy.addColorStop(.62,'rgba(7,21,47,.94)');
+  navy.addColorStop(1,'rgba(7,21,47,1)');
+  ctx.fillStyle=navy;
+  ctx.fillRect(0,fadeStart,W,Math.max(1,transitionEnd-fadeStart));
+
   ctx.drawImage(buffer,0,0);
   ctx.restore();
 }
