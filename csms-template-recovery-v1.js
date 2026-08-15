@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v15-rail-free-refined-blend';
+const VERSION='20260815-welcome-athlete-main-drive-v16-soft-feathered-edge';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -162,20 +162,6 @@ function drawWelcomeOverlay(ctx,progress=1){
   lx.fillRect(700,760,380,590);
   lx.restore();
 
-  // A restrained depth cue on the athlete-side edge only; no white border rails.
-  lx.save();
-  lx.beginPath();
-  lx.moveTo(leftTop-5,topY);
-  lx.lineTo(leftTop+9,topY);
-  lx.lineTo(leftBottom+9,1350);
-  lx.lineTo(leftBottom-5,1350);
-  lx.closePath();
-  lx.shadowColor='rgba(2,18,40,.14)';
-  lx.shadowBlur=12;
-  lx.fillStyle='rgba(2,18,40,.045)';
-  lx.fill();
-  lx.restore();
-
   // One full-height alpha mask makes the top dissolve directly into the Athlete
   // Main photo while keeping the entire lower wedge continuous and opaque.
   lx.globalCompositeOperation='destination-in';
@@ -190,6 +176,34 @@ function drawWelcomeOverlay(ctx,progress=1){
   lx.fillStyle=photoFade;
   lx.fillRect(0,topY,1080,1350-topY);
   lx.globalCompositeOperation='source-over';
+
+  // Soft feather on the athlete-side edge so the orange merges into the photo
+  // instead of reading as a cut-out panel. Keep the feather narrow enough to
+  // preserve the banner width and the WELCOME / ABOARD safe area.
+  lx.save();
+  lx.globalCompositeOperation='destination-out';
+  lx.filter='blur(16px)';
+  lx.beginPath();
+  lx.moveTo(leftTop-5,topY+40);
+  lx.lineTo(leftBottom-5,1350);
+  lx.lineWidth=30;
+  lx.lineCap='round';
+  lx.strokeStyle='rgba(0,0,0,.54)';
+  lx.stroke();
+  lx.restore();
+
+  // A second, softer pass broadens the blend without creating a visible halo.
+  lx.save();
+  lx.globalCompositeOperation='destination-out';
+  lx.filter='blur(28px)';
+  lx.beginPath();
+  lx.moveTo(leftTop-11,topY+75);
+  lx.lineTo(leftBottom-11,1350);
+  lx.lineWidth=18;
+  lx.lineCap='round';
+  lx.strokeStyle='rgba(0,0,0,.22)';
+  lx.stroke();
+  lx.restore();
 
   ctx.drawImage(layer,0,0);
 
