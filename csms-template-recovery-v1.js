@@ -15,6 +15,38 @@ async function legacyPut(item){
   if(typeof window.mediaPut==='function'){try{await window.mediaPut(item);return true;}catch(_){}}
   try{const db=await openLegacyDb();if(!db.objectStoreNames.contains(LEGACY_STORE)){db.close();return false;}return await new Promise((resolve,reject)=>{const tx=db.transaction(LEGACY_STORE,'readwrite');tx.objectStore(LEGACY_STORE).put(item);tx.oncomplete=()=>{db.close();resolve(true);};tx.onerror=()=>{db.close();reject(tx.error);};});}catch(_){return false;}
 }
+async function removeUnusedWelcomeDuplicate(){
+  const TEMPLATE_KEY='christchurch_creative_templates_v1';
+  const current=safeParse(localStorage.getItem(TEMPLATE_KEY)||'[]',[]);
+  if(Array.isArray(current)){
+    let kept=false;
+    const next=[];
+    for(const item of current){
+      const isWelcome=item&&/WELCOME ABOARD/i.test(`${String(item.id||'')} ${String(item.name||'')}`);
+      if(!isWelcome){next.push(item);continue;}
+      if(String(item.id||'')===MASTER.id&&!kept){
+        next.push({...item,id:MASTER.id,name:MASTER.name,category:item.category||MASTER.category,version:item.version||MASTER.version,locked:true,approved:true});
+        kept=true;
+      }
+    }
+    if(!kept)next.push({...MASTER,builtin:true,locked:true,approved:true,createdAt:new Date().toISOString()});
+    localStorage.setItem(TEMPLATE_KEY,JSON.stringify(next));
+  }
+  try{
+    const rows=await legacyGetAll();
+    const stale=rows.filter(item=>item&&item.type==='template'&&/WELCOME ABOARD/i.test(`${String(item.id||'')} ${String(item.name||'')}`)&&String(item.id||'')!==MASTER.id);
+    for(const item of stale){
+      if(typeof window.mediaDelete==='function'){
+        try{await window.mediaDelete(item.id);continue;}catch(_){}
+      }
+      try{
+        const db=await openLegacyDb();
+        if(db.objectStoreNames.contains(LEGACY_STORE))await new Promise((resolve,reject)=>{const tx=db.transaction(LEGACY_STORE,'readwrite');tx.objectStore(LEGACY_STORE).delete(item.id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});
+        db.close();
+      }catch(_){}
+    }
+  }catch(_){}
+}
 function normalizeAthleteRecord(item){if(!item)return null;return {...item,id:item.id||'',first:item.first||item.firstName||'',last:item.last||item.lastName||'',year:item.year||item.classYear||item.graduationYear||'',heroBlob:item.heroBlob||item.heroImage||null};}
 async function getUnifiedAthletesCompat(){
   if(typeof window.getUnifiedAthletes==='function'){try{const rows=await window.getUnifiedAthletes();if(Array.isArray(rows))return rows.map(normalizeAthleteRecord).filter(Boolean);}catch(_){}}
@@ -83,9 +115,9 @@ async function saveWelcome(){const e=welcomeEls();if(!welcomeHeroImage){e.status
 function exportWelcomePng(){const e=welcomeEls();if(!welcomeHeroImage){e.status.textContent='Choose a saved Hero Card first.';return;}welcomeDropProgress=1;drawWelcomeCard();e.canvas.toBlob(blob=>{if(!blob){e.status.textContent='Could not create PNG.';return;}const project=cleanFilename(e.project.value,'Welcome Aboard');triggerBlobDownload(blob,`${project}.png`,e.fallback);e.status.textContent='Welcome Aboard PNG prepared.';},'image/png');}
 async function exportWelcomeVideo(){const e=welcomeEls();if(!welcomeHeroImage){e.status.textContent='Choose a saved Hero Card first.';return;}const project=cleanFilename(e.project.value,'Welcome Aboard'),result=await exportCanvasVideo(e.canvas,p=>{welcomeDropProgress=p;drawWelcomeCard();},project);triggerBlobDownload(result.blob,result.filename,e.videoFallback);welcomeDropProgress=1;drawWelcomeCard();e.status.textContent='Welcome Aboard video prepared.';}
 function bindEvents(){document.getElementById('welcomeHeroSelect')?.addEventListener('change',e=>loadWelcomeHero(e.target.value));document.getElementById('welcomeBackBtn')?.addEventListener('click',()=>showWorkspace('templates'));document.getElementById('welcomePlayBtn')?.addEventListener('click',playWelcomeDrop);document.getElementById('welcomeSaveBtn')?.addEventListener('click',saveWelcome);document.getElementById('welcomeExportBtn')?.addEventListener('click',exportWelcomePng);document.getElementById('welcomeExportVideoBtn')?.addEventListener('click',()=>exportWelcomeVideo().catch(err=>{welcomeEls().status.textContent=`Video export failed: ${err.message}`;}));}
-function ensureOriginalRowIfMissing(){const list=document.getElementById('templateLibraryList');if(!list)return false;const rows=[...list.children];if(rows.some(row=>/WELCOME ABOARD/i.test(String(row.textContent||''))))return true;const row=document.createElement('div');row.className='csmsRecoveredTemplateRow athleteItem';row.dataset.csmsTemplateId=MASTER.id;const icon=document.createElement('div');icon.textContent='T';icon.style.fontWeight='900';icon.style.fontSize='22px';const label=document.createElement('span');label.textContent=`${MASTER.name} • Hero Cards • v${MASTER.version}`;const actions=document.createElement('div');const open=document.createElement('button');open.className='tiny secondary';open.type='button';open.textContent='Open';open.addEventListener('click',()=>showWorkspace('welcome'));actions.appendChild(open);row.append(icon,label,actions);list.appendChild(row);return true;}
+function ensureOriginalRowIfMissing(){const list=document.getElementById('templateLibraryList');if(!list)return false;const rows=[...list.children].filter(row=>/WELCOME ABOARD/i.test(String(row.textContent||'')));if(rows.length){const preferred=rows.find(row=>String(row.dataset?.csmsTemplateId||'')===MASTER.id)||rows.find(row=>![...row.querySelectorAll('button')].some(b=>/delete/i.test(String(b.textContent||''))))||rows[0];rows.forEach(row=>{if(row!==preferred)row.remove();});return true;}const row=document.createElement('div');row.className='csmsRecoveredTemplateRow athleteItem';row.dataset.csmsTemplateId=MASTER.id;const icon=document.createElement('div');icon.textContent='T';icon.style.fontWeight='900';icon.style.fontSize='22px';const label=document.createElement('span');label.textContent=`${MASTER.name} • Hero Cards • v${MASTER.version}`;const actions=document.createElement('div');const open=document.createElement('button');open.className='tiny secondary';open.type='button';open.textContent='Open';open.addEventListener('click',()=>showWorkspace('welcome'));actions.appendChild(open);row.append(icon,label,actions);list.appendChild(row);return true;}
 function monitorLibrary(){const install=()=>{const list=document.getElementById('templateLibraryList');if(!list)return false;ensureOriginalRowIfMissing();const observer=new MutationObserver(()=>queueMicrotask(ensureOriginalRowIfMissing));observer.observe(list,{childList:true,subtree:false});return true;};if(install())return;let tries=0;const timer=setInterval(()=>{tries++;if(install()||tries>120)clearInterval(timer);},250);}
 function installRouting(){if(window.__CSMS_WELCOME_ORIGINAL_ROUTING__)return;window.__CSMS_WELCOME_ORIGINAL_ROUTING__=true;document.addEventListener('click',event=>{if(!event.target||!event.target.closest)return;const list=document.getElementById('templateLibraryList');if(!list||!list.contains(event.target))return;const row=event.target.closest('.athleteItem')||event.target.closest('.csmsRecoveredTemplateRow')||event.target.closest('#templateLibraryList > div');if(!row||!/WELCOME ABOARD/i.test(String(row.textContent||'')))return;const button=event.target.closest('button');if(button){const action=String(button.textContent||'').trim().toLowerCase();if(action!=='open'&&action!=='create from template')return;}event.preventDefault();event.stopPropagation();if(typeof event.stopImmediatePropagation==='function')event.stopImmediatePropagation();window.__CSMS_LAST_WELCOME_ROW__={text:String(row.textContent||'').trim(),id:String(row.dataset?.csmsTemplateId||''),className:String(row.className||'')};showWorkspace('welcome');},true);}
-async function init(){injectStyles();ensureWorkspace();bindEvents();installRouting();monitorLibrary();drawWelcomeCard();window.CSMSWelcomeOriginal={version:VERSION,open:()=>showWorkspace('welcome'),refresh:refreshWelcomeHeroChoices,lastOpenedRow:()=>window.__CSMS_LAST_WELCOME_ROW__||null};console.info('[CSMS] Original Welcome Aboard restored',VERSION);}
+async function init(){injectStyles();ensureWorkspace();bindEvents();installRouting();await removeUnusedWelcomeDuplicate();try{if(typeof window.refreshTemplateLibrary==='function')await window.refreshTemplateLibrary();}catch(_){}monitorLibrary();drawWelcomeCard();window.CSMSWelcomeOriginal={version:VERSION,open:()=>showWorkspace('welcome'),refresh:refreshWelcomeHeroChoices,lastOpenedRow:()=>window.__CSMS_LAST_WELCOME_ROW__||null};console.info('[CSMS] Original Welcome Aboard restored',VERSION);}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
