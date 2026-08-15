@@ -1,10 +1,10 @@
-name: Install Regatta Lineup Layout v7
+name: Install Regatta Lineup Layout v8
 
 on:
   push:
     paths:
       - 'regatta-lineup-layout-v2.js'
-      - 'install-regatta-lineup-layout-v7.py'
+      - 'install-regatta-lineup-1-12-v8.py'
       - '.github/workflows/install-regatta-lineup-layout-v2.yml'
   workflow_dispatch:
 
@@ -17,27 +17,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install stable Regatta controls
-        run: python3 install-regatta-lineup-layout-v7.py
+      - name: Install Regatta location and 1-12 layouts
+        run: python3 install-regatta-lineup-1-12-v8.py
 
-      - name: Validate stable Regatta controls
+      - name: Validate Regatta 1-12 support
         run: |
           grep -q 'id="workspace-video"' index.html
-          grep -q 'id="renderBtn"' index.html
-          grep -q 'regatta-lineup-layout-v2.js?v=20260814-regatta-lineup-layout-v7' index.html
-          grep -q "regatta-lineup-layout-v7" regatta-lineup-layout-v2.js
-          grep -q "if(heading.nextElementSibling!==bar)" regatta-lineup-layout-v2.js
-          grep -q "if(current!==b)bar.insertBefore" regatta-lineup-layout-v2.js
-          grep -q "box.parentElement!==panel" regatta-lineup-layout-v2.js
+          grep -q 'id="eventName"' index.html
+          grep -q 'id="location"' index.html
+          grep -q 'regatta-lineup-layout-v2.js?v=20260814-regatta-lineup-layout-v8' index.html
+          grep -q "regatta-lineup-layout-v8" regatta-lineup-layout-v2.js
+          grep -q "function placeEventLocation()" regatta-lineup-layout-v2.js
+          grep -q "eventControl.nextElementSibling!==locationControl" regatta-lineup-layout-v2.js
+          grep -q "Maximum 12 athlete cards per lineup" regatta-lineup-layout-v2.js
+          grep -q "CSMS_LINEUP_GRID_1_12" index.html
+          grep -q "count===1?1:count<=6?2:3" index.html
+          grep -q "count<=2?1:count<=4?2:count<=6?3:count<=9?3:4" index.html
+          grep -q "Math.min(12,Number(count)||1)" index.html
 
-      - name: Commit stable Regatta controls
+      - name: Commit Regatta location and grid install
         run: |
           git config user.name 'rdeane-create'
           git config user.email 'rdeane@christchurchschool.org'
           git add regatta-lineup-layout-v2.js index.html
           if git diff --cached --quiet; then
-            echo 'Stable Regatta controls already installed.'
+            echo 'Regatta location and 1-12 layouts already installed.'
             exit 0
           fi
-          git commit -m 'Stop Regatta preview controls from reflowing'
+          git commit -m 'Place Regatta location under event and support 1-12 cards'
           git push
