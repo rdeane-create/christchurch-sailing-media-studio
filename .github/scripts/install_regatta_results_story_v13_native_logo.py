@@ -33,3 +33,4 @@ assert "drawAthleteMainBrandHeader(ctx)" not in cover
 assert "ctx.drawImage(approvedMainOverlay,0,0,1080,1350)" in s
 assert "const leftY=1370,rightY=1185" in s
 print('Prepared Regatta Results v13 native Athlete Main logo rendering')
+# Trigger v13 workflow now that the workflow file exists on main.
