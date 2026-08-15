@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v21-orange-bottom-wide-blue-edge';
+const VERSION='20260815-welcome-athlete-main-drive-v22-simple-orange-feather';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -116,12 +116,10 @@ function drawWelcomeOverlay(ctx,progress=1){
   // One continuous lower-right announcement wedge. It dissolves into the photo
   // at the top and preserves a generous athlete-name safe zone on the left.
   const topY=600;
-  // Widen only the athlete-side treatment. The original text anchor is kept
-  // separately below so the typography does not move.
-  const leftTop=720+slide;
-  const leftBottom=610+slide;
-  const orangeCoreLeftTop=820+slide;
-  const orangeCoreLeftBottom=700+slide;
+  // One widened orange panel. The extra width exists only to create a soft
+  // outside feather; the entire WELCOME / ABOARD lockup remains on solid orange.
+  const leftTop=640+slide;
+  const leftBottom=540+slide;
   const rightX=1080+slide;
 
   const layer=document.createElement('canvas');
@@ -179,58 +177,34 @@ function drawWelcomeOverlay(ctx,progress=1){
   // Soft feather on the athlete-side edge so the orange merges into the photo
   // instead of reading as a cut-out panel. Keep the feather narrow enough to
   // preserve the banner width and the WELCOME / ABOARD safe area.
-  // Professional athlete-side transition: the widened panel begins in
-  // Christchurch navy and eases into the solid orange core. This color blend
-  // occupies only the added left-side width; the full type lockup remains on
-  // uninterrupted orange. A short alpha feather on the outside removes any
-  // visible vertical seam against the underlying Athlete Main card.
+  // Simple outside feather only. The orange itself stays a single solid shape;
+  // this mask merely lets the existing blue/photo underneath show through at
+  // the far athlete-side edge, eliminating the dark channel and hard seam.
   lx.save();
-  lx.globalCompositeOperation='source-atop';
+  lx.globalCompositeOperation='destination-out';
   const edgeDx=leftBottom-leftTop;
   const edgeDy=1350-topY;
   const edgeLen=Math.hypot(edgeDx,edgeDy);
   const inwardX=edgeDy/edgeLen;
   const inwardY=-edgeDx/edgeLen;
-  const edgeBlendW=118;
-  const edgeBlue=lx.createLinearGradient(
-    leftTop,topY,
-    leftTop+inwardX*edgeBlendW,topY+inwardY*edgeBlendW
-  );
-  edgeBlue.addColorStop(0,'rgba(23,48,77,.98)');
-  edgeBlue.addColorStop(.14,'rgba(23,48,77,.94)');
-  edgeBlue.addColorStop(.34,'rgba(45,52,73,.76)');
-  edgeBlue.addColorStop(.54,'rgba(103,60,58,.48)');
-  edgeBlue.addColorStop(.72,'rgba(184,70,40,.22)');
-  edgeBlue.addColorStop(.88,'rgba(244,81,30,.06)');
-  edgeBlue.addColorStop(1,'rgba(244,81,30,0)');
-  lx.fillStyle=edgeBlue;
-  lx.beginPath();
-  lx.moveTo(leftTop,topY-28);
-  lx.lineTo(leftBottom,1378);
-  lx.lineTo(leftBottom+inwardX*edgeBlendW,1378+inwardY*edgeBlendW);
-  lx.lineTo(leftTop+inwardX*edgeBlendW,topY-28+inwardY*edgeBlendW);
-  lx.closePath();
-  lx.fill();
-  lx.restore();
-
-  lx.save();
-  lx.globalCompositeOperation='destination-out';
-  const edgeFeatherW=30;
+  const featherW=92;
   const edgeFeather=lx.createLinearGradient(
-    leftTop-inwardX*4,topY-inwardY*4,
-    leftTop+inwardX*edgeFeatherW,topY+inwardY*edgeFeatherW
+    leftTop-inwardX*8,topY-inwardY*8,
+    leftTop+inwardX*featherW,topY+inwardY*featherW
   );
-  edgeFeather.addColorStop(0,'rgba(0,0,0,.82)');
-  edgeFeather.addColorStop(.18,'rgba(0,0,0,.62)');
-  edgeFeather.addColorStop(.42,'rgba(0,0,0,.34)');
-  edgeFeather.addColorStop(.70,'rgba(0,0,0,.12)');
+  edgeFeather.addColorStop(0,'rgba(0,0,0,1)');
+  edgeFeather.addColorStop(.10,'rgba(0,0,0,.96)');
+  edgeFeather.addColorStop(.24,'rgba(0,0,0,.80)');
+  edgeFeather.addColorStop(.42,'rgba(0,0,0,.55)');
+  edgeFeather.addColorStop(.62,'rgba(0,0,0,.30)');
+  edgeFeather.addColorStop(.82,'rgba(0,0,0,.10)');
   edgeFeather.addColorStop(1,'rgba(0,0,0,0)');
   lx.fillStyle=edgeFeather;
   lx.beginPath();
-  lx.moveTo(leftTop-inwardX*6,topY-inwardY*6);
-  lx.lineTo(leftBottom-inwardX*6,1350-inwardY*6);
-  lx.lineTo(leftBottom+inwardX*edgeFeatherW,1350+inwardY*edgeFeatherW);
-  lx.lineTo(leftTop+inwardX*edgeFeatherW,topY+inwardY*edgeFeatherW);
+  lx.moveTo(leftTop-inwardX*10,topY-inwardY*10);
+  lx.lineTo(leftBottom-inwardX*10,1350-inwardY*10);
+  lx.lineTo(leftBottom+inwardX*featherW,1350+inwardY*featherW);
+  lx.lineTo(leftTop+inwardX*featherW,topY+inwardY*featherW);
   lx.closePath();
   lx.fill();
   lx.restore();
