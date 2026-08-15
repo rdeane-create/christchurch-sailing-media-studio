@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v8-editorial-side-banner';
+const VERSION='20260815-welcome-athlete-main-drive-v9-faded-side-banner';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -114,77 +114,88 @@ function drawWelcomeOverlay(ctx,progress=1){
   const slide=(1-eased)*470;
   const topX=808+slide,bottomX=625+slide,rightX=1080+slide;
 
-  ctx.save();
+  // Draw the banner on its own transparent layer so the orange field can
+  // dissolve back into the untouched Athlete Main photo below the face.
+  const layer=document.createElement('canvas');
+  layer.width=1080;layer.height=1350;
+  const lx=layer.getContext('2d');
 
-  const grad=ctx.createLinearGradient(0,0,0,1350);
+  const grad=lx.createLinearGradient(0,0,0,1120);
   grad.addColorStop(0,'#ff4b12');
-  grad.addColorStop(.46,'#f4511e');
-  grad.addColorStop(.72,'#b92f1a');
-  grad.addColorStop(1,'#071b35');
+  grad.addColorStop(.52,'#f4511e');
+  grad.addColorStop(1,'#c63a1b');
 
-  ctx.beginPath();
-  ctx.moveTo(topX,0);
-  ctx.lineTo(rightX,0);
-  ctx.lineTo(rightX,1350);
-  ctx.lineTo(bottomX,1350);
-  ctx.closePath();
-  ctx.fillStyle=grad;
-  ctx.fill();
+  lx.beginPath();
+  lx.moveTo(topX,0);
+  lx.lineTo(rightX,0);
+  lx.lineTo(rightX,1350);
+  lx.lineTo(bottomX,1350);
+  lx.closePath();
+  lx.fillStyle=grad;
+  lx.fill();
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(topX-10,0);
-  ctx.lineTo(topX+16,0);
-  ctx.lineTo(bottomX+16,1350);
-  ctx.lineTo(bottomX-10,1350);
-  ctx.closePath();
-  ctx.shadowColor='rgba(2,18,40,.28)';
-  ctx.shadowBlur=18;
-  ctx.fillStyle='rgba(2,18,40,.16)';
-  ctx.fill();
-  ctx.restore();
+  // Soft dimensional edge on the athlete side.
+  lx.save();
+  lx.beginPath();
+  lx.moveTo(topX-10,0);
+  lx.lineTo(topX+16,0);
+  lx.lineTo(bottomX+16,1350);
+  lx.lineTo(bottomX-10,1350);
+  lx.closePath();
+  lx.shadowColor='rgba(2,18,40,.24)';
+  lx.shadowBlur=16;
+  lx.fillStyle='rgba(2,18,40,.12)';
+  lx.fill();
+  lx.restore();
 
+  // Double white editorial rails.
   const rail=(offset,width,alpha)=>{
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(topX+offset,0);
-    ctx.lineTo(bottomX+offset,1350);
-    ctx.lineWidth=width;
-    ctx.strokeStyle=`rgba(255,255,255,${alpha})`;
-    ctx.stroke();
-    ctx.restore();
+    lx.save();
+    lx.beginPath();
+    lx.moveTo(topX+offset,0);
+    lx.lineTo(bottomX+offset,1350);
+    lx.lineWidth=width;
+    lx.strokeStyle=`rgba(255,255,255,${alpha})`;
+    lx.stroke();
+    lx.restore();
   };
   rail(16,9,.98);
   rail(31,3,.78);
 
-  const midX=((topX+bottomX)/2+1080)/2+22;
+  // Fade the banner itself away below the athlete's face so the original
+  // photograph returns naturally. Full through ~620px, soft fade to clear.
+  lx.globalCompositeOperation='destination-in';
+  const mask=lx.createLinearGradient(0,560,0,1165);
+  mask.addColorStop(0,'rgba(0,0,0,1)');
+  mask.addColorStop(.18,'rgba(0,0,0,1)');
+  mask.addColorStop(.52,'rgba(0,0,0,.70)');
+  mask.addColorStop(.78,'rgba(0,0,0,.28)');
+  mask.addColorStop(1,'rgba(0,0,0,0)');
+  lx.fillStyle=mask;
+  lx.fillRect(0,0,1080,1350);
+  lx.globalCompositeOperation='source-over';
+
+  ctx.drawImage(layer,0,0);
+
+  // Move the announcement down into the same visual band as the athlete name.
+  // Text remains crisp while the orange field fades behind it.
+  const leftAtText=topX+(bottomX-topX)*(955/1350);
+  const midX=(leftAtText+1080)/2+10;
+  ctx.save();
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   ctx.fillStyle='#fff';
-  ctx.shadowColor='rgba(2,18,40,.20)';
-  ctx.shadowBlur=4;
-  ctx.shadowOffsetY=2;
+  ctx.shadowColor='rgba(2,18,40,.42)';
+  ctx.shadowBlur=8;
+  ctx.shadowOffsetY=3;
   const family='"Avenir Next Condensed","Helvetica Neue Condensed","Arial Narrow",Impact,sans-serif';
-
-  ctx.font=`700 46px ${family}`;
-  ctx.fillText('WELCOME',midX,566);
-  ctx.font=`900 92px ${family}`;
-  ctx.fillText('ABOARD',midX,665);
-
+  ctx.font=`700 42px ${family}`;
+  ctx.fillText('WELCOME',midX,908);
+  ctx.font=`900 88px ${family}`;
+  ctx.fillText('ABOARD',midX,997);
   ctx.shadowColor='transparent';
-  ctx.fillStyle='rgba(255,255,255,.96)';
-  ctx.fillRect(midX-54,752,108,5);
-
-  ctx.save();
-  ctx.translate(midX-27,810);
-  ctx.strokeStyle='rgba(255,255,255,.96)';
-  ctx.fillStyle='rgba(255,255,255,.96)';
-  ctx.lineWidth=3;
-  ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(10,64);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(10,4);ctx.quadraticCurveTo(34,10,55,1);ctx.lineTo(48,31);ctx.quadraticCurveTo(29,37,10,29);ctx.closePath();ctx.fill();
-  ctx.beginPath();ctx.moveTo(2,65);ctx.quadraticCurveTo(30,55,61,65);ctx.stroke();
-  ctx.restore();
-
+  ctx.fillStyle='rgba(255,255,255,.94)';
+  ctx.fillRect(midX-52,1060,104,4);
   ctx.restore();
 }
 function drawWelcomeCard(){const e=welcomeEls();if(!e.canvas)return;if(e.canvas.width!==INSTAGRAM_W)e.canvas.width=INSTAGRAM_W;if(e.canvas.height!==INSTAGRAM_H)e.canvas.height=INSTAGRAM_H;const ctx=e.canvas.getContext('2d');ctx.clearRect(0,0,INSTAGRAM_W,INSTAGRAM_H);if(welcomeHeroImage){ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(welcomeHeroImage,0,0,INSTAGRAM_W,INSTAGRAM_H);drawWelcomeOverlay(ctx,welcomeDropProgress);}else{ctx.fillStyle='#06142c';ctx.fillRect(0,0,INSTAGRAM_W,INSTAGRAM_H);ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot card',INSTAGRAM_W/2,INSTAGRAM_H/2);}}
