@@ -1,0 +1,33 @@
+name: Restore College Acceptance Final 2026-08-15
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify locked backup exists
+        run: |
+          test -f BACKUPS/COLLEGE_ACCEPTANCE_FINAL_LOCKED_2026-08-15/college-acceptance.FINAL.js
+          grep -q "20260815-college-acceptance-v15-final-lightfield" BACKUPS/COLLEGE_ACCEPTANCE_FINAL_LOCKED_2026-08-15/college-acceptance.FINAL.js
+      - name: Record protected Main Headshot hash
+        run: sha256sum athlete-main-headshot-approved-exact.js > /tmp/main_before.sha
+      - name: Restore approved College Acceptance exactly
+        run: cp BACKUPS/COLLEGE_ACCEPTANCE_FINAL_LOCKED_2026-08-15/college-acceptance.FINAL.js college-acceptance.js
+      - name: Validate restored template and protected Main Headshot
+        run: |
+          grep -q "20260815-college-acceptance-v15-final-lightfield" college-acceptance.js
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main_after.sha
+          diff /tmp/main_before.sha /tmp/main_after.sha
+          EXPECTED=$(grep '^COLLEGE_ACCEPTANCE_SHA256=' BACKUPS/COLLEGE_ACCEPTANCE_FINAL_LOCKED_2026-08-15/LOCKED.txt | cut -d= -f2)
+          ACTUAL=$(sha256sum college-acceptance.js | awk '{print $1}')
+          test "$EXPECTED" = "$ACTUAL"
+      - name: Commit restore
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add college-acceptance.js
+          git commit -m "Restore locked College Acceptance final" || exit 0
+          git push
