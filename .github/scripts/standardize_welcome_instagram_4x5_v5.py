@@ -21,10 +21,10 @@ if old_hint not in s:
     raise SystemExit('preview hint marker not found')
 s=s.replace(old_hint,new_hint,1)
 
-old_draw="function drawWelcomeCard(){const e=welcomeEls();if(!e.canvas)return;const ctx=e.canvas.getContext('2d');ctx.clearRect(0,0,e.canvas.width,e.canvas.height);if(welcomeHeroImage){ctx.drawImage(welcomeHeroImage,0,0);drawWelcomeOverlay(ctx,welcomeDropProgress);}else{ctx.fillStyle='#06142c';ctx.fillRect(0,0,1080,1350);ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot card',540,675);}}"
+old_draw="function drawWelcomeCard(){const e=welcomeEls();if(!e.canvas)return;const ctx=e.canvas.getContext('2d');ctx.clearRect(0,0,1080,1350);if(welcomeHeroImage){const iw=welcomeHeroImage.naturalWidth||welcomeHeroImage.width,ih=welcomeHeroImage.naturalHeight||welcomeHeroImage.height;if(iw!==1080||ih!==1350){ctx.fillStyle='#06142c';ctx.fillRect(0,0,1080,1350);ctx.fillStyle='rgba(255,255,255,.92)';ctx.textAlign='center';ctx.font='600 28px Arial,sans-serif';ctx.fillText(`Saved Athlete Main card must be 1080 × 1350 (found ${iw} × ${ih})`,540,675);return;}ctx.drawImage(welcomeHeroImage,0,0);drawWelcomeOverlay(ctx,welcomeDropProgress);}else{ctx.fillStyle='#06142c';ctx.fillRect(0,0,1080,1350);ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot card',540,675);}}"
 new_draw="function drawWelcomeCard(){const e=welcomeEls();if(!e.canvas)return;if(e.canvas.width!==INSTAGRAM_W)e.canvas.width=INSTAGRAM_W;if(e.canvas.height!==INSTAGRAM_H)e.canvas.height=INSTAGRAM_H;const ctx=e.canvas.getContext('2d');ctx.clearRect(0,0,INSTAGRAM_W,INSTAGRAM_H);if(welcomeHeroImage){ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(welcomeHeroImage,0,0,INSTAGRAM_W,INSTAGRAM_H);drawWelcomeOverlay(ctx,welcomeDropProgress);}else{ctx.fillStyle='#06142c';ctx.fillRect(0,0,INSTAGRAM_W,INSTAGRAM_H);ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot card',INSTAGRAM_W/2,INSTAGRAM_H/2);}}"
 if old_draw not in s:
-    raise SystemExit('native drawWelcomeCard marker not found')
+    raise SystemExit('v4 drawWelcomeCard marker not found')
 s=s.replace(old_draw,new_draw,1)
 
 p.write_text(s)
