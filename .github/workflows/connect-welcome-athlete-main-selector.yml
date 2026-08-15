@@ -1,0 +1,35 @@
+name: Connect Welcome Aboard Athlete Main selector
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/scripts/connect_welcome_to_athlete_main_cards.py'
+      - '.github/workflows/connect-welcome-athlete-main-selector.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record locked template hashes
+        run: sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js > /tmp/locked-before.txt
+      - name: Connect Welcome Aboard to Athlete Main cards
+        run: python3 .github/scripts/connect_welcome_to_athlete_main_cards.py
+      - name: Validate selector connection and locked files
+        run: |
+          grep -q "20260815-welcome-athlete-main-drive-v2" csms-template-recovery-v1.js
+          grep -q "listSavedCards" csms-template-recovery-v1.js
+          grep -q "getSavedCard" csms-template-recovery-v1.js
+          grep -q "ATHLETE HEADSHOT CARD" csms-template-recovery-v1.js
+          grep -q "Athlete Main Headshot Cards" csms-template-recovery-v1.js
+          sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js > /tmp/locked-after.txt
+          diff -u /tmp/locked-before.txt /tmp/locked-after.txt
+      - name: Commit Welcome Aboard selector connection
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add csms-template-recovery-v1.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'Connect Welcome Aboard to Athlete Main cards'
+          git push
