@@ -1,13 +1,14 @@
 (function(){
 'use strict';
 
-const VERSION='20260814-regatta-output-branding-v3';
+const VERSION='20260814-regatta-output-branding-v4';
 const q=id=>document.getElementById(id);
 const nativeRAF=window.requestAnimationFrame.bind(window);
-const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v3';
+const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v4';
 const APPROVED_HEADER_SOURCE_H=154;
 let approvedOverlay=null;
 let approvedOverlayReady=false;
+let headerBuffer=null;
 let installedRAF=false;
 let scheduled=false;
 
@@ -21,6 +22,7 @@ function loadApprovedOverlay(){
   approvedOverlay=new Image();
   approvedOverlay.onload=()=>{
     approvedOverlayReady=true;
+    headerBuffer=null;
     queueOverlay([0,60,180,500]);
   };
   approvedOverlay.onerror=()=>{
@@ -40,31 +42,41 @@ function fitText(ctx,text,maxWidth,startSize,minSize,fontSpec){
   return size;
 }
 
-function drawExactApprovedHeader(ctx,W){
-  if(!approvedOverlayReady||!approvedOverlay)return;
+function makeHeaderBuffer(W){
+  if(!approvedOverlayReady||!approvedOverlay)return null;
   const destH=Math.round(W*(APPROVED_HEADER_SOURCE_H/1080));
+  if(headerBuffer&&headerBuffer.width===W&&headerBuffer.height===destH)return headerBuffer;
+
+  const off=document.createElement('canvas');
+  off.width=W;off.height=destH;
+  const oc=off.getContext('2d');
+  oc.clearRect(0,0,W,destH);
+  oc.drawImage(approvedOverlay,0,0,1080,APPROVED_HEADER_SOURCE_H,0,0,W,destH);
+
+  // True alpha fade: preserve the locked artwork above, then progressively erase
+  // the lower gray/white pixels so the live navy/background beneath is revealed.
+  const fadeDepth=Math.round(destH*.24);
+  const fadeStart=destH-fadeDepth;
+  const mask=oc.createLinearGradient(0,fadeStart,0,destH);
+  mask.addColorStop(0,'rgba(0,0,0,1)');
+  mask.addColorStop(.42,'rgba(0,0,0,.96)');
+  mask.addColorStop(.72,'rgba(0,0,0,.58)');
+  mask.addColorStop(1,'rgba(0,0,0,0)');
+  oc.globalCompositeOperation='destination-in';
+  oc.fillStyle=mask;
+  oc.fillRect(0,fadeStart,W,fadeDepth);
+  oc.globalCompositeOperation='source-over';
+
+  headerBuffer=off;
+  return off;
+}
+
+function drawExactApprovedHeader(ctx,W){
+  const buffer=makeHeaderBuffer(W);
+  if(!buffer)return;
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
-
-  // Pixel-for-pixel source art from Athlete Main Headshot — Approved.
-  ctx.drawImage(
-    approvedOverlay,
-    0,0,1080,APPROVED_HEADER_SOURCE_H,
-    0,0,W,destH
-  );
-
-  // Blend the gray/white lower edge of the locked title art directly into Christchurch navy.
-  // This replaces the previous hard cutoff without altering the approved logo/wordmark pixels above it.
-  const fadeStart=Math.max(0,destH-16);
-  const fadeEnd=destH+64;
-  const fade=ctx.createLinearGradient(0,fadeStart,0,fadeEnd);
-  fade.addColorStop(0,'rgba(7,21,47,0)');
-  fade.addColorStop(.30,'rgba(7,21,47,.16)');
-  fade.addColorStop(.62,'rgba(7,21,47,.58)');
-  fade.addColorStop(1,'rgba(7,21,47,1)');
-  ctx.fillStyle=fade;
-  ctx.fillRect(0,fadeStart,W,fadeEnd-fadeStart);
-
+  ctx.drawImage(buffer,0,0);
   ctx.restore();
 }
 
@@ -154,8 +166,6 @@ function drawOverlay(){
   if(!c||c.width!==1080||c.height!==1920)return;
   const ctx=c.getContext('2d');
   if(!ctx)return;
-
-  // Native title is disabled for story/reel by the installer; no legacy masking block is needed.
   drawExactApprovedHeader(ctx,c.width);
   drawFooter(ctx,c.width,c.height);
 }
