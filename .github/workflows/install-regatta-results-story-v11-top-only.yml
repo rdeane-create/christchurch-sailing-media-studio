@@ -1,0 +1,52 @@
+name: Install Regatta Results Story v11 Top Only
+on:
+  push:
+    paths:
+      - '.github/workflows/install-regatta-results-story-v11-top-only.yml'
+      - '.github/scripts/install_regatta_results_story_v11_top_only.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record protected template hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
+          sha256sum college-acceptance.js > /tmp/college.before
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.before
+      - name: Restore v9 panel and preserve exact Athlete Main top brand
+        run: python .github/scripts/install_regatta_results_story_v11_top_only.py
+      - name: Validate top-only change
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          js=Path('regatta-results-story.js').read_text()
+          assert 'REGATTA RESULTS STORY — BUILD v11' in js
+          assert '20260815-regatta-results-story-v11-top-brand-only' in js
+          assert 'ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp' in js
+          assert 'ctx.drawImage(approvedMainOverlay,0,0,1080,1350)' in js
+          assert 'const leftY=1370,rightY=1185' in js
+          assert 'ctx.bezierCurveTo(300,1360,760,1250,W,rightY)' in js
+          assert 'ctx.bezierCurveTo(300,1346,760,1236,W+8,rightY-14)' in js
+          assert 'ADD REGATTA PHOTO' in js
+          print('v11 validated: v9 results panel restored; Athlete Main top brand preserved')
+          PY
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
+          sha256sum college-acceptance.js > /tmp/college.after
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.after
+          diff -u /tmp/main.before /tmp/main.after
+          diff -u /tmp/college.before /tmp/college.after
+          diff -u /tmp/welcome.before /tmp/welcome.after
+      - name: Commit Studio install
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add regatta-results-story.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Restore v9 results panel and keep Athlete Main top brand"
+          git push
