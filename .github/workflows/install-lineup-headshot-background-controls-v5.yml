@@ -1,0 +1,37 @@
+name: Install Lineup Headshot Background Controls v5
+on:
+  push:
+    paths:
+      - '.github/scripts/install_lineup_headshot_background_controls_v5.py'
+      - '.github/workflows/install-lineup-headshot-background-controls-v5.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Record locked Main Headshot hash
+        run: sha256sum athlete-main-headshot-approved-exact.js | awk '{print $1}' > /tmp/main_headshot_before.sha
+      - name: Apply background controls
+        run: python .github/scripts/install_lineup_headshot_background_controls_v5.py
+      - name: Validate Lineup controls and Main lock
+        run: |
+          test "$(sha256sum athlete-main-headshot-approved-exact.js | awk '{print $1}')" = "$(cat /tmp/main_headshot_before.sha)"
+          grep -q "lineup-headshot-v5-background-controls" lineup-headshot.js
+          grep -q "lhBgUpload" lineup-headshot.js
+          grep -q "lhBgOpacity" lineup-headshot.js
+          grep -q "CSMS_LINEUP_HEADSHOT_BACKGROUND_LAYER_V5" lineup-headshot.js
+          grep -q "drawBackground(ctx);" lineup-headshot.js
+      - name: Commit Lineup Headshot background controls
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add lineup-headshot.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Add adjustable background photo to Lineup Headshot"
+          git push origin main
