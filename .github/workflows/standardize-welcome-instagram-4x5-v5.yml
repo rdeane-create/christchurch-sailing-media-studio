@@ -1,0 +1,39 @@
+name: Standardize Welcome Aboard Instagram 4x5 v5
+on:
+  push:
+    paths:
+      - '.github/workflows/standardize-welcome-instagram-4x5-v5.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record locked hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
+          sha256sum college-acceptance.js > /tmp/college.before
+      - name: Standardize Welcome Aboard Instagram output
+        run: python .github/scripts/standardize_welcome_instagram_4x5_v5.py
+      - name: Validate Instagram format and locked files
+        run: |
+          grep -q "20260815-welcome-athlete-main-drive-v5-instagram-4x5" csms-template-recovery-v1.js
+          grep -q "const INSTAGRAM_W=1080,INSTAGRAM_H=1350" csms-template-recovery-v1.js
+          grep -q "aspect-ratio:4/5" csms-template-recovery-v1.js
+          grep -q "ctx.drawImage(welcomeHeroImage,0,0,INSTAGRAM_W,INSTAGRAM_H)" csms-template-recovery-v1.js
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
+          sha256sum college-acceptance.js > /tmp/college.after
+          diff -u /tmp/main.before /tmp/main.after
+          diff -u /tmp/college.before /tmp/college.after
+      - name: Commit change
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add csms-template-recovery-v1.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Standardize Welcome Aboard to Instagram 4x5"
+          git push
