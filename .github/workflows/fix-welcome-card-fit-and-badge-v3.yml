@@ -1,0 +1,33 @@
+name: Fix Welcome Aboard card fit and badge v3
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/fix-welcome-card-fit-and-badge-v3.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record locked hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js > /tmp/locked-before.txt
+      - name: Apply Welcome Aboard fit and badge fix
+        run: python .github/scripts/fix_welcome_card_fit_and_badge_v3.py
+      - name: Validate Welcome Aboard and locked files
+        run: |
+          grep -q "welcome-athlete-main-drive-v3-fit-badge" csms-template-recovery-v1.js
+          grep -q "finalY=850" csms-template-recovery-v1.js
+          grep -q "scale=Math.min(1080/iw,1350/ih)" csms-template-recovery-v1.js
+          sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js > /tmp/locked-after.txt
+          diff -u /tmp/locked-before.txt /tmp/locked-after.txt
+      - name: Commit fix
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add csms-template-recovery-v1.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'Preserve Welcome Aboard card proportions and raise badge'
+          git push
