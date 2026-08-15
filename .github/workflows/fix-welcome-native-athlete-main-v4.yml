@@ -1,0 +1,33 @@
+name: Fix Welcome Aboard native Athlete Main v4
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/fix-welcome-native-athlete-main-v4.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record locked hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js > /tmp/locked-before.txt
+      - name: Apply native Athlete Main card fix
+        run: python .github/scripts/fix_welcome_native_athlete_main_v4.py
+      - name: Validate native draw and locked files
+        run: |
+          grep -q "20260815-welcome-athlete-main-drive-v4-native-card" csms-template-recovery-v1.js
+          grep -q "ctx.drawImage(welcomeHeroImage,0,0)" csms-template-recovery-v1.js
+          ! grep -q "Math.min(1080/iw,1350/ih)" csms-template-recovery-v1.js
+          sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js > /tmp/locked-after.txt
+          diff -u /tmp/locked-before.txt /tmp/locked-after.txt
+      - name: Commit fix
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add csms-template-recovery-v1.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'Use Athlete Main card at exact native dimensions in Welcome Aboard'
+          git push
