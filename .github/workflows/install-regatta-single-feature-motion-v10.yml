@@ -1,0 +1,37 @@
+name: Install Regatta Single Feature Motion v10
+on:
+  push:
+    paths:
+      - '.github/scripts/install_regatta_single_feature_motion_v10.py'
+      - '.github/workflows/install-regatta-single-feature-motion-v10.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install single-card layout and safe feature motion
+        run: python3 .github/scripts/install_regatta_single_feature_motion_v10.py
+      - name: Validate single-card feature motion
+        run: |
+          grep -q 'CSMS_SINGLE_CARD_FULL_ZONE_V10' index.html
+          grep -q 'CSMS_FEATURE_MOTION_SAFE_ZONE_V10' index.html
+          grep -q "Math.max(1,Math.min(12,athletes.length||1))" index.html
+          grep -q "athletes.length<1||athletes.length>12" index.html
+          grep -q "heroSafeTop=isStoryLike?238:titleReserve" index.html
+          grep -q "heroSafeBottom=isStoryLike?(H-Math.max(284,safeZones().bottom\*.45))" index.html
+          grep -q "out\[0\]={x:(W-cardW)/2,y:zoneTop,w:cardW,h:cardH}" index.html
+          ! grep -q "Math.max(4,athletes.length||4)" index.html
+      - name: Commit native Regatta feature motion
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add index.html
+          if git diff --cached --quiet; then
+            echo 'Regatta single-card feature motion already installed.'
+            exit 0
+          fi
+          git commit -m 'Center Regatta feature motion and expand single card'
+          git push
