@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v9-faded-side-banner';
+const VERSION='20260815-welcome-athlete-main-drive-v10-white-top-orange-bottom';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -114,16 +114,23 @@ function drawWelcomeOverlay(ctx,progress=1){
   const slide=(1-eased)*470;
   const topX=808+slide,bottomX=625+slide,rightX=1080+slide;
 
-  // Draw the banner on its own transparent layer so the orange field can
-  // dissolve back into the untouched Athlete Main photo below the face.
+  // Build the editorial panel on a transparent layer. The upper field fades
+  // to white before reaching the athlete's face, while the lower field stays
+  // strongly orange with only a restrained navy blend at the very bottom.
   const layer=document.createElement('canvas');
   layer.width=1080;layer.height=1350;
   const lx=layer.getContext('2d');
 
-  const grad=lx.createLinearGradient(0,0,0,1120);
-  grad.addColorStop(0,'#ff4b12');
-  grad.addColorStop(.52,'#f4511e');
-  grad.addColorStop(1,'#c63a1b');
+  const grad=lx.createLinearGradient(0,220,0,1350);
+  grad.addColorStop(0,'rgba(255,255,255,.98)');
+  grad.addColorStop(.20,'rgba(255,255,255,.96)');
+  grad.addColorStop(.34,'rgba(255,247,242,.94)');
+  grad.addColorStop(.47,'rgba(255,194,162,.96)');
+  grad.addColorStop(.60,'#ff6a2f');
+  grad.addColorStop(.73,'#f4511e');
+  grad.addColorStop(.89,'#f4511e');
+  grad.addColorStop(.96,'#cf401f');
+  grad.addColorStop(1,'#17304d');
 
   lx.beginPath();
   lx.moveTo(topX,0);
@@ -134,21 +141,21 @@ function drawWelcomeOverlay(ctx,progress=1){
   lx.fillStyle=grad;
   lx.fill();
 
-  // Soft dimensional edge on the athlete side.
+  // Keep the diagonal edge dimensional but quiet so it does not compete
+  // with the athlete or the type.
   lx.save();
   lx.beginPath();
-  lx.moveTo(topX-10,0);
-  lx.lineTo(topX+16,0);
-  lx.lineTo(bottomX+16,1350);
-  lx.lineTo(bottomX-10,1350);
+  lx.moveTo(topX-8,0);
+  lx.lineTo(topX+14,0);
+  lx.lineTo(bottomX+14,1350);
+  lx.lineTo(bottomX-8,1350);
   lx.closePath();
-  lx.shadowColor='rgba(2,18,40,.24)';
-  lx.shadowBlur=16;
-  lx.fillStyle='rgba(2,18,40,.12)';
+  lx.shadowColor='rgba(2,18,40,.18)';
+  lx.shadowBlur=14;
+  lx.fillStyle='rgba(2,18,40,.08)';
   lx.fill();
   lx.restore();
 
-  // Double white editorial rails.
   const rail=(offset,width,alpha)=>{
     lx.save();
     lx.beginPath();
@@ -159,34 +166,33 @@ function drawWelcomeOverlay(ctx,progress=1){
     lx.stroke();
     lx.restore();
   };
-  rail(16,9,.98);
-  rail(31,3,.78);
+  rail(16,8,.96);
+  rail(30,3,.72);
 
-  // Fade the banner itself away below the athlete's face so the original
-  // photograph returns naturally. Full through ~620px, soft fade to clear.
+  // Soften only the very top edge into the white header/photo area. The panel
+  // is already white here, so this creates a natural visual disappearance
+  // before the athlete's face rather than a hard orange wall beside it.
   lx.globalCompositeOperation='destination-in';
-  const mask=lx.createLinearGradient(0,560,0,1165);
-  mask.addColorStop(0,'rgba(0,0,0,1)');
-  mask.addColorStop(.18,'rgba(0,0,0,1)');
-  mask.addColorStop(.52,'rgba(0,0,0,.70)');
-  mask.addColorStop(.78,'rgba(0,0,0,.28)');
-  mask.addColorStop(1,'rgba(0,0,0,0)');
-  lx.fillStyle=mask;
-  lx.fillRect(0,0,1080,1350);
+  const topMask=lx.createLinearGradient(0,180,0,610);
+  topMask.addColorStop(0,'rgba(0,0,0,.34)');
+  topMask.addColorStop(.30,'rgba(0,0,0,.58)');
+  topMask.addColorStop(.66,'rgba(0,0,0,.88)');
+  topMask.addColorStop(1,'rgba(0,0,0,1)');
+  lx.fillStyle=topMask;
+  lx.fillRect(0,0,1080,700);
   lx.globalCompositeOperation='source-over';
 
   ctx.drawImage(layer,0,0);
 
-  // Move the announcement down into the same visual band as the athlete name.
-  // Text remains crisp while the orange field fades behind it.
+  // Keep the announcement aligned with the athlete-name band.
   const leftAtText=topX+(bottomX-topX)*(955/1350);
   const midX=(leftAtText+1080)/2+10;
   ctx.save();
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   ctx.fillStyle='#fff';
-  ctx.shadowColor='rgba(2,18,40,.42)';
-  ctx.shadowBlur=8;
+  ctx.shadowColor='rgba(2,18,40,.34)';
+  ctx.shadowBlur=7;
   ctx.shadowOffsetY=3;
   const family='"Avenir Next Condensed","Helvetica Neue Condensed","Arial Narrow",Impact,sans-serif';
   ctx.font=`700 42px ${family}`;
