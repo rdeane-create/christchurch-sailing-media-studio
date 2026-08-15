@@ -2451,7 +2451,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       </div>
       <button id="renderBtn" class="primary" style="margin-top:10px">Render Video</button>
       <progress id="progress" value="0" max="1" hidden></progress>
-      <div id="status" class="status" aria-live="polite">Upload a background, logo, and 4–10 athlete images.</div>
+      <div id="status" class="status" aria-live="polite">Upload a background, logo, and 1–12 athlete images.</div>
       <a id="downloadLink" style="display:none;margin-top:12px;text-align:center" class="primary" download>Download Video</a>
     </section>
 
@@ -13840,6 +13840,19 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       });
     });
 
+    /* CSMS_SINGLE_CARD_FULL_ZONE_V10 */
+    if(count===1 && (activeProfile==='story'||activeProfile==='reel')){
+      const zoneTop=Math.max(top,238);
+      const zoneBottom=H-bottom;
+      const zoneW=W-side*2;
+      const zoneH=Math.max(1,zoneBottom-zoneTop);
+      const ratio=4/5;
+      let cardW=Math.min(zoneW,zoneH*ratio);
+      let cardH=cardW/ratio;
+      if(cardH>zoneH){cardH=zoneH;cardW=cardH*ratio;}
+      out[0]={x:(W-cardW)/2,y:zoneTop,w:cardW,h:cardH};
+    }
+
     return out;
   }
 
@@ -14301,7 +14314,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function drawFrame(t,staticOnly=false){
-    const count=Math.max(4,athletes.length||4), cfg=motionConfig(), dur=durationFor(count);
+    const count=Math.max(1,Math.min(12,athletes.length||1)), cfg=motionConfig(), dur=durationFor(count);
     drawBackground(t,dur);drawTitle(t,staticOnly);drawIntroOverlay(t);
     if(!staticOnly && els.beatSync.checked && beatData){
       const phase=((t-cfg.intro)%beatData.beatInterval+beatData.beatInterval)%beatData.beatInterval;
@@ -14321,11 +14334,18 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       if(local<0) continue;
       const portrait=H>W;
       const cardRatio=4/5;
-      const titleReserve=(activeProfile==='story'||activeProfile==='reel')?360:
+      const isStoryLike=activeProfile==='story'||activeProfile==='reel';
+      /* CSMS_FEATURE_MOTION_SAFE_ZONE_V10 */
+      const titleReserve=isStoryLike?238:
                          activeProfile==='post'?250:
                          activeProfile==='square'?210:110;
-      const maxHeroW=(activeProfile==='landscape'?W*.59:W*.94)*(+els.heroScale.value);
-      const maxHeroH=(H-titleReserve-40)*(+els.heroScale.value);
+      const heroSafeTop=isStoryLike?238:titleReserve;
+      const heroSafeBottom=isStoryLike?(H-Math.max(284,safeZones().bottom*.45)):(H-40);
+      const heroSafeH=Math.max(1,heroSafeBottom-heroSafeTop);
+      const requestedHeroScale=+els.heroScale.value||1;
+      const safeHeroScale=isStoryLike?Math.min(1,requestedHeroScale):requestedHeroScale;
+      const maxHeroW=(activeProfile==='landscape'?W*.59:W*.94)*safeHeroScale;
+      const maxHeroH=heroSafeH*safeHeroScale;
 
       let heroW=Math.min(maxHeroW,maxHeroH*cardRatio);
       let heroH=heroW/cardRatio;
@@ -14335,7 +14355,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       }
 
       const cx=activeProfile==='landscape'?W*.68:W/2;
-      const cy=titleReserve+(H-titleReserve)/2;
+      const cy=isStoryLike?(heroSafeTop+heroSafeBottom)/2:titleReserve+(H-titleReserve)/2;
       let x,y,w,h;
       if(local<cfg.grow){
         const p=smoother(local/cfg.grow);w=210+(heroW-210)*p;h=315+(heroH-315)*p;x=cx-w/2;y=cy-h/2-18*Math.sin(Math.PI*p);
@@ -14358,7 +14378,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   async function preview(){
     animationToken++;const token=animationToken;
-    const count=Math.max(4,athletes.length||4),dur=durationFor(count),start=performance.now();
+    const count=Math.max(1,Math.min(12,athletes.length||1)),dur=durationFor(count),start=performance.now();
     status.textContent='Playing preview…';
     function step(now){
       if(token!==animationToken)return;
@@ -14383,8 +14403,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
 
   async function renderCurrentProfile(profile,autoDownload=false){
-    if(!background||!logo||athletes.length<4||athletes.length>10){
-      status.textContent='Please upload a background, official logo, and 4–10 athlete images.';
+    if(!background||!logo||athletes.length<1||athletes.length>12){
+      status.textContent='Please upload a background, official logo, and 1–12 athlete images.';
       return null;
     }
     const previous=activeProfile;
