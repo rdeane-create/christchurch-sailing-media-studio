@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v17-orange-bottom-vertical-fade';
+const VERSION='20260815-welcome-athlete-main-drive-v19-refined-left-edge-fade';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -176,30 +176,35 @@ function drawWelcomeOverlay(ctx,progress=1){
   // Soft feather on the athlete-side edge so the orange merges into the photo
   // instead of reading as a cut-out panel. Keep the feather narrow enough to
   // preserve the banner width and the WELCOME / ABOARD safe area.
+  // Refined left-edge fade: use a true perpendicular alpha ramp inside the
+  // banner instead of stacked blurred strokes. The exact wedge boundary stays
+  // fixed; only the first 72px inside the orange are progressively revealed.
   lx.save();
   lx.globalCompositeOperation='destination-out';
-  lx.filter='blur(20px)';
+  const edgeDx=leftBottom-leftTop;
+  const edgeDy=1350-topY;
+  const edgeLen=Math.hypot(edgeDx,edgeDy);
+  const inwardX=edgeDy/edgeLen;
+  const inwardY=-edgeDx/edgeLen;
+  const featherW=72;
+  const fade=lx.createLinearGradient(
+    leftTop,topY,
+    leftTop+inwardX*featherW,topY+inwardY*featherW
+  );
+  fade.addColorStop(0,'rgba(0,0,0,1)');
+  fade.addColorStop(.18,'rgba(0,0,0,.82)');
+  fade.addColorStop(.38,'rgba(0,0,0,.56)');
+  fade.addColorStop(.60,'rgba(0,0,0,.30)');
+  fade.addColorStop(.80,'rgba(0,0,0,.11)');
+  fade.addColorStop(1,'rgba(0,0,0,0)');
+  lx.fillStyle=fade;
   lx.beginPath();
-  lx.moveTo(leftTop-6,topY+40);
-  lx.lineTo(leftBottom-6,1350);
-  lx.lineWidth=34;
-  lx.lineCap='round';
-  lx.strokeStyle='rgba(0,0,0,.50)';
-  lx.stroke();
-  lx.restore();
-
-  // A second soft pass feathers only the athlete-side edge farther into the
-  // photo. It does not change the top fade or extend the orange upward.
-  lx.save();
-  lx.globalCompositeOperation='destination-out';
-  lx.filter='blur(34px)';
-  lx.beginPath();
-  lx.moveTo(leftTop-13,topY+75);
-  lx.lineTo(leftBottom-13,1350);
-  lx.lineWidth=20;
-  lx.lineCap='round';
-  lx.strokeStyle='rgba(0,0,0,.20)';
-  lx.stroke();
+  lx.moveTo(leftTop,topY-28);
+  lx.lineTo(leftBottom,1378);
+  lx.lineTo(leftBottom+inwardX*featherW,1378+inwardY*featherW);
+  lx.lineTo(leftTop+inwardX*featherW,topY-28+inwardY*featherW);
+  lx.closePath();
+  lx.fill();
   lx.restore();
 
   ctx.drawImage(layer,0,0);
