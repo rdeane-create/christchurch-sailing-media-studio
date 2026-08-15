@@ -1,0 +1,16 @@
+name: Inspect Studio Library Save
+on:
+  push:
+    paths:
+      - '.github/scripts/inspect_library_save.py'
+      - '.github/workflows/inspect-library-save.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect library save paths
+        run: python3 .github/scripts/inspect_library_save.py
