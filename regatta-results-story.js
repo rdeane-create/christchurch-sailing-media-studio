@@ -22,13 +22,13 @@ function drawFinalHeader(ctx){
   const SOLID_H=251,FADE_H=110;
   const BANNER_BG='#f2f2f1';
   ctx.save();
-  // Extend the existing gray banner background to both card edges.
-  ctx.fillStyle=BANNER_BG;
-  ctx.fillRect(0,0,W,SOLID_H);
   // Approved banner graphic, fixed size and position.
   ctx.imageSmoothingEnabled=true;
   ctx.imageSmoothingQuality='high';
   ctx.drawImage(headerImg,0,0,SRC_W,SRC_H,DST_X,DST_Y,DST_W,DST_H);
+  // Extend only the banner's own gray edge pixels to the card edges.
+  ctx.drawImage(headerImg,0,0,1,SRC_H,0,DST_Y,DST_X,DST_H);
+  ctx.drawImage(headerImg,SRC_W-1,0,1,SRC_H,DST_X+DST_W,DST_Y,W-(DST_X+DST_W),DST_H);
   // Permanent bottom fade from banner into content beneath it.
   const fade=ctx.createLinearGradient(0,SOLID_H,0,SOLID_H+FADE_H);
   fade.addColorStop(0,'rgba(238,241,244,1)');
