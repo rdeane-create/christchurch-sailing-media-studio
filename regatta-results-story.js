@@ -18,7 +18,7 @@ function drawLockedHeroHeaderContract(ctx){if(!(headerImg.complete&&headerImg.na
 function drawFinalHeader(ctx){
   if(!(headerImg.complete&&headerImg.naturalWidth))return;
   const SRC_W=1023,SRC_H=218;
-  const DST_W=W,DST_H=251,DST_X=0,DST_Y=0;
+  const DST_W=1004,DST_H=251,DST_X=(W-DST_W)/2,DST_Y=0;
   const SOLID_H=251,FADE_H=110;
   const BANNER_BG='#f2f2f1';
   ctx.save();
