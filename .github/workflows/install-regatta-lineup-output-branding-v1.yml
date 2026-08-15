@@ -1,4 +1,4 @@
-name: Install Regatta Lineup Output Branding v3
+name: Install Regatta Lineup Output Branding v4
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
 
       - name: Validate Regatta Lineup output
         run: |
-          grep -q 'regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v3' index.html
+          grep -q 'regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v4' index.html
           grep -q "if(activeProfile==='story'||activeProfile==='reel')return;" index.html
           grep -q 'top=Math.max(205,zones.top+40);' index.html
           grep -q 'bottom=Math.max(284,zones.bottom\*.45);' index.html
@@ -30,7 +30,8 @@ jobs:
           grep -q 'const cardRatio=4/5;' index.html
           grep -q "const padding=display==='edgeFit'?0:2;" index.html
           grep -q "ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp" regatta-lineup-output-branding-v1.js
-          grep -q "fadeEnd=destH+64" regatta-lineup-output-branding-v1.js
+          grep -q "globalCompositeOperation='destination-in'" regatta-lineup-output-branding-v1.js
+          grep -q "fadeDepth=Math.round(destH\*.24)" regatta-lineup-output-branding-v1.js
           if grep -q "★" regatta-lineup-output-branding-v1.js; then exit 1; fi
           if grep -q 'top=Math.max(440,zones.top+300);' index.html; then exit 1; fi
 
@@ -43,5 +44,5 @@ jobs:
             echo 'Already installed.'
             exit 0
           fi
-          git commit -m 'Expand Regatta Lineup cards and remove legacy title reserve'
+          git commit -m 'Use true alpha fade on Regatta Lineup header art'
           git push
