@@ -1,0 +1,27 @@
+name: Adjust College Acceptance Logo v2
+on:
+  push:
+    paths:
+      - '.github/scripts/adjust_college_acceptance_logo_v2.py'
+      - '.github/workflows/adjust-college-acceptance-logo-v2.yml'
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply College Acceptance logo safe zone
+        run: python .github/scripts/adjust_college_acceptance_logo_v2.py
+      - name: Validate and commit
+        run: |
+          git diff --exit-code -- athlete-main-headshot-approved-exact.js
+          grep -q "20260815-college-acceptance-v2-logo-safe-zone" college-acceptance.js
+          grep -q "Math.min(760/iw,180/ih)" college-acceptance.js
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add college-acceptance.js
+          git commit -m "Move College Acceptance logo into safe zone"
+          git push origin main
