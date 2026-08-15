@@ -1,0 +1,29 @@
+name: Isolate Lineup Headshot from Main Headshot v3
+
+on:
+  push:
+    paths:
+      - '.github/scripts/isolate_lineup_headshot_from_main_v3.py'
+      - '.github/workflows/isolate-lineup-headshot-from-main-v3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  isolate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Isolate Lineup Headshot and verify Main Headshot lock
+        run: python3 .github/scripts/isolate_lineup_headshot_from_main_v3.py
+      - name: Commit isolation
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add lineup-headshot.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Isolate Lineup Headshot from approved Main Headshot'
+          git push
