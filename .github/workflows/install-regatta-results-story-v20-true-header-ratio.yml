@@ -1,0 +1,51 @@
+name: Install Regatta Results Story v20 True Header Ratio
+on:
+  push:
+    paths:
+      - '.github/workflows/install-regatta-results-story-v20-true-header-ratio.yml'
+      - '.github/scripts/install_regatta_results_story_v20_true_header_ratio.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Protect locked templates
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
+          sha256sum college-acceptance.js > /tmp/college.before
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.before
+      - name: Install true-ratio header
+        run: python .github/scripts/install_regatta_results_story_v20_true_header_ratio.py
+      - name: Validate header-only change
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          js=Path('regatta-results-story.js').read_text()
+          assert 'REGATTA RESULTS STORY — BUILD v20' in js
+          assert '20260815-regatta-results-story-v20-true-header-ratio' in js
+          assert 'const SRC_W=1023,SRC_H=218,HEADER_W=1080,HEADER_H=HEADER_W*SRC_H/SRC_W' in js
+          assert 'ctx.drawImage(headerImg,0,0,SRC_W,SRC_H,0,0,HEADER_W,HEADER_H)' in js
+          assert 'const leftY=1370,rightY=1185' in js
+          cover=js[js.index('function drawCover(ctx){'):js.index('\nfunction drawScore(ctx){')]
+          assert 'drawAthleteMainExactStage(ctx);drawTrueRatioHeader(ctx);drawCoverBand(ctx);' in cover
+          print('v20 true header ratio validated')
+          PY
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
+          sha256sum college-acceptance.js > /tmp/college.after
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.after
+          diff -u /tmp/main.before /tmp/main.after
+          diff -u /tmp/college.before /tmp/college.after
+          diff -u /tmp/welcome.before /tmp/welcome.after
+      - name: Commit Studio install
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add regatta-results-story.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Set Regatta Results header to true 1023x218 aspect ratio"
+          git push
