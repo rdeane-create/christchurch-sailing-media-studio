@@ -1,0 +1,22 @@
+name: Adjust College Acceptance Floating Logo v4
+on:
+  push:
+    paths:
+      - '.github/workflows/adjust-college-acceptance-floating-logo-v4.yml'
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply floating logo treatment
+        run: python .github/scripts/adjust_college_acceptance_floating_logo_v4.py
+      - name: Commit College Acceptance change
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add college-acceptance.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Use floating halo for College Acceptance logo"
+          git push
