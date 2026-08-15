@@ -1,4 +1,4 @@
-name: Install Welcome Aboard Editorial Side Banner v7
+name: Install Welcome Aboard Editorial Side Banner v8
 on:
   push:
     paths:
@@ -19,9 +19,18 @@ jobs:
           sha256sum college-acceptance.js > /tmp/college.before
       - name: Install editorial side banner
         run: python .github/scripts/install_welcome_side_banner_v7.py
-      - name: Validate side banner and locked files
+      - name: Validate actual side banner renderer and locked files
         run: |
-          grep -Fq "20260815-welcome-athlete-main-drive-v7-editorial-side-banner" csms-template-recovery-v1.js
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('csms-template-recovery-v1.js').read_text()
+          assert "20260815-welcome-athlete-main-drive-v8-editorial-side-banner" in s
+          assert "const topX=808+slide,bottomX=625+slide,rightX=1080+slide" in s
+          assert "ctx.fillText('WELCOME',midX,566)" in s
+          assert "ctx.fillText('ABOARD',midX,665)" in s
+          assert "const finalX=620,finalY=790" not in s
+          print('Verified full-height editorial side banner renderer is installed')
+          PY
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
           sha256sum college-acceptance.js > /tmp/college.after
           diff -u /tmp/main.before /tmp/main.after
@@ -32,5 +41,5 @@ jobs:
           git config user.email "rdeane@christchurchschool.org"
           git add csms-template-recovery-v1.js
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Use editorial side banner in Welcome Aboard"
+          git commit -m "Install full-height Welcome Aboard editorial banner"
           git push
