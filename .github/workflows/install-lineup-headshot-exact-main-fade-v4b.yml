@@ -1,0 +1,44 @@
+name: Install Lineup Headshot Exact Main Fade v4b
+
+on:
+  push:
+    paths:
+      - '.github/workflows/install-lineup-headshot-exact-main-fade-v4b.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply exact Main Headshot fade safely
+        run: |
+          BEFORE=$(sha256sum athlete-main-headshot-approved-exact.js | awk '{print $1}')
+          python .github/scripts/install_lineup_headshot_exact_main_fade_v4.py
+          AFTER=$(sha256sum athlete-main-headshot-approved-exact.js | awk '{print $1}')
+          test "$BEFORE" = "$AFTER" || { echo 'LOCK VIOLATION: Main Headshot changed'; exit 1; }
+          CHANGED=$(git diff --name-only)
+          test "$CHANGED" = "lineup-headshot.js" || { echo "Unexpected files changed: $CHANGED"; exit 1; }
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('lineup-headshot.js').read_text()
+          assert "lineup-headshot-v4-exact-main-fade" in s
+          assert 'CSMS_LINEUP_HEADSHOT_EXACT_MAIN_FADE_V4' in s
+          assert '[S.overlay,S.atlas]=await Promise.all' in s
+          draw=s.split('function draw(){',1)[1].split('function init(){',1)[0]
+          assert 'createLinearGradient' not in draw
+          assert 'ctx.drawImage(S.overlay,0,overlayClipTop' in draw
+          print('Main Headshot unchanged; Lineup Headshot uses exact approved overlay fade.')
+          PY
+      - name: Commit Lineup Headshot fade update
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add lineup-headshot.js
+          git commit -m 'Match Lineup Headshot fade to approved Main Headshot'
+          git push origin main
