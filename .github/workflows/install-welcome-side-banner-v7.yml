@@ -1,3 +1,4 @@
+# deployment sync for approved v24 code commit
 name: Install Welcome Aboard Fade Left Of A v24
 on:
   push:
