@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260814-regatta-lineup-layout-v5';
+const VERSION='20260814-regatta-lineup-layout-v6';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -41,9 +41,9 @@ function previewPanel(){
     [...w.children].find(el=>el!==left&&(el.querySelector?.('canvas,video')||/preview/i.test(norm(el.textContent))))||null;
 }
 function addStyles(){
-  if(q('csmsRegattaLayoutStylesV5'))return;
-  ['csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
-  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV5';s.textContent=`
+  if(q('csmsRegattaLayoutStylesV6'))return;
+  ['csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
+  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV6';s.textContent=`
 #workspace-video .csmsRegattaTitle{padding:2px 0 16px;margin:0 0 18px;border-bottom:1px solid #d8e2ed;overflow:hidden}
 #workspace-video .csmsRegattaEyebrow{color:#10213c;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;margin:0 0 6px 2px}
 #workspace-video .csmsRegattaTitleText{display:inline-block;color:#07152f;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:42px;font-weight:900;font-style:italic;letter-spacing:-.06em;line-height:.92;transform:skewX(-9deg);transform-origin:left center;text-transform:uppercase}
@@ -52,8 +52,9 @@ function addStyles(){
 #workspace-video .csmsRegattaMetaBottom{margin-top:26px;padding-top:18px;border-top:2px solid #d8e2ed}
 #workspace-video .csmsRegattaMetaBottom h2{margin:0 0 12px;color:#10213c;font-size:20px}
 #workspace-video .csmsRegattaMetaBottom .control{margin-bottom:12px}
-#workspace-video .csmsPreviewActionBar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;background:#f8fafc;border:1px solid #d8e2ed;border-radius:12px}
-#workspace-video .csmsPreviewActionBar button,#workspace-video .csmsPreviewActionBar a{margin:0!important;flex:1 1 auto;min-width:120px}
+#workspace-video .csmsPreviewActionBar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:stretch;width:100%;margin:8px 0 12px;padding:10px;background:#f8fafc;border:1px solid #d8e2ed;border-radius:12px;box-sizing:border-box}
+#workspace-video .csmsPreviewActionBar button,#workspace-video .csmsPreviewActionBar a{margin:0!important;width:100%!important;min-width:0!important;min-height:44px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;box-sizing:border-box!important}
+@media(max-width:900px){#workspace-video .csmsPreviewActionBar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 `;
   document.head.appendChild(s);
 }
@@ -157,28 +158,31 @@ function moveRegattaDetails(){
   if(box.childElementCount>1)panel.appendChild(box);
 }
 function buttonLabel(btn){return norm(btn.textContent||btn.value||btn.getAttribute('aria-label')||btn.title).toLowerCase();}
-function isPreviewAction(btn){
+function actionKind(btn){
   const t=buttonLabel(btn);
-  if(!t)return false;
-  if(t.includes('preview selected title'))return false;
-  return t==='preview'||t==='preview layout'||t==='preview video'||t==='save'||t==='save video'||t==='save project'||t==='download'||t==='download video'||t==='download mp4';
+  const id=String(btn.id||'').toLowerCase();
+  if(!t&& !id)return '';
+  if(t.includes('preview selected title'))return '';
+  if(id==='renderbtn'||/\brender\b/.test(t))return 'render';
+  if(/\bexport\b/.test(t)||/\bdownload\b/.test(t)||id.includes('export')||id.includes('download'))return 'export';
+  if(/\bsave\b/.test(t)||id.includes('save'))return 'save';
+  if(t==='preview'||t==='preview layout'||t==='preview video'||(/^preview\b/.test(t)&&!t.includes('selected title'))||id.includes('preview'))return 'preview';
+  return '';
 }
+function isPreviewAction(btn){return !!actionKind(btn);}
 function movePreviewActions(){
   const w=workspace(),target=previewPanel();if(!w||!target)return;
   let bar=q('csmsPreviewActionBar');
   if(!bar){bar=document.createElement('div');bar.id='csmsPreviewActionBar';bar.className='csmsPreviewActionBar';}
-  const buttons=[...w.querySelectorAll('button,a')].filter(isPreviewAction);
-  const preferred=[];
-  const seen=new Set();
-  for(const b of buttons){
-    const t=buttonLabel(b);
-    const key=t.includes('download')?'download':t.includes('save')?'save':'preview';
-    if(!seen.has(key)){seen.add(key);preferred.push(b);}
-  }
-  preferred.forEach(b=>bar.appendChild(b));
-  if(preferred.length){
-    const firstVisual=[...target.children].find(el=>el!==bar&&(el.querySelector?.('canvas,video')||el.matches?.('canvas,video')));
-    if(firstVisual)target.insertBefore(bar,firstVisual);else target.insertBefore(bar,target.firstChild);
+  const buttons=[...w.querySelectorAll('button,a')].filter(b=>b!==bar&&isPreviewAction(b));
+  const byKind=new Map();
+  for(const b of buttons){const kind=actionKind(b);if(kind&&!byKind.has(kind))byKind.set(kind,b);}
+  ['preview','render','save','export'].forEach(kind=>{const b=byKind.get(kind);if(b)bar.appendChild(b);});
+  if(bar.childElementCount){
+    const heading=[...target.querySelectorAll(':scope > h1,:scope > h2,:scope > h3,:scope > h4')].find(el=>/^preview$/i.test(norm(el.textContent)))||
+      [...target.querySelectorAll('h1,h2,h3,h4')].find(el=>/^preview$/i.test(norm(el.textContent)));
+    if(heading&&heading.parentElement===target){heading.insertAdjacentElement('afterend',bar);}
+    else target.insertBefore(bar,target.firstChild);
   }
 }
 function refresh(){addStyles();ensureTitle();wireNativeAthleteSelect();moveRegattaDetails();movePreviewActions();}
