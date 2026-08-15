@@ -5,7 +5,7 @@ p=Path('index.html')
 t=p.read_text()
 
 t=re.sub(r'\s*<script src="regatta-lineup-output-branding-v1\.js\?v=[^"]+"></script>\s*','\n',t)
-marker='<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v5"></script>'
+marker='<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v6"></script>'
 if '</body>' not in t:
     raise SystemExit('Missing </body>')
 t=t.replace('</body>',marker+'\n</body>',1)
