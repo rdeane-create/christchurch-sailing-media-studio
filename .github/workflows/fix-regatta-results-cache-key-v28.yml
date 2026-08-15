@@ -41,3 +41,5 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m 'Fix Regatta Results loader cache key for v28'
           git push
+
+# trigger 2
