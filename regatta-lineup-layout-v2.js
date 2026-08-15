@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260814-regatta-lineup-layout-v6';
+const VERSION='20260814-regatta-lineup-layout-v7';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -41,9 +41,9 @@ function previewPanel(){
     [...w.children].find(el=>el!==left&&(el.querySelector?.('canvas,video')||/preview/i.test(norm(el.textContent))))||null;
 }
 function addStyles(){
-  if(q('csmsRegattaLayoutStylesV6'))return;
-  ['csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
-  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV6';s.textContent=`
+  if(q('csmsRegattaLayoutStylesV7'))return;
+  ['csmsRegattaLayoutStylesV6','csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
+  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV7';s.textContent=`
 #workspace-video .csmsRegattaTitle{padding:2px 0 16px;margin:0 0 18px;border-bottom:1px solid #d8e2ed;overflow:hidden}
 #workspace-video .csmsRegattaEyebrow{color:#10213c;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;margin:0 0 6px 2px}
 #workspace-video .csmsRegattaTitleText{display:inline-block;color:#07152f;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:42px;font-weight:900;font-style:italic;letter-spacing:-.06em;line-height:.92;transform:skewX(-9deg);transform-origin:left center;text-transform:uppercase}
@@ -155,7 +155,7 @@ function moveRegattaDetails(){
   let box=q('csmsRegattaMetaBottom');
   if(!box){box=document.createElement('div');box.id='csmsRegattaMetaBottom';box.className='csmsRegattaMetaBottom';box.innerHTML='<h2>Regatta Details</h2>';}
   findRegattaControls(panel).forEach(c=>box.appendChild(c));
-  if(box.childElementCount>1)panel.appendChild(box);
+  if(box.childElementCount>1&&box.parentElement!==panel)panel.appendChild(box);
 }
 function buttonLabel(btn){return norm(btn.textContent||btn.value||btn.getAttribute('aria-label')||btn.title).toLowerCase();}
 function actionKind(btn){
@@ -177,12 +177,20 @@ function movePreviewActions(){
   const buttons=[...w.querySelectorAll('button,a')].filter(b=>b!==bar&&isPreviewAction(b));
   const byKind=new Map();
   for(const b of buttons){const kind=actionKind(b);if(kind&&!byKind.has(kind))byKind.set(kind,b);}
-  ['preview','render','save','export'].forEach(kind=>{const b=byKind.get(kind);if(b)bar.appendChild(b);});
+  const desired=['preview','render','save','export'].map(kind=>byKind.get(kind)).filter(Boolean);
+  desired.forEach((b,i)=>{
+    const current=bar.children[i]||null;
+    if(current!==b)bar.insertBefore(b,current);
+  });
+  [...bar.children].forEach(b=>{if(!desired.includes(b))b.remove();});
   if(bar.childElementCount){
     const heading=[...target.querySelectorAll(':scope > h1,:scope > h2,:scope > h3,:scope > h4')].find(el=>/^preview$/i.test(norm(el.textContent)))||
       [...target.querySelectorAll('h1,h2,h3,h4')].find(el=>/^preview$/i.test(norm(el.textContent)));
-    if(heading&&heading.parentElement===target){heading.insertAdjacentElement('afterend',bar);}
-    else target.insertBefore(bar,target.firstChild);
+    if(heading&&heading.parentElement===target){
+      if(heading.nextElementSibling!==bar)heading.insertAdjacentElement('afterend',bar);
+    }else if(target.firstElementChild!==bar){
+      target.insertBefore(bar,target.firstChild);
+    }
   }
 }
 function refresh(){addStyles();ensureTitle();wireNativeAthleteSelect();moveRegattaDetails();movePreviewActions();}
