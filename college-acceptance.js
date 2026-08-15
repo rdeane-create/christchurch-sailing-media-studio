@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const NAME='College Acceptance';
-const VERSION='20260815-college-acceptance-v9-jpeg-knockout';
+const VERSION='20260815-college-acceptance-v10-stray-mark-cleanup';
 const W=1080,H=1350;
 const S={cards:[],base:null,logo:null,logoDisplay:null,logoBacking:null,progress:1,anim:0,renderUrl:null,shoulderY:560};
 const q=id=>document.getElementById(id);
@@ -33,7 +33,7 @@ function prepareLogoDisplay(img){
       parts.push({pixels,area:pixels.length,minX,maxX,minY,maxY});
     }
     const total=parts.reduce((s,p)=>s+p.area,0);
-    for(const part of parts){const cx=(part.minX+part.maxX)/2,cy=(part.minY+part.maxY)/2;const tiny=part.area<Math.max(18,total*.0007);const peripheral=cx>iw*.92||cy>ih*.88;if(tiny&&peripheral)for(const k of part.pixels)dd[k*4+3]=0;}
+    for(const part of parts){const cx=(part.minX+part.maxX)/2,cy=(part.minY+part.maxY)/2,pw=part.maxX-part.minX+1,ph=part.maxY-part.minY+1;const tiny=part.area<Math.max(28,total*.0018);const compact=pw<iw*.10&&ph<ih*.16;const lowerRight=cx>iw*.76&&cy>ih*.64;const extremeEdge=cx>iw*.92||cy>ih*.88;if(tiny&&compact&&(lowerRight||extremeEdge))for(const k of part.pixels)dd[k*4+3]=0;}
     c.putImageData(id,0,0);
   }catch(_){;}
 
