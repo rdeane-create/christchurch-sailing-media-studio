@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const NAME='Lineup Headshot';
-  const VERSION='20260814-lineup-headshot-v3-isolated';
+  const VERSION='20260814-lineup-headshot-v4-exact-main-fade';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -133,7 +133,7 @@
   }
   function buildCard(){if(q('lineupHeadshotCard'))return;const list=q('templateLibraryList');if(!list)return;const r=document.createElement('div');r.id='lineupHeadshotCard';r.className='athleteItem';r.style.gridTemplateColumns='88px 1fr auto';r.style.padding='10px';r.innerHTML='<div style="width:72px;height:90px;border:1px solid #d8e2ed;border-radius:8px;background:linear-gradient(#7f8e9b,#dfe4ea 48%,#7f8e9b 72%,#03182a)"></div><span style="font-weight:800;font-size:14px">'+NAME+'</span><button type="button" class="tiny primary" style="width:auto">Open</button>';r.querySelector('button').onclick=openTemplate;list.prepend(r)}
   function openTemplate(){let p=q('lineupHeadshotWorkspace');if(!p){p=document.createElement('section');p.id='lineupHeadshotWorkspace';p.className='panel';p.style.marginTop='14px';p.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><h2 style="margin:0">${NAME}</h2><button id="lhClose" class="secondary tiny" type="button">Close</button></div><div style="display:grid;grid-template-columns:minmax(270px,350px) 1fr;gap:18px;align-items:start"><div><div class="control"><label>Upload athlete image</label><input id="lhUpload" type="file" accept="image/*"></div><div class="control"><label>Size <span id="lhScaleVal" class="value">100%</span></label><input id="lhScale" type="range" min="25" max="300" value="100"></div><div class="control"><label>Left / Right <span id="lhXVal" class="value">0</span></label><input id="lhX" type="range" min="-500" max="500" value="0"></div><div class="control"><label>Up / Down <span id="lhYVal" class="value">0</span></label><input id="lhY" type="range" min="-500" max="500" value="0"></div><div class="control"><label>First name</label><input id="lhFirst" value="WYLDER"></div><div class="control"><label>Last name</label><input id="lhLast" value="SMITH"></div><div class="control"><label>Class line</label><input id="lhClass" value="CLASS OF 2027"></div><div class="control"><label>Card name</label><input id="lhCardName" value="SMITH, WYLDER, ATHLETE LINEUP HEADSHOT CARD"></div><button id="lhReset" class="secondary" type="button" style="width:100%">Reset image</button><button id="lhSave" class="primary" type="button" style="width:100%;margin-top:8px">Save Card</button><button id="lhDownload" class="secondary" type="button" style="width:100%;margin-top:8px">Download PNG</button><div class="hint" style="margin-top:10px">Lineup Headshot. Athlete photo and lower name/class treatment match Main Athlete Headshot; the top title/graphic has been removed.</div></div><div style="background:#08152e;border-radius:18px;padding:18px;display:flex;justify-content:center;align-items:center;min-height:720px"><canvas id="lhCanvas" width="1080" height="1350" style="width:min(100%,500px);aspect-ratio:4/5;background:#fff;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.35);cursor:grab;touch-action:none"></canvas></div></div>`;(q('templateLibraryList')?.parentElement||document.body).appendChild(p);wire(p);syncCardName(true);renderSavedCards()}p.hidden=false;ensureAssets().then(draw);p.scrollIntoView({behavior:'smooth',block:'start'})}
-  async function ensureAssets(){if(S.ready)return;try{S.atlas=await loadImage(ATLAS_SRC);S.overlay=null;S.ready=true;draw()}catch(err){console.error('Approved template assets failed to load',err)}}
+  async function ensureAssets(){if(S.ready)return;try{[S.overlay,S.atlas]=await Promise.all([loadImage(OVERLAY_SRC),loadImage(ATLAS_SRC)]);S.ready=true;draw()}catch(err){console.error('Approved template assets failed to load',err)}}
   function wire(p){const c=q('lhCanvas');q('lhClose').onclick=()=>p.hidden=true;q('lhUpload').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const im=new Image();const url=URL.createObjectURL(f);im.onload=()=>{S.img=im;S.scale=1;S.x=S.y=0;sync(p);draw();URL.revokeObjectURL(url)};im.src=url};q('lhScale').oninput=e=>{S.scale=+e.target.value/100;labels(p);draw()};q('lhX').oninput=e=>{S.x=+e.target.value;labels(p);draw()};q('lhY').oninput=e=>{S.y=+e.target.value;labels(p);draw()};q('lhFirst').oninput=e=>{S.first=e.target.value.toUpperCase();syncCardName(false);draw()};q('lhLast').oninput=e=>{S.last=e.target.value.toUpperCase();syncCardName(false);draw()};q('lhClass').oninput=e=>{S.classLine=e.target.value.toUpperCase();draw()};q('lhCardName').oninput=()=>{S.cardNameDirty=true};q('lhSave').onclick=saveFinishedCard;q('lhReset').onclick=()=>{S.scale=1;S.x=S.y=0;sync(p);draw()};q('lhDownload').onclick=()=>{draw();const a=document.createElement('a');a.download='lineup-headshot.png';a.href=c.toDataURL('image/png');a.click()};const pt=e=>{const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)*c.width/r.width,y:(e.clientY-r.top)*c.height/r.height}};c.onpointerdown=e=>{if(!S.img)return;c.setPointerCapture(e.pointerId);const z=pt(e);S.drag=true;S.sx=z.x;S.sy=z.y;S.ix=S.x;S.iy=S.y;c.style.cursor='grabbing'};c.onpointermove=e=>{if(!S.drag)return;const z=pt(e);S.x=Math.max(-500,Math.min(500,S.ix+z.x-S.sx));S.y=Math.max(-500,Math.min(500,S.iy+z.y-S.sy));sync(p);draw()};c.onpointerup=c.onpointercancel=()=>{S.drag=false;c.style.cursor='grab'}}
   function labels(p){q('lhScaleVal').textContent=Math.round(S.scale*100)+'%';q('lhXVal').textContent=Math.round(S.x);q('lhYVal').textContent=Math.round(S.y)}
   function sync(p){q('lhScale').value=Math.round(S.scale*100);q('lhX').value=Math.round(S.x);q('lhY').value=Math.round(S.y);labels(p)}
@@ -241,17 +241,13 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
     ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
     drawPhoto(ctx);
 
-    // CSMS_LINEUP_HEADSHOT_BLUE_FADE_V2
-    // Christchurch navy is solid at the bottom and fades completely by the top of the first name.
-    const fadeTop=885;
-    const grad=ctx.createLinearGradient(0,H,0,fadeTop);
-    grad.addColorStop(0.00,'rgba(3,24,42,0.99)');
-    grad.addColorStop(0.18,'rgba(4,29,52,0.97)');
-    grad.addColorStop(0.44,'rgba(6,39,72,0.82)');
-    grad.addColorStop(0.70,'rgba(8,48,88,0.46)');
-    grad.addColorStop(0.88,'rgba(10,55,98,0.16)');
-    grad.addColorStop(1.00,'rgba(10,55,98,0.00)');
-    ctx.save();ctx.fillStyle=grad;ctx.fillRect(0,fadeTop,W,H-fadeTop);ctx.restore();
+    // CSMS_LINEUP_HEADSHOT_EXACT_MAIN_FADE_V4
+    // Use the exact approved Main Athlete Headshot overlay pixels for the lower fade.
+    // Clip away the upper header/title region so Lineup Headshot remains header-free.
+    if(S.overlay){
+      const overlayClipTop=320;
+      ctx.drawImage(S.overlay,0,overlayClipTop,W,H-overlayClipTop,0,overlayClipTop,W,H-overlayClipTop);
+    }
 
     if(!S.atlas)return;
     drawRasterText(ctx,S.first,'small',82,897,58,0,710);
