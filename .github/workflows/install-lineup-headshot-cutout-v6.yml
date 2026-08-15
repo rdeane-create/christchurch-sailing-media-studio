@@ -1,0 +1,38 @@
+name: Install Lineup Headshot Athlete Cutout v6
+on:
+  push:
+    paths:
+      - '.github/workflows/install-lineup-headshot-cutout-v6.yml'
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply athlete cutout controls
+        run: python .github/scripts/install_lineup_headshot_cutout_v6.py
+      - name: Validate locked Main Headshot and Lineup cutout
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          t=Path('lineup-headshot.js').read_text()
+          assert "lineup-headshot-v6-athlete-cutout" in t
+          assert 'Remove Background' in t
+          assert 'Restore Original' in t
+          assert 'cutoutMask' in t
+          assert '@imgly/background-removal@1.7.0' in t
+          assert "drawBackground(ctx);\n    drawPhoto(ctx);" in t
+          assert Path('athlete-main-headshot-approved-exact.js').exists()
+          print('Validation passed.')
+          PY
+      - name: Commit Lineup Headshot cutout
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add lineup-headshot.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Add non-destructive athlete background removal to Lineup Headshot"
+          git push origin main
