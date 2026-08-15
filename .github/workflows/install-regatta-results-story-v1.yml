@@ -28,22 +28,19 @@ jobs:
           idx=Path('index.html').read_text()
           js=Path('regatta-results-story.js').read_text()
           assert '<script src="regatta-results-story.js?v=20260815-v1"></script>' in idx
-          assert 'REGATTA RESULTS STORY — BUILD v9' in js
-          assert '20260815-regatta-results-story-v9-exact-athlete-main-renderer-copy' in js
+          assert 'REGATTA RESULTS STORY — BUILD v10' in js
+          assert '20260815-regatta-results-story-v10-untouched-athlete-main-stage' in js
           assert 'ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp' in js
           assert 'function drawAthleteMainExactPhoto(ctx,img)' in js
           assert 'const stageW=1080,stageH=1350,base=Math.max(stageW/img.width,stageH/img.height)' in js
           assert 'ctx.drawImage(img,(stageW-dw)/2+state.coverX,(stageH-dh)/2+state.coverY,dw,dh)' in js
-          assert 'function drawAthleteMainExactStage(ctx)' in js
-          assert 'ctx.drawImage(approvedMainOverlay,0,0,1080,1350)' in js
+          assert 'function drawAthleteMainExactStage(ctx){ctx.save();ctx.fillStyle=WHITE;ctx.fillRect(0,0,1080,1350);if(coverPhoto)drawAthleteMainExactPhoto(ctx,coverPhoto);if(approvedMainOverlay.complete&&approvedMainOverlay.naturalWidth)ctx.drawImage(approvedMainOverlay,0,0,1080,1350);ctx.restore()}' in js
+          assert 'ADD REGATTA PHOTO' not in js
+          assert 'const leftY=1392,rightY=1372' in js
+          assert 'W+8,rightY-14' in js
           cover=js[js.index('function drawCover(ctx){'):js.index('\nfunction drawScore(ctx){')]
           assert 'drawAthleteMainExactStage(ctx);drawCoverBand(ctx)' in cover
-          assert 'drawAdjustableCover(ctx,coverPhoto,0,0,W,H)' not in cover
-          assert 'id="rrsCoverScale"' in js
-          assert 'id="rrsCoverX"' in js
-          assert 'id="rrsCoverY"' in js
-          assert 'id="rrsCoverOpacity"' in js
-          print('Regatta Results Story v9 exact Athlete Main renderer copy validated')
+          print('Regatta Results Story v10 untouched Athlete Main stage validated')
           PY
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
           sha256sum college-acceptance.js > /tmp/college.after
@@ -57,5 +54,5 @@ jobs:
           git config user.email "rdeane@christchurchschool.org"
           git add index.html regatta-results-story.js
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Copy exact Athlete Main renderer into Regatta Results header"
+          git commit -m "Keep Athlete Main stage untouched above Regatta Results"
           git push
