@@ -1,0 +1,36 @@
+name: Install Regatta Results Story v27 Gray To Edges
+on:
+  push:
+    paths:
+      - '.github/workflows/install-regatta-results-story-v27-gray-to-edges.yml'
+      - '.github/scripts/install_regatta_results_story_v27_extend_gray_edges.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Extend banner gray to card edges
+        run: python .github/scripts/install_regatta_results_story_v27_extend_gray_edges.py
+      - name: Validate v27
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('regatta-results-story.js').read_text()
+          assert "BUILD v27" in s
+          assert "ctx.drawImage(headerImg,SRC_W-12,0,12,SRC_H,0,0,W,SOLID_H);" in s
+          assert "const leftY=1370,rightY=1185" in s
+          print('v27 validated')
+          PY
+      - name: Commit change
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add regatta-results-story.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Extend Regatta Results banner gray to card edges"
+          git push
