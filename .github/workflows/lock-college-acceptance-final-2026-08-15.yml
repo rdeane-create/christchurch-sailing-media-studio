@@ -1,0 +1,76 @@
+name: Lock College Acceptance Final 2026-08-15
+on:
+  push:
+    paths:
+      - '.github/workflows/lock-college-acceptance-final-2026-08-15.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify approved final version
+        run: |
+          grep -q "20260815-college-acceptance-v15-final-lightfield" college-acceptance.js
+      - name: Create locked backup package
+        run: |
+          set -e
+          DIR="BACKUPS/COLLEGE_ACCEPTANCE_FINAL_LOCKED_2026-08-15"
+          mkdir -p "$DIR"
+          cp college-acceptance.js "$DIR/college-acceptance.FINAL.js"
+          COLLEGE_SHA256=$(sha256sum college-acceptance.js | awk '{print $1}')
+          MAIN_SHA256=$(sha256sum athlete-main-headshot-approved-exact.js | awk '{print $1}')
+          cat > "$DIR/RESTORE_THIS_TEMPLATE.md" <<EOF
+          # College Acceptance — FINAL LOCKED — 2026-08-15
+
+          **Status:** FINAL / APPROVED / LOCKED
+
+          Do not remove, change, delete, replace, clean up, or alter this approved template without explicit approval from Rob Deane.
+
+          ## Approved live template
+          - File: \`college-acceptance.js\`
+          - Version: \`20260815-college-acceptance-v15-final-lightfield\`
+          - Exact approved code commit: \`0518e45c2801a6d920b00bf5236dede1d5515b7e\`
+          - Confirmed deployed Pages head containing this exact file: \`158ec067050b2760e1b254b43b2cdd26f91ea518\`
+          - Confirmed Pages run: \`31884292514\` — build/report/deploy all successful
+          - Backup file: \`BACKUPS/COLLEGE_ACCEPTANCE_FINAL_LOCKED_2026-08-15/college-acceptance.FINAL.js\`
+          - Approved file SHA-256: \`${COLLEGE_SHA256}\`
+
+          ## Locked dependency protection
+          Athlete Main Headshot is independently locked and must not be altered as part of College Acceptance restoration.
+          - Live file: \`athlete-main-headshot-approved-exact.js\`
+          - SHA-256 at College Acceptance lock time: \`${MAIN_SHA256}\`
+
+          ## Restore procedure
+          To restore the approved College Acceptance template exactly:
+          1. Replace \`college-acceptance.js\` with the contents of \`college-acceptance.FINAL.js\` in this folder.
+          2. Verify the restored file contains version \`20260815-college-acceptance-v15-final-lightfield\`.
+          3. Verify its SHA-256 matches \`${COLLEGE_SHA256}\`.
+          4. Do not modify \`athlete-main-headshot-approved-exact.js\`.
+          5. Commit and deploy through GitHub Pages.
+
+          A dedicated workflow is also stored at:
+          \`.github/workflows/restore-college-acceptance-final-2026-08-15.yml\`
+          EOF
+          cat > "$DIR/LOCKED.txt" <<EOF
+          COLLEGE_ACCEPTANCE_FINAL_LOCKED=TRUE
+          VERSION=20260815-college-acceptance-v15-final-lightfield
+          APPROVED_CODE_COMMIT=0518e45c2801a6d920b00bf5236dede1d5515b7e
+          DEPLOYED_HEAD=158ec067050b2760e1b254b43b2cdd26f91ea518
+          PAGES_RUN=31884292514
+          COLLEGE_ACCEPTANCE_SHA256=${COLLEGE_SHA256}
+          ATHLETE_MAIN_HEADSHOT_SHA256_AT_LOCK=${MAIN_SHA256}
+          EOF
+      - name: Validate backup is byte-identical
+        run: |
+          cmp college-acceptance.js BACKUPS/COLLEGE_ACCEPTANCE_FINAL_LOCKED_2026-08-15/college-acceptance.FINAL.js
+          grep -q "FINAL / APPROVED / LOCKED" BACKUPS/COLLEGE_ACCEPTANCE_FINAL_LOCKED_2026-08-15/RESTORE_THIS_TEMPLATE.md
+      - name: Commit locked backup
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add BACKUPS/COLLEGE_ACCEPTANCE_FINAL_LOCKED_2026-08-15
+          git commit -m "Lock approved College Acceptance final backup" || exit 0
+          git push
