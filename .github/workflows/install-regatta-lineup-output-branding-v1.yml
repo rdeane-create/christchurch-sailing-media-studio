@@ -1,4 +1,4 @@
-name: Install Regatta Lineup Output Branding v2
+name: Install Regatta Lineup Output Branding v3
 
 on:
   push:
@@ -16,18 +16,87 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Regatta Lineup output branding
+      - name: Install Regatta Lineup output branding and full-space grid
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
+
           p=Path('index.html')
           t=p.read_text()
+
+          # Keep only the current output-branding script tag.
           t=re.sub(r'\s*<script src="regatta-lineup-output-branding-v1\.js\?v=[^"]+"></script>\s*','\n',t)
-          marker='<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v2"></script>'
+          marker='<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v3"></script>'
           if '</body>' not in t:
               raise SystemExit('Missing </body>')
           t=t.replace('</body>',marker+'\n</body>',1)
+
+          # Story/reel no longer draw the legacy title package. The exact Main Athlete Headshot art is overlaid instead.
+          old_draw_title="""  function drawTitle(t=0,staticOnly=false){
+    const event=(els.eventName.value||'EVENT NAME').toUpperCase();
+    const loc=(els.location.value||'LOCATION').toUpperCase();
+    drawTitlePackage(els.titleStyle.value,event,loc,t,staticOnly);
+  }"""
+          new_draw_title="""  function drawTitle(t=0,staticOnly=false){
+    if(activeProfile==='story'||activeProfile==='reel')return;
+    const event=(els.eventName.value||'EVENT NAME').toUpperCase();
+    const loc=(els.location.value||'LOCATION').toUpperCase();
+    drawTitlePackage(els.titleStyle.value,event,loc,t,staticOnly);
+  }"""
+          if old_draw_title in t:
+              t=t.replace(old_draw_title,new_draw_title,1)
+          elif new_draw_title not in t:
+              raise SystemExit('Could not patch legacy title renderer')
+
+          # Reclaim the title reserve and let the grid begin directly below the exact header fade.
+          old_story="""    if(activeProfile==='story'||activeProfile==='reel'){
+      // More vertical room for the finished 2:3 hero cards.
+      top=Math.max(440,zones.top+300);
+      bottom=Math.max(34,zones.bottom*.45);
+      rowGap=20;
+      side=24;
+      colGap=18;
+"""
+          new_story="""    if(activeProfile==='story'||activeProfile==='reel'){
+      // Exact Athlete Headshot header ends near 154px; begin cards immediately after its navy fade.
+      // Reserve the compact footer at the bottom and use the full remaining story frame.
+      top=Math.max(205,zones.top+40);
+      bottom=Math.max(284,zones.bottom*.45);
+      rowGap=8;
+      side=18;
+      colGap=8;
+"""
+          if old_story in t:
+              t=t.replace(old_story,new_story,1)
+          elif new_story not in t:
+              raise SystemExit('Could not patch story grid reserve')
+
+          # Approved Athlete Main Headshot cards are 1080x1350 (4:5), not 2:3.
+          # Match the grid and hero animation to the real card ratio so the full card is visible and larger.
+          t=t.replace('        const ratio=2/3;','        const ratio=4/5;',1)
+          t=t.replace('      const cardRatio=2/3;','      const cardRatio=4/5;',1)
+
+          # Use essentially the whole slot while still preserving every source pixel.
+          old_padding="const padding=display==='edgeFit'?2:8;"
+          new_padding="const padding=display==='edgeFit'?0:2;"
+          if old_padding in t:
+              t=t.replace(old_padding,new_padding,1)
+          elif new_padding not in t:
+              raise SystemExit('Could not patch athlete-card padding')
+
+          # Empty-card placeholders get a hairline border rather than a heavy frame.
+          old_placeholder="""      ctx.strokeStyle='rgba(255,255,255,.35)';
+      ctx.lineWidth=2;
+      roundRect(x,y,w,h,22);"""
+          new_placeholder="""      ctx.strokeStyle='rgba(255,255,255,.24)';
+      ctx.lineWidth=1;
+      roundRect(x,y,w,h,12);"""
+          if old_placeholder in t:
+              t=t.replace(old_placeholder,new_placeholder,1)
+          elif new_placeholder not in t:
+              raise SystemExit('Could not patch card placeholder border')
+
           p.write_text(t)
           PY
 
@@ -35,14 +104,23 @@ jobs:
         run: |
           grep -q 'id="workspace-video"' index.html
           grep -q 'id="canvas" width="1080" height="1920"' index.html
-          grep -q 'regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v2' index.html
+          grep -q 'regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v3' index.html
+          grep -q "if(activeProfile==='story'||activeProfile==='reel')return;" index.html
+          grep -q 'top=Math.max(205,zones.top+40);' index.html
+          grep -q 'bottom=Math.max(284,zones.bottom\*.45);' index.html
+          grep -q 'const ratio=4/5;' index.html
+          grep -q 'const cardRatio=4/5;' index.html
+          grep -q "const padding=display==='edgeFit'?0:2;" index.html
+          grep -q "ctx.lineWidth=1;" index.html
           grep -q "ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp" regatta-lineup-output-branding-v1.js
-          grep -q "drawExactApprovedHeader" regatta-lineup-output-branding-v1.js
+          grep -q "fadeEnd=destH+64" regatta-lineup-output-branding-v1.js
           grep -q "REGATTA LINEUP" regatta-lineup-output-branding-v1.js
-          grep -q "eventName" regatta-lineup-output-branding-v1.js
-          grep -q "location" regatta-lineup-output-branding-v1.js
           if grep -q "★" regatta-lineup-output-branding-v1.js; then
             echo 'Star artwork still present in footer'
+            exit 1
+          fi
+          if grep -q 'top=Math.max(440,zones.top+300);' index.html; then
+            echo 'Legacy 440px title reserve is still present'
             exit 1
           fi
 
@@ -52,8 +130,8 @@ jobs:
           git config user.email 'rdeane@christchurchschool.org'
           git add index.html
           if git diff --cached --quiet; then
-            echo 'Regatta Lineup output branding already installed.'
+            echo 'Regatta Lineup output branding and grid are already installed.'
             exit 0
           fi
-          git commit -m 'Install exact locked headshot header and compact regatta footer'
+          git commit -m 'Expand Regatta Lineup cards and remove legacy title reserve'
           git push
