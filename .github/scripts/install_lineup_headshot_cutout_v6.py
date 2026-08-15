@@ -8,8 +8,8 @@ main_hash_before=hashlib.sha256(main_path.read_bytes()).hexdigest()
 
 text=text.replace("const VERSION='20260814-lineup-headshot-v5-background-controls';","const VERSION='20260814-lineup-headshot-v6-athlete-cutout';")
 
-old_state="const S={img:null,scale:1,x:0,y:0,drag:false,sx:0,sy:0,ix:0,iy:0,first:'WYLDER',last:'SMITH',classLine:'CLASS OF 2027',cardNameDirty:false,overlay:null,atlas:null,ready:false,bg:null,bgScale:1,bgX:0,bgY:0,bgOpacity:1};"
-new_state="const S={img:null,athleteFile:null,cutoutMask:null,cutoutBusy:false,cutoutEdge:0,cutoutShadow:10,scale:1,x:0,y:0,drag:false,sx:0,sy:0,ix:0,iy:0,first:'WYLDER',last:'SMITH',classLine:'CLASS OF 2027',cardNameDirty:false,overlay:null,atlas:null,ready:false,bg:null,bgScale:1,bgX:0,bgY:0,bgOpacity:1};"
+old_state="const S={img:null,scale:1,x:0,y:0,drag:false,sx:0,sy:0,ix:0,iy:0,bg:null,bgScale:1,bgX:0,bgY:0,bgOpacity:1,first:'WYLDER',last:'SMITH',classLine:'CLASS OF 2027',cardNameDirty:false,overlay:null,atlas:null,ready:false};"
+new_state="const S={img:null,athleteFile:null,cutoutMask:null,cutoutBusy:false,cutoutEdge:0,cutoutShadow:10,scale:1,x:0,y:0,drag:false,sx:0,sy:0,ix:0,iy:0,bg:null,bgScale:1,bgX:0,bgY:0,bgOpacity:1,first:'WYLDER',last:'SMITH',classLine:'CLASS OF 2027',cardNameDirty:false,overlay:null,atlas:null,ready:false};"
 assert old_state in text, 'state marker not found'
 text=text.replace(old_state,new_state)
 
@@ -80,10 +80,7 @@ new_draw=r'''  function athleteGeometry(){if(!S.img)return null;const base=Math.
 assert old_draw in text, 'drawPhoto marker not found'
 text=text.replace(old_draw,new_draw,1)
 
-# Ensure draw order is background then athlete. Preserve all existing fade/text.
 assert 'drawBackground(ctx);\n    drawPhoto(ctx);' in text, 'background/athlete draw order missing'
-
-# Update help text.
 text=text.replace('Lineup Headshot. Background and athlete photo can be positioned independently; lower fade and typography match Main Athlete Headshot.', 'Lineup Headshot. Background and athlete photo can be positioned independently. Remove Background uses an alpha mask while preserving the original athlete photo pixels; lower fade and typography match Main Athlete Headshot.')
 
 path.write_text(text)
