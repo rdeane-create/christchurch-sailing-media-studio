@@ -1,0 +1,14 @@
+name: Inspect Regatta Motion
+on:
+  push:
+    paths:
+      - '.github/scripts/inspect_regatta_motion.py'
+      - '.github/workflows/inspect-regatta-motion.yml'
+  workflow_dispatch:
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect native Regatta renderer
+        run: python3 .github/scripts/inspect_regatta_motion.py
