@@ -1,10 +1,10 @@
 from pathlib import Path
-import re
 
 p=Path('csms-template-recovery-v1.js')
 s=p.read_text()
 
-s=s.replace("const VERSION='20260815-welcome-athlete-main-drive-v6-elegant-editorial';", "const VERSION='20260815-welcome-athlete-main-drive-v7-editorial-side-banner';", 1)
+s=s.replace("const VERSION='20260815-welcome-athlete-main-drive-v7-editorial-side-banner';", "const VERSION='20260815-welcome-athlete-main-drive-v8-editorial-side-banner';", 1)
+s=s.replace("const VERSION='20260815-welcome-athlete-main-drive-v6-elegant-editorial';", "const VERSION='20260815-welcome-athlete-main-drive-v8-editorial-side-banner';", 1)
 
 new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   const p=Math.max(0,Math.min(1,progress)),eased=1-Math.pow(1-p,3);
@@ -13,8 +13,6 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
 
   ctx.save();
 
-  // Full-height editorial banner. This is an overlay only: the Athlete Main card
-  // remains full-size underneath and is never compressed or reframed.
   const grad=ctx.createLinearGradient(0,0,0,1350);
   grad.addColorStop(0,'#ff4b12');
   grad.addColorStop(.46,'#f4511e');
@@ -30,7 +28,6 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   ctx.fillStyle=grad;
   ctx.fill();
 
-  // Soft dimensional edge shadow on the athlete side.
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(topX-10,0);
@@ -44,7 +41,6 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   ctx.fill();
   ctx.restore();
 
-  // Double white editorial rails following the diagonal.
   const rail=(offset,width,alpha)=>{
     ctx.save();
     ctx.beginPath();
@@ -58,7 +54,6 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   rail(16,9,.98);
   rail(31,3,.78);
 
-  // Welcome / Aboard lockup centered in the orange field.
   const midX=((topX+bottomX)/2+1080)/2+22;
   ctx.textAlign='center';
   ctx.textBaseline='middle';
@@ -70,7 +65,6 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
 
   ctx.font=`700 46px ${family}`;
   ctx.fillText('WELCOME',midX,566);
-
   ctx.font=`900 92px ${family}`;
   ctx.fillText('ABOARD',midX,665);
 
@@ -78,7 +72,6 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   ctx.fillStyle='rgba(255,255,255,.96)';
   ctx.fillRect(midX-54,752,108,5);
 
-  // Minimal sailing flag mark drawn as vector so the overlay remains editable.
   ctx.save();
   ctx.translate(midX-27,810);
   ctx.strokeStyle='rgba(255,255,255,.96)';
@@ -92,10 +85,14 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   ctx.restore();
 }'''
 
-pattern=r"function drawWelcomeOverlay\(ctx,progress=1\)\{.*?\n\}\n(?=function drawWelcomeCard\()"
-ns,n=re.subn(pattern,new_overlay+'\n',s,count=1,flags=re.S)
-if n!=1:
-    raise SystemExit(f'Expected one drawWelcomeOverlay function; replaced {n}')
+start=s.index('function drawWelcomeOverlay(ctx,progress=1){')
+end=s.index('\nfunction drawWelcomeCard()', start)
+s=s[:start]+new_overlay+s[end:]
+
+if 'const finalX=620,finalY=790' in s:
+    raise SystemExit('Old floating badge code is still present')
+if 'const topX=808+slide,bottomX=625+slide,rightX=1080+slide' not in s:
+    raise SystemExit('New side banner code was not installed')
 
 p.write_text(s)
-print('Installed Welcome Aboard editorial side banner v7')
+print('Installed Welcome Aboard editorial side banner v8')
