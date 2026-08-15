@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v13-photo-fade-wedge';
+const VERSION='20260815-welcome-athlete-main-drive-v14-continuous-photo-fade-wedge';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -113,8 +113,9 @@ function drawWelcomeOverlay(ctx,progress=1){
   const p=Math.max(0,Math.min(1,progress)),eased=1-Math.pow(1-p,3);
   const slide=(1-eased)*470;
 
-  // Wide lower-right announcement wedge. It protects the athlete-name safe
-  // zone while giving WELCOME / ABOARD enough room to sit comfortably.
+  // One continuous lower-right announcement wedge. The top dissolves into the
+  // Athlete Main photo, the orange stays behind the type, and the lower field
+  // blends smoothly into navy without breaking the wedge apart.
   const topY=600;
   const leftTop=840+slide;
   const leftBottom=735+slide;
@@ -124,17 +125,15 @@ function drawWelcomeOverlay(ctx,progress=1){
   layer.width=1080;layer.height=1350;
   const lx=layer.getContext('2d');
 
-  // Strong Christchurch orange through the body of the wedge, transitioning
-  // gradually through warm dark orange into navy at the bottom. The extra
-  // intermediate stops keep the orange/navy transition smooth and editorial.
   const grad=lx.createLinearGradient(0,topY,0,1350);
-  grad.addColorStop(0,'#ff6a2f');
+  grad.addColorStop(0,'#ff672d');
   grad.addColorStop(.18,'#f85a24');
-  grad.addColorStop(.36,'#f4511e');
-  grad.addColorStop(.70,'#f4511e');
-  grad.addColorStop(.80,'#e94d23');
-  grad.addColorStop(.88,'#c5412a');
-  grad.addColorStop(.94,'#7a3540');
+  grad.addColorStop(.34,'#f4511e');
+  grad.addColorStop(.68,'#f4511e');
+  grad.addColorStop(.76,'#ed5021');
+  grad.addColorStop(.84,'#d44728');
+  grad.addColorStop(.90,'#a13e34');
+  grad.addColorStop(.95,'#593744');
   grad.addColorStop(1,'#17304d');
 
   lx.beginPath();
@@ -146,7 +145,6 @@ function drawWelcomeOverlay(ctx,progress=1){
   lx.fillStyle=grad;
   lx.fill();
 
-  // Quiet depth along the diagonal athlete-side edge.
   lx.save();
   lx.beginPath();
   lx.moveTo(leftTop-8,topY);
@@ -160,7 +158,6 @@ function drawWelcomeOverlay(ctx,progress=1){
   lx.fill();
   lx.restore();
 
-  // Double white editorial rails follow the wedge edge.
   const rail=(offset,width,alpha)=>{
     lx.save();
     lx.beginPath();
@@ -174,26 +171,28 @@ function drawWelcomeOverlay(ctx,progress=1){
   rail(15,8,.96);
   rail(29,3,.72);
 
-  // Fade the top of the entire wedge — orange and rails together — directly
-  // into the underlying Athlete Main photo. No white panel is introduced.
+  // Apply one full-height alpha mask. This is the key: the mask becomes fully
+  // opaque below the top transition and stays opaque, so the wedge remains one
+  // continuous shape instead of leaving a detached orange fragment.
   lx.globalCompositeOperation='destination-in';
-  const photoFade=lx.createLinearGradient(0,topY,0,790);
+  const photoFade=lx.createLinearGradient(0,topY,0,1350);
   photoFade.addColorStop(0,'rgba(0,0,0,0)');
-  photoFade.addColorStop(.24,'rgba(0,0,0,.10)');
-  photoFade.addColorStop(.48,'rgba(0,0,0,.34)');
-  photoFade.addColorStop(.72,'rgba(0,0,0,.72)');
+  photoFade.addColorStop(.08,'rgba(0,0,0,.08)');
+  photoFade.addColorStop(.16,'rgba(0,0,0,.24)');
+  photoFade.addColorStop(.24,'rgba(0,0,0,.52)');
+  photoFade.addColorStop(.32,'rgba(0,0,0,.82)');
+  photoFade.addColorStop(.38,'rgba(0,0,0,1)');
   photoFade.addColorStop(1,'rgba(0,0,0,1)');
   lx.fillStyle=photoFade;
-  lx.fillRect(0,topY,1080,220);
+  lx.fillRect(0,topY,1080,1350-topY);
   lx.globalCompositeOperation='source-over';
 
   ctx.drawImage(layer,0,0);
 
-  // Move the announcement lower so both words sit comfortably inside the
-  // strongest orange field instead of crowding the top transition.
-  const textY=1045;
+  // Keep both words fully inside the strong-orange middle of the wedge.
+  const textY=1060;
   const leftAtText=leftTop+(leftBottom-leftTop)*((textY-topY)/(1350-topY));
-  const midX=(leftAtText+1080)/2+6;
+  const midX=(leftAtText+1080)/2+4;
   ctx.save();
   ctx.textAlign='center';
   ctx.textBaseline='middle';
@@ -203,12 +202,12 @@ function drawWelcomeOverlay(ctx,progress=1){
   ctx.shadowOffsetY=3;
   const family='"Avenir Next Condensed","Helvetica Neue Condensed","Arial Narrow",Impact,sans-serif';
   ctx.font=`700 40px ${family}`;
-  ctx.fillText('WELCOME',midX,982);
+  ctx.fillText('WELCOME',midX,1004);
   ctx.font=`900 78px ${family}`;
-  ctx.fillText('ABOARD',midX,1072);
+  ctx.fillText('ABOARD',midX,1094);
   ctx.shadowColor='transparent';
   ctx.fillStyle='rgba(255,255,255,.94)';
-  ctx.fillRect(midX-54,1135,108,4);
+  ctx.fillRect(midX-54,1157,108,4);
   ctx.restore();
 }
 function drawWelcomeCard(){const e=welcomeEls();if(!e.canvas)return;if(e.canvas.width!==INSTAGRAM_W)e.canvas.width=INSTAGRAM_W;if(e.canvas.height!==INSTAGRAM_H)e.canvas.height=INSTAGRAM_H;const ctx=e.canvas.getContext('2d');ctx.clearRect(0,0,INSTAGRAM_W,INSTAGRAM_H);if(welcomeHeroImage){ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(welcomeHeroImage,0,0,INSTAGRAM_W,INSTAGRAM_H);drawWelcomeOverlay(ctx,welcomeDropProgress);}else{ctx.fillStyle='#06142c';ctx.fillRect(0,0,INSTAGRAM_W,INSTAGRAM_H);ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot card',INSTAGRAM_W/2,INSTAGRAM_H/2);}}
