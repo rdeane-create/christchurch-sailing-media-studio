@@ -1,10 +1,10 @@
 (function(){
 'use strict';
 
-const VERSION='20260814-regatta-output-branding-v2';
+const VERSION='20260814-regatta-output-branding-v3';
 const q=id=>document.getElementById(id);
 const nativeRAF=window.requestAnimationFrame.bind(window);
-const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v2';
+const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v3';
 const APPROVED_HEADER_SOURCE_H=154;
 let approvedOverlay=null;
 let approvedOverlayReady=false;
@@ -45,11 +45,26 @@ function drawExactApprovedHeader(ctx,W){
   const destH=Math.round(W*(APPROVED_HEADER_SOURCE_H/1080));
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
+
+  // Pixel-for-pixel source art from Athlete Main Headshot — Approved.
   ctx.drawImage(
     approvedOverlay,
     0,0,1080,APPROVED_HEADER_SOURCE_H,
     0,0,W,destH
   );
+
+  // Blend the gray/white lower edge of the locked title art directly into Christchurch navy.
+  // This replaces the previous hard cutoff without altering the approved logo/wordmark pixels above it.
+  const fadeStart=Math.max(0,destH-16);
+  const fadeEnd=destH+64;
+  const fade=ctx.createLinearGradient(0,fadeStart,0,fadeEnd);
+  fade.addColorStop(0,'rgba(7,21,47,0)');
+  fade.addColorStop(.30,'rgba(7,21,47,.16)');
+  fade.addColorStop(.62,'rgba(7,21,47,.58)');
+  fade.addColorStop(1,'rgba(7,21,47,1)');
+  ctx.fillStyle=fade;
+  ctx.fillRect(0,fadeStart,W,fadeEnd-fadeStart);
+
   ctx.restore();
 }
 
@@ -70,8 +85,6 @@ function footerPath(ctx,W,H,y){
 function drawFooter(ctx,W,H){
   const eventName=clean(q('eventName')?.value)||'REGATTA';
   const location=clean(q('location')?.value)||'';
-
-  // Compact footer: starts lower than v1 to recover athlete-card space.
   const y=Math.round(H*0.852);
   const h=H-y;
 
@@ -95,7 +108,6 @@ function drawFooter(ctx,W,H){
   ctx.lineTo(W*.915,y+2);
   ctx.stroke();
 
-  // No stars. REGATTA LINEUP begins near the top of the compact footer.
   const lineupY=y+h*.23;
   ctx.strokeStyle='#f24a18';
   ctx.lineWidth=3;
@@ -136,28 +148,14 @@ function drawFooter(ctx,W,H){
   ctx.restore();
 }
 
-function coverOldTopTitle(ctx,W,H){
-  // Clear only the native title package below the exact approved header.
-  const headerH=Math.round(W*(APPROVED_HEADER_SOURCE_H/1080));
-  const y0=headerH;
-  const y1=Math.round(H*0.185);
-  const g=ctx.createLinearGradient(0,y0,0,y1);
-  g.addColorStop(0,'rgba(7,21,47,1)');
-  g.addColorStop(1,'rgba(7,21,47,.86)');
-  ctx.save();
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.fillStyle=g;
-  ctx.fillRect(0,y0,W,Math.max(0,y1-y0));
-  ctx.restore();
-}
-
 function drawOverlay(){
   if(!isActive())return;
   const c=canvas();
   if(!c||c.width!==1080||c.height!==1920)return;
   const ctx=c.getContext('2d');
   if(!ctx)return;
-  coverOldTopTitle(ctx,c.width,c.height);
+
+  // Native title is disabled for story/reel by the installer; no legacy masking block is needed.
   drawExactApprovedHeader(ctx,c.width);
   drawFooter(ctx,c.width,c.height);
 }
