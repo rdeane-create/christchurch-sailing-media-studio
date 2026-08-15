@@ -4,18 +4,17 @@ p=Path('csms-template-recovery-v1.js')
 s=p.read_text()
 
 for old in [
+    "const VERSION='20260815-welcome-athlete-main-drive-v14-continuous-photo-fade-wedge';",
     "const VERSION='20260815-welcome-athlete-main-drive-v13-photo-fade-wedge';",
-    "const VERSION='20260815-welcome-athlete-main-drive-v12-wide-white-fade-wedge';",
 ]:
-    s=s.replace(old, "const VERSION='20260815-welcome-athlete-main-drive-v14-continuous-photo-fade-wedge';", 1)
+    s=s.replace(old, "const VERSION='20260815-welcome-athlete-main-drive-v15-rail-free-refined-blend';", 1)
 
 new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   const p=Math.max(0,Math.min(1,progress)),eased=1-Math.pow(1-p,3);
   const slide=(1-eased)*470;
 
-  // One continuous lower-right announcement wedge. The top dissolves into the
-  // Athlete Main photo, the orange stays behind the type, and the lower field
-  // blends smoothly into navy without breaking the wedge apart.
+  // One continuous lower-right announcement wedge. It dissolves into the photo
+  // at the top and preserves a generous athlete-name safe zone on the left.
   const topY=600;
   const leftTop=840+slide;
   const leftBottom=735+slide;
@@ -25,15 +24,21 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   layer.width=1080;layer.height=1350;
   const lx=layer.getContext('2d');
 
+  // A long, polished orange-to-navy transition. Orange remains authoritative
+  // behind the type, then moves through warm ember tones before settling into
+  // Christchurch navy without a hard horizontal band.
   const grad=lx.createLinearGradient(0,topY,0,1350);
   grad.addColorStop(0,'#ff672d');
   grad.addColorStop(.18,'#f85a24');
-  grad.addColorStop(.34,'#f4511e');
-  grad.addColorStop(.68,'#f4511e');
-  grad.addColorStop(.76,'#ed5021');
-  grad.addColorStop(.84,'#d44728');
-  grad.addColorStop(.90,'#a13e34');
-  grad.addColorStop(.95,'#593744');
+  grad.addColorStop(.36,'#f4511e');
+  grad.addColorStop(.66,'#f4511e');
+  grad.addColorStop(.73,'#f05220');
+  grad.addColorStop(.79,'#e94f22');
+  grad.addColorStop(.84,'#df4b26');
+  grad.addColorStop(.89,'#cb462d');
+  grad.addColorStop(.93,'#aa4036');
+  grad.addColorStop(.96,'#813b40');
+  grad.addColorStop(.985,'#4a3749');
   grad.addColorStop(1,'#17304d');
 
   lx.beginPath();
@@ -45,35 +50,34 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   lx.fillStyle=grad;
   lx.fill();
 
+  // Very subtle warm atmospheric lift in the lower orange field. This adds
+  // dimension without introducing another graphic edge or visible stripe.
+  lx.save();
+  lx.globalCompositeOperation='source-atop';
+  const warmth=lx.createRadialGradient(1015,1085,20,1015,1085,360);
+  warmth.addColorStop(0,'rgba(255,176,118,.14)');
+  warmth.addColorStop(.42,'rgba(255,126,74,.07)');
+  warmth.addColorStop(1,'rgba(255,126,74,0)');
+  lx.fillStyle=warmth;
+  lx.fillRect(700,760,380,590);
+  lx.restore();
+
+  // A restrained depth cue on the athlete-side edge only; no white border rails.
   lx.save();
   lx.beginPath();
-  lx.moveTo(leftTop-8,topY);
-  lx.lineTo(leftTop+14,topY);
-  lx.lineTo(leftBottom+14,1350);
-  lx.lineTo(leftBottom-8,1350);
+  lx.moveTo(leftTop-5,topY);
+  lx.lineTo(leftTop+9,topY);
+  lx.lineTo(leftBottom+9,1350);
+  lx.lineTo(leftBottom-5,1350);
   lx.closePath();
-  lx.shadowColor='rgba(2,18,40,.18)';
-  lx.shadowBlur=14;
-  lx.fillStyle='rgba(2,18,40,.08)';
+  lx.shadowColor='rgba(2,18,40,.14)';
+  lx.shadowBlur=12;
+  lx.fillStyle='rgba(2,18,40,.045)';
   lx.fill();
   lx.restore();
 
-  const rail=(offset,width,alpha)=>{
-    lx.save();
-    lx.beginPath();
-    lx.moveTo(leftTop+offset,topY);
-    lx.lineTo(leftBottom+offset,1350);
-    lx.lineWidth=width;
-    lx.strokeStyle=`rgba(255,255,255,${alpha})`;
-    lx.stroke();
-    lx.restore();
-  };
-  rail(15,8,.96);
-  rail(29,3,.72);
-
-  // Apply one full-height alpha mask. This is the key: the mask becomes fully
-  // opaque below the top transition and stays opaque, so the wedge remains one
-  // continuous shape instead of leaving a detached orange fragment.
+  // One full-height alpha mask makes the top dissolve directly into the Athlete
+  // Main photo while keeping the entire lower wedge continuous and opaque.
   lx.globalCompositeOperation='destination-in';
   const photoFade=lx.createLinearGradient(0,topY,0,1350);
   photoFade.addColorStop(0,'rgba(0,0,0,0)');
@@ -115,14 +119,16 @@ start=s.index('function drawWelcomeOverlay(ctx,progress=1){')
 end=s.index('\nfunction drawWelcomeCard()', start)
 s=s[:start]+new_overlay+s[end:]
 
-assert "20260815-welcome-athlete-main-drive-v14-continuous-photo-fade-wedge" in s
-assert "photoFade.addColorStop(.38,'rgba(0,0,0,1)')" in s
-assert "photoFade.addColorStop(1,'rgba(0,0,0,1)')" in s
-assert "lx.fillRect(0,topY,1080,1350-topY)" in s
-assert "ctx.fillText('WELCOME',midX,1004)" in s
-assert "ctx.fillText('ABOARD',midX,1094)" in s
-assert "rgba(255,255,255,.98)" not in s[s.index('function drawWelcomeOverlay'):s.index('function drawWelcomeCard')]
-assert "ctx.translate(midX-27,810)" not in s
+block=s[s.index('function drawWelcomeOverlay'):s.index('function drawWelcomeCard')]
+assert "20260815-welcome-athlete-main-drive-v15-rail-free-refined-blend" in s
+assert "const rail=" not in block
+assert "rail(15" not in block
+assert "rail(29" not in block
+assert "grad.addColorStop(.985,'#4a3749')" in block
+assert "const warmth=lx.createRadialGradient" in block
+assert "photoFade.addColorStop(.38,'rgba(0,0,0,1)')" in block
+assert "ctx.fillText('WELCOME',midX,1004)" in block
+assert "ctx.fillText('ABOARD',midX,1094)" in block
 
 p.write_text(s)
-print('Installed continuous Welcome Aboard photo-fade wedge v14')
+print('Installed Welcome Aboard rail-free refined blend v15')
