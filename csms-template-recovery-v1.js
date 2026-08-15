@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v5-instagram-4x5';
+const VERSION='20260815-welcome-athlete-main-drive-v6-elegant-editorial';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -109,7 +109,36 @@ async function refreshWelcomeHeroChoices(preferredId=''){
   const e=welcomeEls();if(!e.select)return[];const previous=preferredId||e.select.value;e.select.innerHTML='<option value="">Loading Athlete Main Headshot cards…</option>';e.select.disabled=true;try{welcomeHeroRecords=await getAthleteMainSavedCards();welcomeHeroRecords.sort((a,b)=>String(a.last||'').localeCompare(String(b.last||''))||String(a.first||'').localeCompare(String(b.first||'')));e.select.innerHTML='<option value="">Select an Athlete Main Headshot card</option>';welcomeHeroRecords.forEach(item=>{const opt=document.createElement('option');opt.value=item.fileId;const athlete=`${item.first||''} ${item.last||''}`.trim();opt.textContent=athlete||(String(item.name||'Athlete Main Headshot').replace(/\.png$/i,''));e.select.appendChild(opt);});if(previous&&welcomeHeroRecords.some(x=>x.fileId===previous))e.select.value=previous;if(!welcomeHeroRecords.length)e.status.textContent='No Athlete Main Headshot cards found in Google Drive. Save an Athlete Main Headshot card first.';else e.status.textContent='Choose an Athlete Main Headshot card.';return welcomeHeroRecords;}catch(err){welcomeHeroRecords=[];e.select.innerHTML='<option value="">Select an Athlete Main Headshot card</option>';e.status.textContent=`Could not load Athlete Main Headshot cards: ${err.message}`;return[];}finally{e.select.disabled=false;}
 }
 async function loadWelcomeHero(id){const e=welcomeEls(),record=welcomeHeroRecords.find(item=>item.fileId===id||item.id===id);if(!record){welcomeHeroImage=null;drawWelcomeCard();return;}e.status.textContent='Loading Athlete Main Headshot card…';try{const blob=await getAthleteMainSavedCardBlob(record.fileId||record.id),url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{welcomeHeroImage=img;welcomeDropProgress=1;const athlete=`${record.first||''} ${record.last||''}`.trim();e.project.value=athlete?`Welcome Aboard — ${athlete}`:'Welcome Aboard — Untitled';drawWelcomeCard();e.status.textContent=athlete?`Using Athlete Main Headshot: ${athlete}`:'Using Athlete Main Headshot card.';setTimeout(()=>URL.revokeObjectURL(url),60000);};img.onerror=()=>{URL.revokeObjectURL(url);e.status.textContent='Could not open the Athlete Main Headshot card.';};img.src=url;}catch(err){welcomeHeroImage=null;drawWelcomeCard();e.status.textContent=`Could not load Athlete Main Headshot card: ${err.message}`;}}
-function drawWelcomeOverlay(ctx,progress=1){const p=Math.max(0,Math.min(1,progress)),eased=1-Math.pow(1-p,3),finalX=585,finalY=850,startX=1180,startY=1420,x=startX+(finalX-startX)*eased,y=startY+(finalY-startY)*eased,angle=(-11*Math.PI/180)+((1-p)*5*Math.PI/180);ctx.save();ctx.translate(x,y);ctx.rotate(angle);const w=560,h=230;ctx.save();ctx.translate(14,18);roundedRectPath(ctx,0,0,w,h,5);ctx.fillStyle='rgba(2,18,40,.86)';ctx.fill();ctx.restore();roundedRectPath(ctx,0,0,w,h,5);ctx.fillStyle='#f4511e';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='rgba(255,248,236,.86)';ctx.stroke();ctx.save();ctx.translate(12,12);roundedRectPath(ctx,0,0,w-24,h-24,3);ctx.lineWidth=1.5;ctx.strokeStyle='rgba(255,248,236,.50)';ctx.stroke();ctx.restore();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff8ec';ctx.strokeStyle='rgba(6,26,49,.22)';ctx.lineWidth=2;ctx.shadowColor='rgba(2,18,40,.28)';ctx.shadowBlur=3;ctx.shadowOffsetY=2;const family='"Avenir Next Condensed","Helvetica Neue Condensed","Arial Narrow",Impact,sans-serif';ctx.font=`italic 900 72px ${family}`;ctx.strokeText('WELCOME',w/2,77);ctx.fillText('WELCOME',w/2,77);ctx.font=`italic 900 78px ${family}`;ctx.strokeText('ABOARD',w/2,155);ctx.fillText('ABOARD',w/2,155);ctx.restore();}
+function drawWelcomeOverlay(ctx,progress=1){
+  const p=Math.max(0,Math.min(1,progress)),eased=1-Math.pow(1-p,3);
+  const finalX=620,finalY=790,startX=1160,startY=1280;
+  const x=startX+(finalX-startX)*eased,y=startY+(finalY-startY)*eased;
+  const angle=(-5*Math.PI/180)+((1-p)*3*Math.PI/180);
+  const w=430,h=156;
+  ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+
+  // restrained floating shadow
+  ctx.save();ctx.shadowColor='rgba(2,18,40,.34)';ctx.shadowBlur=22;ctx.shadowOffsetY=12;
+  roundedRectPath(ctx,0,0,w,h,10);ctx.fillStyle='rgba(2,18,40,.24)';ctx.fill();ctx.restore();
+
+  // primary orange announcement plate
+  roundedRectPath(ctx,0,0,w,h,10);ctx.fillStyle='#f4511e';ctx.fill();
+  ctx.lineWidth=2;ctx.strokeStyle='rgba(255,249,240,.92)';ctx.stroke();
+
+  // fine inset keyline
+  ctx.save();ctx.translate(9,9);roundedRectPath(ctx,0,0,w-18,h-18,7);
+  ctx.lineWidth=1;ctx.strokeStyle='rgba(255,249,240,.42)';ctx.stroke();ctx.restore();
+
+  // subtle editorial rule
+  ctx.fillStyle='rgba(255,249,240,.72)';ctx.fillRect(52,44,w-104,1.5);
+
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff9f0';
+  const family='"Avenir Next Condensed","Helvetica Neue Condensed","Arial Narrow",Impact,sans-serif';
+  ctx.shadowColor='rgba(2,18,40,.16)';ctx.shadowBlur=2;ctx.shadowOffsetY=1;
+  ctx.font=`700 34px ${family}`;ctx.fillText('WELCOME',w/2,29);
+  ctx.font=`900 62px ${family}`;ctx.fillText('ABOARD',w/2,99);
+  ctx.restore();
+}
 function drawWelcomeCard(){const e=welcomeEls();if(!e.canvas)return;if(e.canvas.width!==INSTAGRAM_W)e.canvas.width=INSTAGRAM_W;if(e.canvas.height!==INSTAGRAM_H)e.canvas.height=INSTAGRAM_H;const ctx=e.canvas.getContext('2d');ctx.clearRect(0,0,INSTAGRAM_W,INSTAGRAM_H);if(welcomeHeroImage){ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(welcomeHeroImage,0,0,INSTAGRAM_W,INSTAGRAM_H);drawWelcomeOverlay(ctx,welcomeDropProgress);}else{ctx.fillStyle='#06142c';ctx.fillRect(0,0,INSTAGRAM_W,INSTAGRAM_H);ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot card',INSTAGRAM_W/2,INSTAGRAM_H/2);}}
 function playWelcomeDrop(){if(!welcomeHeroImage)return;cancelAnimationFrame(welcomeAnimationFrame);const duration=720,started=performance.now();function frame(now){const t=Math.min(1,(now-started)/duration),settle=t<.84?(t/.84):1+Math.sin((t-.84)/.16*Math.PI)*.018;welcomeDropProgress=Math.min(1.018,settle);drawWelcomeCard();if(t<1)welcomeAnimationFrame=requestAnimationFrame(frame);else{welcomeDropProgress=1;drawWelcomeCard();}}welcomeAnimationFrame=requestAnimationFrame(frame);}
 async function saveCanvasToLegacy(collection,name,selected,canvas){const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Could not render PNG.')),'image/png'));await legacyPut({id:`${collection}_${Date.now()}_${Math.random().toString(36).slice(2)}`,type:'creative',collection,name,first:selected.first||'',last:selected.last||'',year:selected.year||'',heroSourceId:selected.id||'',blob,created:new Date().toISOString()});return blob;}
