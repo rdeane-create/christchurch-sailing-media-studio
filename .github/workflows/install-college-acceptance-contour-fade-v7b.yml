@@ -1,0 +1,33 @@
+name: Install College Acceptance Contour Fade v7b
+on:
+  push:
+    paths:
+      - '.github/scripts/install_college_acceptance_contour_fade_v7.py'
+      - '.github/workflows/install-college-acceptance-contour-fade-v7b.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record locked Main Headshot hash
+        run: sha256sum athlete-main-headshot-approved-exact.js | tee /tmp/main_before.sha
+      - name: Apply College Acceptance contour fade refinement
+        run: python3 .github/scripts/install_college_acceptance_contour_fade_v7.py
+      - name: Validate locked Main Headshot and College Acceptance
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js | tee /tmp/main_after.sha
+          diff /tmp/main_before.sha /tmp/main_after.sha
+          grep -q "college-acceptance-v7-contour-fade-gap" college-acceptance.js
+          grep -q "nameGap=52" college-acceptance.js
+          grep -q "largest\*\.03" college-acceptance.js
+          grep -q "globalAlpha=.18" college-acceptance.js
+      - name: Commit College Acceptance change
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add college-acceptance.js
+          git commit -m "Refine College Acceptance contour fade and spacing" || exit 0
+          git push
