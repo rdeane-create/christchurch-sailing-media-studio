@@ -1,8 +1,8 @@
-name: Install College Acceptance Full-Width Light Field v13
+name: Install College Acceptance Centered Light Field v14
 on:
   push:
     paths:
-      - '.github/scripts/refine_college_acceptance_fullwidth_lightfield_v13.py'
+      - '.github/scripts/refine_college_acceptance_centered_lightfield_v14.py'
       - '.github/workflows/install-college-acceptance-contour-fade-v7b.yml'
   workflow_dispatch:
 permissions:
@@ -14,21 +14,22 @@ jobs:
       - uses: actions/checkout@v4
       - name: Record locked Main Headshot hash
         run: sha256sum athlete-main-headshot-approved-exact.js | tee /tmp/main_before.sha
-      - name: Apply College Acceptance v13 full-width light field
-        run: python3 .github/scripts/refine_college_acceptance_fullwidth_lightfield_v13.py
+      - name: Apply College Acceptance v14 centered light field
+        run: python3 .github/scripts/refine_college_acceptance_centered_lightfield_v14.py
       - name: Validate locked Main Headshot and College Acceptance
         run: |
           sha256sum athlete-main-headshot-approved-exact.js | tee /tmp/main_after.sha
           diff /tmp/main_before.sha /tmp/main_after.sha
-          grep -q "college-acceptance-v13-fullwidth-lightfield" college-acceptance.js
-          grep -q "createLinearGradient" college-acceptance.js
-          ! grep -q "createRadialGradient" college-acceptance.js
+          grep -q "college-acceptance-v14-centered-lightfield" college-acceptance.js
+          grep -q "const gw=Math.max(2,Math.ceil(aw+320))" college-acceptance.js
+          grep -q "cx=gw/2,cy=gh/2" college-acceptance.js
+          grep -q "ctx.drawImage(glow,-gw/2,-gh/2" college-acceptance.js
           grep -q "finalY=targetBottom-ah/2+16" college-acceptance.js
-          grep -q "lowerRight=cx>iw\*.76&&cy>ih\*.64" college-acceptance.js
+          grep -q "lowerRight=cx>iw\\*.76&&cy>ih\\*.64" college-acceptance.js
       - name: Commit College Acceptance change
         run: |
           git config user.name "rdeane-create"
           git config user.email "rdeane@christchurchschool.org"
           git add college-acceptance.js
-          git commit -m "Extend College Acceptance glow across full logo" || exit 0
+          git commit -m "Center and smooth College Acceptance backlight" || exit 0
           git push
