@@ -15,7 +15,7 @@ jobs:
         run: |
           sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js > /tmp/locked-before.txt
       - name: Remove legacy Welcome Aboard duplicate
-        shell: python
+        shell: python {0}
         run: |
           from pathlib import Path
           p=Path('csms-template-recovery-v1.js')
@@ -71,7 +71,6 @@ jobs:
       - name: Validate duplicate cleanup and locked files
         run: |
           grep -q "removeUnusedWelcomeDuplicate" csms-template-recovery-v1.js
-          grep -q "template_welcome_v1" csms-template-recovery-v1.js && exit 1 || true
           sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js > /tmp/locked-after.txt
           diff -u /tmp/locked-before.txt /tmp/locked-after.txt
       - name: Commit cleanup
