@@ -1,0 +1,38 @@
+name: Install Regatta Results Story v23 Protected Header Photo
+on:
+  push:
+    paths:
+      - '.github/workflows/install-regatta-results-story-v23-protected-header-photo.yml'
+      - '.github/scripts/install_regatta_results_story_v23_protected_header_photo.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install protected header/photo region
+        run: python .github/scripts/install_regatta_results_story_v23_protected_header_photo.py
+      - name: Validate protected header
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('regatta-results-story.js').read_text()
+          assert "REGATTA RESULTS STORY — BUILD v23" in s
+          assert "brandH=270" in s
+          assert "ctx.rect(0,brandH,stageW,photoH)" in s
+          assert "ctx.fillRect(0,0,1080,270)" in s
+          assert "const leftY=1370,rightY=1185" in s
+          print('v23 protected header validated')
+          PY
+      - name: Commit Studio install
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add regatta-results-story.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Protect Regatta Results header from uploaded photo"
+          git push
