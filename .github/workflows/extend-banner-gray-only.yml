@@ -1,0 +1,32 @@
+name: Extend banner gray only
+on:
+  push:
+    paths:
+      - '.github/workflows/extend-banner-gray-only.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extend only banner gray to card edges
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('regatta-results-story.js')
+          s=p.read_text()
+          old="""  // Extend the existing gray banner background to both card edges.\n  ctx.fillStyle=BANNER_BG;\n  ctx.fillRect(0,0,W,SOLID_H);\n  // Approved banner graphic, fixed size and position.\n  ctx.imageSmoothingEnabled=true;\n  ctx.imageSmoothingQuality='high';\n  ctx.drawImage(headerImg,0,0,SRC_W,SRC_H,DST_X,DST_Y,DST_W,DST_H);\n"""
+          new="""  // Approved banner graphic, fixed size and position.\n  ctx.imageSmoothingEnabled=true;\n  ctx.imageSmoothingQuality='high';\n  ctx.drawImage(headerImg,0,0,SRC_W,SRC_H,DST_X,DST_Y,DST_W,DST_H);\n  // Extend only the banner's own gray edge pixels to the card edges.\n  ctx.drawImage(headerImg,0,0,1,SRC_H,0,DST_Y,DST_X,DST_H);\n  ctx.drawImage(headerImg,SRC_W-1,0,1,SRC_H,DST_X+DST_W,DST_Y,W-(DST_X+DST_W),DST_H);\n"""
+          if old not in s:
+              raise SystemExit('Expected banner block not found')
+          p.write_text(s.replace(old,new,1))
+          PY
+      - name: Commit gray extension only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add regatta-results-story.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'Extend Regatta Results banner gray only'
+          git push
