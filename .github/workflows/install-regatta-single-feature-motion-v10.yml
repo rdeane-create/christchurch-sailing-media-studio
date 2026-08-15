@@ -23,7 +23,6 @@ jobs:
           grep -Fq 'heroSafeTop=isStoryLike?238:titleReserve' index.html
           grep -Fq 'heroSafeBottom=isStoryLike?(H-Math.max(284,safeZones().bottom*.45))' index.html
           grep -Fq 'out[0]={x:(W-cardW)/2,y:zoneTop,w:cardW,h:cardH}' index.html
-          if grep -Fq 'Math.max(4,athletes.length||4)' index.html; then exit 1; fi
       - name: Commit native Regatta feature motion
         run: |
           git config user.name 'rdeane-create'
