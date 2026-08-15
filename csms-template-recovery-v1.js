@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v19-refined-left-edge-fade';
+const VERSION='20260815-welcome-athlete-main-drive-v20-clean-edge-blue-fade';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -133,9 +133,12 @@ function drawWelcomeOverlay(ctx,progress=1){
   grad.addColorStop(.36,'#f4511e');
   grad.addColorStop(.66,'#f4511e');
   grad.addColorStop(.78,'#f4511e');
-  grad.addColorStop(.88,'#f04f1f');
-  grad.addColorStop(.95,'#ec4d1f');
-  grad.addColorStop(1,'#e94b1f');
+  grad.addColorStop(.82,'#f4511e');
+  grad.addColorStop(.86,'#ef5020');
+  grad.addColorStop(.90,'#dc4b28');
+  grad.addColorStop(.94,'#a44338');
+  grad.addColorStop(.97,'#593a49');
+  grad.addColorStop(1,'#17304d');
 
   lx.beginPath();
   lx.moveTo(leftTop,topY);
@@ -176,33 +179,37 @@ function drawWelcomeOverlay(ctx,progress=1){
   // Soft feather on the athlete-side edge so the orange merges into the photo
   // instead of reading as a cut-out panel. Keep the feather narrow enough to
   // preserve the banner width and the WELCOME / ABOARD safe area.
-  // Refined left-edge fade: use a true perpendicular alpha ramp inside the
-  // banner instead of stacked blurred strokes. The exact wedge boundary stays
-  // fixed; only the first 72px inside the orange are progressively revealed.
+  // Seam-free left-edge fade. Apply one continuous alpha mask whose soft
+  // ramp begins slightly OUTSIDE the wedge boundary. Because the geometric edge
+  // sits inside the gradient rather than on the mask boundary, there is no
+  // one-pixel orange seam; the photo blends smoothly into full orange.
   lx.save();
-  lx.globalCompositeOperation='destination-out';
+  lx.globalCompositeOperation='destination-in';
   const edgeDx=leftBottom-leftTop;
   const edgeDy=1350-topY;
   const edgeLen=Math.hypot(edgeDx,edgeDy);
   const inwardX=edgeDy/edgeLen;
   const inwardY=-edgeDx/edgeLen;
-  const featherW=72;
-  const fade=lx.createLinearGradient(
-    leftTop,topY,
+  const featherW=82;
+  const outside=10;
+  const edgeMask=lx.createLinearGradient(
+    leftTop-inwardX*outside,topY-inwardY*outside,
     leftTop+inwardX*featherW,topY+inwardY*featherW
   );
-  fade.addColorStop(0,'rgba(0,0,0,1)');
-  fade.addColorStop(.18,'rgba(0,0,0,.82)');
-  fade.addColorStop(.38,'rgba(0,0,0,.56)');
-  fade.addColorStop(.60,'rgba(0,0,0,.30)');
-  fade.addColorStop(.80,'rgba(0,0,0,.11)');
-  fade.addColorStop(1,'rgba(0,0,0,0)');
-  lx.fillStyle=fade;
+  edgeMask.addColorStop(0,'rgba(0,0,0,0)');
+  edgeMask.addColorStop(.10,'rgba(0,0,0,0)');
+  edgeMask.addColorStop(.24,'rgba(0,0,0,.08)');
+  edgeMask.addColorStop(.42,'rgba(0,0,0,.25)');
+  edgeMask.addColorStop(.60,'rgba(0,0,0,.50)');
+  edgeMask.addColorStop(.76,'rgba(0,0,0,.75)');
+  edgeMask.addColorStop(.90,'rgba(0,0,0,.94)');
+  edgeMask.addColorStop(1,'rgba(0,0,0,1)');
+  lx.fillStyle=edgeMask;
   lx.beginPath();
-  lx.moveTo(leftTop,topY-28);
-  lx.lineTo(leftBottom,1378);
-  lx.lineTo(leftBottom+inwardX*featherW,1378+inwardY*featherW);
-  lx.lineTo(leftTop+inwardX*featherW,topY-28+inwardY*featherW);
+  lx.moveTo(leftTop-inwardX*14,topY-inwardY*14);
+  lx.lineTo(rightX,topY);
+  lx.lineTo(rightX,1350);
+  lx.lineTo(leftBottom-inwardX*14,1350-inwardY*14);
   lx.closePath();
   lx.fill();
   lx.restore();
