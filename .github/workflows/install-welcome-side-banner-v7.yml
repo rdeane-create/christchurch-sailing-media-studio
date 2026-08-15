@@ -1,4 +1,4 @@
-name: Restore Welcome Aboard v17 Baseline
+name: Install Welcome Aboard Refined Left Edge v19
 on:
   push:
     paths:
@@ -17,36 +17,38 @@ jobs:
         run: |
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
           sha256sum college-acceptance.js > /tmp/college.before
-      - name: Restore Welcome Aboard v17 baseline
+      - name: Install refined left-edge fade
         run: python .github/scripts/install_welcome_side_banner_v7.py
-      - name: Validate baseline and locked files
+      - name: Validate one-change iteration and locked files
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('csms-template-recovery-v1.js').read_text()
           block=s[s.index('function drawWelcomeOverlay'):s.index('function drawWelcomeCard')]
-          assert "20260815-welcome-athlete-main-drive-v17-orange-bottom-vertical-fade" in s
-          assert "const featherW=76;" not in block
-          assert "const edgeFade=" not in block
-          assert "lx.filter='blur(20px)'" in block
-          assert "lx.filter='blur(34px)'" in block
+          assert "20260815-welcome-athlete-main-drive-v19-refined-left-edge-fade" in s
+          assert "const featherW=72;" in block
+          assert "const fade=lx.createLinearGradient(" in block
+          assert "lx.filter='blur(20px)'" not in block
+          assert "lx.filter='blur(34px)'" not in block
           assert "grad.addColorStop(1,'#e94b1f')" in block
           assert "const topY=600;" in block
+          assert "const leftTop=840+slide;" in block
+          assert "const leftBottom=735+slide;" in block
           assert "photoFade.addColorStop(.38,'rgba(0,0,0,1)')" in block
           assert "ctx.fillText('WELCOME',midX,1004)" in block
           assert "ctx.fillText('ABOARD',midX,1094)" in block
           assert "const rail=" not in block
-          print('Verified v17 baseline restored exactly in Welcome Aboard renderer')
+          print('Verified one-change iteration: only Welcome Aboard left-edge feather changed')
           PY
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
           sha256sum college-acceptance.js > /tmp/college.after
           diff -u /tmp/main.before /tmp/main.after
           diff -u /tmp/college.before /tmp/college.after
-      - name: Commit baseline restore
+      - name: Commit refinement
         run: |
           git config user.name "rdeane-create"
           git config user.email "rdeane@christchurchschool.org"
           git add csms-template-recovery-v1.js
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Restore Welcome Aboard v17 baseline"
+          git commit -m "Refine Welcome Aboard left edge fade"
           git push
