@@ -1,0 +1,33 @@
+name: Hide obsolete Studio template library entries 2026-08-15
+on:
+  push:
+    paths:
+      - '.github/workflows/hide-obsolete-template-library-entries-20260815.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record locked hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js
+          sha256sum college-acceptance.js
+      - name: Apply final merged library filter
+        run: python .github/scripts/hide-obsolete-template-library-entries-20260815.py
+      - name: Validate visible-source filter and locked files
+        run: |
+          grep -n -F "name.includes('COLLEGE ANNOUNCEMENT')" index.html
+          grep -n -F "CHRISTCHURCH HERO CARD — MASTER V1.0" index.html
+          test "$(sha256sum athlete-main-headshot-approved-exact.js | awk '{print $1}')" = "96fa2713fec463cf5e66469f651d40161472afd0c0fe912bac8a1ada23582edd"
+          test "$(sha256sum college-acceptance.js | awk '{print $1}')" = "24f2742233db2f724db8f86702cf73b5a8f6ff29aa572b1548b707bb3a43077b"
+      - name: Commit change
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Hide obsolete templates from merged Studio library"
+          git push
