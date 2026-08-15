@@ -1,0 +1,46 @@
+name: Install Lineup Headshot Exact Main Fade v4
+
+on:
+  push:
+    paths:
+      - '.github/workflows/install-lineup-headshot-exact-main-fade-v4.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply exact Main Headshot fade to Lineup Headshot
+        run: python .github/scripts/install_lineup_headshot_exact_main_fade_v4.py
+      - name: Validate locked Main Headshot remains unchanged
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          main = Path('athlete-main-headshot-approved-exact.js').read_bytes()
+          approved = subprocess.check_output(['git','show','9ed46de0269f988c3295c90697be2d20e9055a9e:athlete-main-headshot-approved-exact.js'])
+          assert main == approved, 'LOCK VIOLATION: Athlete Main Headshot changed'
+          lineup = Path('lineup-headshot.js').read_text()
+          assert "lineup-headshot-v4-exact-main-fade" in lineup
+          assert 'CSMS_LINEUP_HEADSHOT_EXACT_MAIN_FADE_V4' in lineup
+          assert '[S.overlay,S.atlas]=await Promise.all' in lineup
+          assert 'createLinearGradient' not in lineup.split('function draw(){',1)[1].split('function init(){',1)[0]
+          print('Validation passed: Main locked, Lineup uses approved overlay fade.')
+          PY
+      - name: Commit Lineup Headshot fade update
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add lineup-headshot.js
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+          else
+            git commit -m 'Match Lineup Headshot fade to approved Main Headshot'
+            git push origin main
+          fi
