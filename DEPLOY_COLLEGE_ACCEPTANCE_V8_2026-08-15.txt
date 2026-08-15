@@ -1,0 +1,2 @@
+Deploy College Acceptance v8 original-logo-protected build.
+Source commit: 565ec53ff135a0504721b24c45fdb1fbc3943bf0
