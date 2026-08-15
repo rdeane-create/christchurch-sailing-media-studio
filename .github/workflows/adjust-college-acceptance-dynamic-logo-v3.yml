@@ -1,0 +1,34 @@
+name: Adjust College Acceptance Dynamic Logo v3
+on:
+  push:
+    paths:
+      - '.github/scripts/adjust_college_acceptance_dynamic_logo_v3.py'
+      - '.github/workflows/adjust-college-acceptance-dynamic-logo-v3.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record locked Main Headshot hash
+        run: sha256sum athlete-main-headshot-approved-exact.js > /tmp/main-before.sha
+      - name: Apply dynamic College Acceptance logo zone
+        run: python .github/scripts/adjust_college_acceptance_dynamic_logo_v3.py
+      - name: Validate locked Main Headshot and College Acceptance
+        run: |
+          sha256sum -c /tmp/main-before.sha
+          grep -q "20260815-college-acceptance-v3-dynamic-logo-zone" college-acceptance.js
+          grep -q "estimateShoulderY" college-acceptance.js
+          grep -q "targetBottom=887" college-acceptance.js
+      - name: Commit College Acceptance change
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add college-acceptance.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Make College Acceptance logo placement dynamic"
+          git push
