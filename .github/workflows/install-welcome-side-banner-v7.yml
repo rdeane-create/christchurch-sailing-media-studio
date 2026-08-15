@@ -1,4 +1,4 @@
-name: Install Welcome Aboard Fade Position v23
+name: Install Welcome Aboard Fade Left Of A v24
 on:
   push:
     paths:
@@ -17,7 +17,7 @@ jobs:
         run: |
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
           sha256sum college-acceptance.js > /tmp/college.before
-      - name: Move Welcome Aboard fade position
+      - name: Position Welcome Aboard fade left of A
         run: python .github/scripts/install_welcome_side_banner_v7.py
       - name: Validate one-change iteration and locked files
         run: |
@@ -25,9 +25,9 @@ jobs:
           from pathlib import Path
           s=Path('csms-template-recovery-v1.js').read_text()
           block=s[s.index('function drawWelcomeOverlay'):s.index('function drawWelcomeCard')]
-          assert "20260815-welcome-athlete-main-drive-v23-fade-after-aboard-a" in s
-          assert "const leftTop=840+slide;" in block
-          assert "const leftBottom=735+slide;" in block
+          assert "20260815-welcome-athlete-main-drive-v24-fade-left-of-aboard-a" in s
+          assert "const leftTop=760+slide;" in block
+          assert "const leftBottom=655+slide;" in block
           assert "const featherW=92;" in block
           assert "grad.addColorStop(1,'#f4511e')" in block
           assert "const textLeftTop=840+slide;" in block
@@ -38,7 +38,7 @@ jobs:
           assert "ctx.fillText('ABOARD',midX,1094)" in block
           assert "ctx.fillRect(midX-54,1157,108,4)" in block
           assert "const rail=" not in block
-          print('Verified one-change iteration: only orange feather position moved right; all other approved Welcome Aboard properties preserved')
+          print('Verified one-change iteration: fade ends at left edge of A; ABOARD remains on solid orange; all other approved properties preserved')
           PY
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
           sha256sum college-acceptance.js > /tmp/college.after
@@ -50,5 +50,5 @@ jobs:
           git config user.email "rdeane@christchurchschool.org"
           git add csms-template-recovery-v1.js
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Move Welcome Aboard fade past A in ABOARD"
+          git commit -m "Place Welcome Aboard fade left of A in ABOARD"
           git push
