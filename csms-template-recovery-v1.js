@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v22-simple-orange-feather';
+const VERSION='20260815-welcome-athlete-main-drive-v23-fade-after-aboard-a';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -116,10 +116,11 @@ function drawWelcomeOverlay(ctx,progress=1){
   // One continuous lower-right announcement wedge. It dissolves into the photo
   // at the top and preserves a generous athlete-name safe zone on the left.
   const topY=600;
-  // One widened orange panel. The extra width exists only to create a soft
-  // outside feather; the entire WELCOME / ABOARD lockup remains on solid orange.
-  const leftTop=640+slide;
-  const leftBottom=540+slide;
+  // Return the orange edge to the approved narrow-side geometry. With the
+  // existing 92px feather, full orange begins just past the first A in ABOARD,
+  // keeping the athlete name and class line clean.
+  const leftTop=840+slide;
+  const leftBottom=735+slide;
   const rightX=1080+slide;
 
   const layer=document.createElement('canvas');
