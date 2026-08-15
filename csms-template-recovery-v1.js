@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v17-orange-bottom-vertical-fade';
+const VERSION='20260815-welcome-athlete-main-drive-v18-smooth-directional-edge';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -176,30 +176,28 @@ function drawWelcomeOverlay(ctx,progress=1){
   // Soft feather on the athlete-side edge so the orange merges into the photo
   // instead of reading as a cut-out panel. Keep the feather narrow enough to
   // preserve the banner width and the WELCOME / ABOARD safe area.
+  // Smooth directional feather on ONLY the athlete-side edge. Rather than
+  // carving the banner with blurred strokes, extend a controlled orange veil
+  // outward from the exact diagonal boundary. This produces an even transition
+  // from photo -> orange all the way down the edge with no scalloping or banding.
   lx.save();
-  lx.globalCompositeOperation='destination-out';
-  lx.filter='blur(20px)';
-  lx.beginPath();
-  lx.moveTo(leftTop-6,topY+40);
-  lx.lineTo(leftBottom-6,1350);
-  lx.lineWidth=34;
-  lx.lineCap='round';
-  lx.strokeStyle='rgba(0,0,0,.50)';
-  lx.stroke();
-  lx.restore();
-
-  // A second soft pass feathers only the athlete-side edge farther into the
-  // photo. It does not change the top fade or extend the orange upward.
-  lx.save();
-  lx.globalCompositeOperation='destination-out';
-  lx.filter='blur(34px)';
-  lx.beginPath();
-  lx.moveTo(leftTop-13,topY+75);
-  lx.lineTo(leftBottom-13,1350);
-  lx.lineWidth=20;
-  lx.lineCap='round';
-  lx.strokeStyle='rgba(0,0,0,.20)';
-  lx.stroke();
+  const dx=leftBottom-leftTop;
+  const dy=1350-topY;
+  const edgeLen=Math.hypot(dx,dy);
+  const edgeAngle=Math.atan2(dy,dx)-Math.PI/2;
+  lx.translate(leftTop,topY);
+  lx.rotate(edgeAngle);
+  const featherW=76;
+  const edgeFade=lx.createLinearGradient(-featherW,0,4,0);
+  edgeFade.addColorStop(0,'rgba(244,81,30,0)');
+  edgeFade.addColorStop(.16,'rgba(244,81,30,.035)');
+  edgeFade.addColorStop(.34,'rgba(244,81,30,.10)');
+  edgeFade.addColorStop(.54,'rgba(244,81,30,.22)');
+  edgeFade.addColorStop(.72,'rgba(244,81,30,.42)');
+  edgeFade.addColorStop(.87,'rgba(244,81,30,.70)');
+  edgeFade.addColorStop(1,'rgba(244,81,30,.96)');
+  lx.fillStyle=edgeFade;
+  lx.fillRect(-featherW,-8,featherW+5,edgeLen+18);
   lx.restore();
 
   ctx.drawImage(layer,0,0);
