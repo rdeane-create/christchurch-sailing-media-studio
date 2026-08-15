@@ -5202,9 +5202,15 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   async function ensureDefaultTemplates(){
+    const obsoleteTemplateNames=new Set(['COLLEGE ANNOUNCEMENT — MASTER v1.0','CHRISTCHURCH HERO CARD — MASTER v1.0']);
     const all=await mediaGetAll();
-    if(!all.some(x=>x.type==='template')){
-      await mediaPut({id:'template_hero_v1',type:'template',collection:'hero',name:'CHRISTCHURCH HERO CARD — MASTER v1.0',version:1,base:null,created:new Date().toISOString()});
+    for(const item of all){
+      if(item&&item.type==='template'&&obsoleteTemplateNames.has(String(item.name||''))){
+        await mediaDelete(item.id);
+      }
+    }
+    const remaining=(await mediaGetAll()).filter(x=>x.type==='template');
+    if(!remaining.length){
       await mediaPut({id:'template_lineup_v1',type:'template',collection:'lineup',name:'Regatta Lineup v1',version:1,base:null,created:new Date().toISOString()});
     }
   }
@@ -5245,7 +5251,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   async function refreshTemplateLibrary(){
     await ensureDefaultTemplates();
     const list=document.getElementById('templateLibraryList');
-    const dbTemplates=(await mediaGetAll()).filter(x=>x.type==='template').map(item=>({
+    const dbTemplates=(await mediaGetAll()).filter(x=>x.type==='template'&&!['COLLEGE ANNOUNCEMENT — MASTER v1.0','CHRISTCHURCH HERO CARD — MASTER v1.0'].includes(String(x.name||''))).map(item=>({
       source:'legacy_indexeddb',
       id:item.id,
       name:item.name,
