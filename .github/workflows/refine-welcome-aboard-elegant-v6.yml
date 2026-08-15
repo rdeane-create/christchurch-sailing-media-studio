@@ -1,0 +1,41 @@
+name: Refine Welcome Aboard Elegant v6
+on:
+  push:
+    paths:
+      - '.github/workflows/refine-welcome-aboard-elegant-v6.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record locked hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
+          sha256sum college-acceptance.js > /tmp/college.before
+      - name: Apply elegant Welcome Aboard refinement
+        run: python .github/scripts/refine_welcome_aboard_elegant_v6.py
+      - name: Validate elegant overlay and locked files
+        run: |
+          grep -q "20260815-welcome-athlete-main-drive-v6-elegant-editorial" csms-template-recovery-v1.js
+          grep -q "const finalX=620,finalY=790" csms-template-recovery-v1.js
+          grep -q "const w=430,h=156" csms-template-recovery-v1.js
+          grep -q "shadowBlur=22" csms-template-recovery-v1.js
+          grep -q "fillText('WELCOME'" csms-template-recovery-v1.js
+          grep -q "fillText('ABOARD'" csms-template-recovery-v1.js
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
+          sha256sum college-acceptance.js > /tmp/college.after
+          diff -u /tmp/main.before /tmp/main.after
+          diff -u /tmp/college.before /tmp/college.after
+      - name: Commit refinement
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add csms-template-recovery-v1.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Refine Welcome Aboard overlay for elegant editorial look"
+          git push
