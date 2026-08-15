@@ -1,0 +1,40 @@
+name: Install Lineup Headshot v1
+
+on:
+  push:
+    paths:
+      - 'install-lineup-headshot-v1.py'
+      - '.github/workflows/install-lineup-headshot-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Lineup Headshot from approved Main Athlete Headshot
+        run: python3 install-lineup-headshot-v1.py
+      - name: Validate Lineup Headshot
+        run: |
+          grep -q "const NAME='Lineup Headshot'" lineup-headshot.js
+          grep -q "lineupHeadshotCard" lineup-headshot.js
+          grep -q 'id="lhCanvas"' lineup-headshot.js
+          grep -q 'LINEUP HEADSHOT CARD' lineup-headshot.js
+          grep -q 'ATHLETE LINEUP HEADSHOT CARD' lineup-headshot.js
+          grep -q "S.overlay=null;S.ready=true;draw()" lineup-headshot.js
+          ! grep -q "if(S.overlay)ctx.drawImage(S.overlay,0,0,W,H);" lineup-headshot.js
+          grep -q 'lineup-headshot.js?v=20260814-lineup-headshot-v1' index.html
+      - name: Commit Lineup Headshot
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add lineup-headshot.js index.html
+          if git diff --cached --quiet; then
+            echo 'Lineup Headshot already installed.'
+            exit 0
+          fi
+          git commit -m 'Add Lineup Headshot template'
+          git push
