@@ -19,13 +19,14 @@ function drawFinalHeader(ctx){
   if(!(headerImg.complete&&headerImg.naturalWidth))return;
   const SRC_W=1023,SRC_H=218;
   const DST_W=1004,DST_H=251,DST_X=(W-DST_W)/2,DST_Y=0;
+  const LOGO_Y=-25;
   const SOLID_H=251,FADE_H=110;
   const BANNER_BG='#f2f2f1';
   ctx.save();
   // Approved banner graphic, fixed size and position.
   ctx.imageSmoothingEnabled=true;
   ctx.imageSmoothingQuality='high';
-  ctx.drawImage(headerImg,0,0,SRC_W,SRC_H,DST_X,DST_Y,DST_W,DST_H);
+  ctx.drawImage(headerImg,0,0,SRC_W,SRC_H,DST_X,LOGO_Y,DST_W,DST_H);
   // Extend only the banner's own gray edge pixels to the card edges.
   ctx.drawImage(headerImg,0,0,1,SRC_H,0,DST_Y,DST_X,DST_H);
   ctx.drawImage(headerImg,SRC_W-1,0,1,SRC_H,DST_X+DST_W,DST_Y,W-(DST_X+DST_W),DST_H);
