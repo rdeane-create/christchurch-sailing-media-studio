@@ -1,0 +1,2 @@
+Force GitHub Pages deployment after College Acceptance v9 JPEG knockout.
+Code commit: 6a2bb1f84e0a9dda8b6adbc93102731475db2245
