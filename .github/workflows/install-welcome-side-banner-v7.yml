@@ -1,4 +1,4 @@
-name: Install Welcome Aboard Soft Feathered Edge v16
+name: Install Welcome Aboard Orange Bottom Vertical Fade v17
 on:
   push:
     paths:
@@ -17,24 +17,26 @@ jobs:
         run: |
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
           sha256sum college-acceptance.js > /tmp/college.before
-      - name: Install softened athlete-side edge
+      - name: Install orange-bottom vertical fade
         run: python .github/scripts/install_welcome_side_banner_v7.py
-      - name: Validate softened edge and locked files
+      - name: Validate scoped refinement and locked files
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('csms-template-recovery-v1.js').read_text()
           block=s[s.index('function drawWelcomeOverlay'):s.index('function drawWelcomeCard')]
-          assert "20260815-welcome-athlete-main-drive-v16-soft-feathered-edge" in s
-          assert "lx.filter='blur(16px)'" in block
-          assert "lx.filter='blur(28px)'" in block
-          assert "lx.lineWidth=30" in block
-          assert "A restrained depth cue" not in block
-          assert "const rail=" not in block
-          assert "const warmth=lx.createRadialGradient" in block
+          assert "20260815-welcome-athlete-main-drive-v17-orange-bottom-vertical-fade" in s
+          assert "grad.addColorStop(1,'#e94b1f')" in block
+          assert "#17304d" not in block
+          assert "#4a3749" not in block
+          assert "lx.filter='blur(20px)'" in block
+          assert "lx.filter='blur(34px)'" in block
+          assert "const topY=600;" in block
+          assert "photoFade.addColorStop(.38,'rgba(0,0,0,1)')" in block
           assert "ctx.fillText('WELCOME',midX,1004)" in block
           assert "ctx.fillText('ABOARD',midX,1094)" in block
-          print('Verified softened athlete-side edge, preserved top/bottom fades, rail-free design, and type placement')
+          assert "const rail=" not in block
+          print('Verified only lower color and athlete-side feather changed; top fade, geometry and type preserved')
           PY
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
           sha256sum college-acceptance.js > /tmp/college.after
@@ -46,5 +48,5 @@ jobs:
           git config user.email "rdeane@christchurchschool.org"
           git add csms-template-recovery-v1.js
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Soften Welcome Aboard athlete-side edge"
+          git commit -m "Keep Welcome Aboard orange to bottom and soften vertical edge"
           git push
