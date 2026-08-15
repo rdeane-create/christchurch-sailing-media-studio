@@ -1,0 +1,51 @@
+name: Install Regatta Results Story v14 Exact Asset URL
+on:
+  push:
+    paths:
+      - '.github/workflows/install-regatta-results-story-v14-exact-asset-url.yml'
+      - '.github/scripts/install_regatta_results_story_v14_exact_asset_url.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record protected template hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
+          sha256sum college-acceptance.js > /tmp/college.before
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.before
+      - name: Install exact Athlete Main asset URL
+        run: python .github/scripts/install_regatta_results_story_v14_exact_asset_url.py
+      - name: Validate isolated logo asset fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          js=Path('regatta-results-story.js').read_text()
+          assert 'REGATTA RESULTS STORY — BUILD v14' in js
+          assert '20260815-regatta-results-story-v14-exact-athlete-main-asset-url' in js
+          assert "ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-drive-saved-cards-20" in js
+          cover=js[js.index('function drawCover(ctx){'):js.index('\nfunction drawScore(ctx){')]
+          assert 'drawAthleteMainExactStage(ctx);drawCoverBand(ctx);' in cover
+          assert 'drawAthleteMainBrandHeader(ctx)' not in cover
+          assert 'const leftY=1370,rightY=1185' in js
+          print('Regatta Results v14 exact Athlete Main asset URL validated')
+          PY
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
+          sha256sum college-acceptance.js > /tmp/college.after
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.after
+          diff -u /tmp/main.before /tmp/main.after
+          diff -u /tmp/college.before /tmp/college.after
+          diff -u /tmp/welcome.before /tmp/welcome.after
+      - name: Commit Studio install
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add regatta-results-story.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Use exact Athlete Main overlay URL in Regatta Results"
+          git push
