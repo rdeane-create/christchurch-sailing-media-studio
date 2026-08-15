@@ -4,8 +4,8 @@ p=Path('csms-template-recovery-v1.js')
 s=p.read_text()
 
 s=s.replace(
-    "const VERSION='20260815-welcome-athlete-main-drive-v18-smooth-directional-edge';",
     "const VERSION='20260815-welcome-athlete-main-drive-v17-orange-bottom-vertical-fade';",
+    "const VERSION='20260815-welcome-athlete-main-drive-v19-refined-left-edge-fade';",
     1,
 )
 
@@ -13,31 +13,10 @@ start=s.index('function drawWelcomeOverlay(ctx,progress=1){')
 end=s.index('\nfunction drawWelcomeCard()', start)
 block=s[start:end]
 
-old_feather = """  // Smooth directional feather on ONLY the athlete-side edge. Rather than
-  // carving the banner with blurred strokes, extend a controlled orange veil
-  // outward from the exact diagonal boundary. This produces an even transition
-  // from photo -> orange all the way down the edge with no scalloping or banding.
-  lx.save();
-  const dx=leftBottom-leftTop;
-  const dy=1350-topY;
-  const edgeLen=Math.hypot(dx,dy);
-  const edgeAngle=Math.atan2(dy,dx)-Math.PI/2;
-  lx.translate(leftTop,topY);
-  lx.rotate(edgeAngle);
-  const featherW=76;
-  const edgeFade=lx.createLinearGradient(-featherW,0,4,0);
-  edgeFade.addColorStop(0,'rgba(244,81,30,0)');
-  edgeFade.addColorStop(.16,'rgba(244,81,30,.035)');
-  edgeFade.addColorStop(.34,'rgba(244,81,30,.10)');
-  edgeFade.addColorStop(.54,'rgba(244,81,30,.22)');
-  edgeFade.addColorStop(.72,'rgba(244,81,30,.42)');
-  edgeFade.addColorStop(.87,'rgba(244,81,30,.70)');
-  edgeFade.addColorStop(1,'rgba(244,81,30,.96)');
-  lx.fillStyle=edgeFade;
-  lx.fillRect(-featherW,-8,featherW+5,edgeLen+18);
-  lx.restore();"""
-
-baseline_feather = """  lx.save();
+# ONE-CHANGE ITERATION: replace only the athlete-side edge feather.
+# Preserve top fade, orange color, bottom, wedge geometry, type, placement,
+# sizing and animation exactly as the approved v17 baseline.
+old_feather = """  lx.save();
   lx.globalCompositeOperation='destination-out';
   lx.filter='blur(20px)';
   lx.beginPath();
@@ -63,24 +42,58 @@ baseline_feather = """  lx.save();
   lx.stroke();
   lx.restore();"""
 
+new_feather = """  // Refined left-edge fade: use a true perpendicular alpha ramp inside the
+  // banner instead of stacked blurred strokes. The exact wedge boundary stays
+  // fixed; only the first 72px inside the orange are progressively revealed.
+  lx.save();
+  lx.globalCompositeOperation='destination-out';
+  const edgeDx=leftBottom-leftTop;
+  const edgeDy=1350-topY;
+  const edgeLen=Math.hypot(edgeDx,edgeDy);
+  const inwardX=edgeDy/edgeLen;
+  const inwardY=-edgeDx/edgeLen;
+  const featherW=72;
+  const fade=lx.createLinearGradient(
+    leftTop,topY,
+    leftTop+inwardX*featherW,topY+inwardY*featherW
+  );
+  fade.addColorStop(0,'rgba(0,0,0,1)');
+  fade.addColorStop(.18,'rgba(0,0,0,.82)');
+  fade.addColorStop(.38,'rgba(0,0,0,.56)');
+  fade.addColorStop(.60,'rgba(0,0,0,.30)');
+  fade.addColorStop(.80,'rgba(0,0,0,.11)');
+  fade.addColorStop(1,'rgba(0,0,0,0)');
+  lx.fillStyle=fade;
+  lx.beginPath();
+  lx.moveTo(leftTop,topY-28);
+  lx.lineTo(leftBottom,1378);
+  lx.lineTo(leftBottom+inwardX*featherW,1378+inwardY*featherW);
+  lx.lineTo(leftTop+inwardX*featherW,topY-28+inwardY*featherW);
+  lx.closePath();
+  lx.fill();
+  lx.restore();"""
+
 if old_feather not in block:
-    raise RuntimeError('Could not find current v18 directional edge')
-block=block.replace(old_feather,baseline_feather,1)
+    raise RuntimeError('Could not find approved v17 left-edge feather')
+block=block.replace(old_feather,new_feather,1)
 
 s=s[:start]+block+s[end:]
 
 check=s[s.index('function drawWelcomeOverlay'):s.index('function drawWelcomeCard')]
-assert "20260815-welcome-athlete-main-drive-v17-orange-bottom-vertical-fade" in s
-assert "const featherW=76;" not in check
-assert "const edgeFade=" not in check
-assert "lx.filter='blur(20px)'" in check
-assert "lx.filter='blur(34px)'" in check
+assert "20260815-welcome-athlete-main-drive-v19-refined-left-edge-fade" in s
+assert "const featherW=72;" in check
+assert "const fade=lx.createLinearGradient(" in check
+assert "lx.filter='blur(20px)'" not in check
+assert "lx.filter='blur(34px)'" not in check
+# Everything else remains the v17 baseline.
 assert "grad.addColorStop(1,'#e94b1f')" in check
 assert "const topY=600;" in check
+assert "const leftTop=840+slide;" in check
+assert "const leftBottom=735+slide;" in check
 assert "photoFade.addColorStop(.38,'rgba(0,0,0,1)')" in check
 assert "ctx.fillText('WELCOME',midX,1004)" in check
 assert "ctx.fillText('ABOARD',midX,1094)" in check
 assert "const rail=" not in check
 
 p.write_text(s)
-print('Restored Welcome Aboard v17 baseline')
+print('Installed Welcome Aboard refined left-edge fade v19')
