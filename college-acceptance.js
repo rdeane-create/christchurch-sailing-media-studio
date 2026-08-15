@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const NAME='College Acceptance';
-const VERSION='20260815-college-acceptance-v12-smooth-backlight';
+const VERSION='20260815-college-acceptance-v13-fullwidth-lightfield';
 const W=1080,H=1350;
 const S={cards:[],base:null,logo:null,logoDisplay:null,logoBacking:null,progress:1,anim:0,renderUrl:null,shoulderY:560};
 const q=id=>document.getElementById(id);
@@ -78,13 +78,17 @@ function estimateShoulderY(img){
     return Math.max(500,Math.min(690,Math.round(raw+18)));
   }catch(err){console.warn('College Acceptance shoulder estimate fallback',err);return 560;}
 }
-function drawLogo(ctx,p=1){if(!S.logo||!S.logoDisplay)return;const t=Math.max(0,Math.min(1,p)),e=1-Math.pow(1-t,3),art=S.logoDisplay,iw=art.width||1,ih=art.height||1,nameTop=920,nameGap=50,targetBottom=nameTop-nameGap,shoulderTop=Math.max(500,Math.min(690,S.shoulderY||560)),safeTop=shoulderTop+24,availableH=Math.max(100,targetBottom-safeTop),maxArtW=990,sc=Math.min(maxArtW/iw,availableH/ih),aw=iw*sc,ah=ih*sc,finalY=targetBottom-ah/2+10,startY=90,x=540,y=startY+(finalY-startY)*e;ctx.save();ctx.translate(x,y);
-// Smooth backlight: bright directly behind the logo, fading evenly outward with no contour bumps.
-const glow=document.createElement('canvas'),gw=Math.max(2,Math.ceil(aw+220)),gh=Math.max(2,Math.ceil(ah+170));glow.width=gw;glow.height=gh;const gx=glow.getContext('2d'),gcx=gw/2,gcy=gh/2+8,rx=Math.max(1,gw*.48),ry=Math.max(1,gh*.46);gx.save();gx.translate(gcx,gcy);gx.scale(1,ry/rx);const grad=gx.createRadialGradient(0,0,Math.max(1,rx*.10),0,0,rx);grad.addColorStop(0,'rgba(255,255,255,.98)');grad.addColorStop(.20,'rgba(255,255,255,.94)');grad.addColorStop(.42,'rgba(255,255,255,.70)');grad.addColorStop(.66,'rgba(255,255,255,.34)');grad.addColorStop(.84,'rgba(255,255,255,.12)');grad.addColorStop(1,'rgba(255,255,255,0)');gx.fillStyle=grad;gx.beginPath();gx.arc(0,0,rx,0,Math.PI*2);gx.fill();gx.restore();
-ctx.save();ctx.globalCompositeOperation='source-over';ctx.drawImage(glow,-gw/2,-gh/2+12,gw,gh);ctx.restore();
-// Tight white lift immediately behind the actual logo for a backlit pop.
-ctx.save();ctx.globalAlpha=.24;ctx.shadowColor='rgba(255,255,255,1)';ctx.shadowBlur=24;ctx.drawImage(art,-aw/2,-ah/2+4,aw,ah);ctx.restore();
-ctx.save();ctx.shadowColor='rgba(0,10,28,.20)';ctx.shadowBlur=9;ctx.shadowOffsetY=4;ctx.drawImage(art,-aw/2,-ah/2,aw,ah);ctx.restore();ctx.drawImage(art,-aw/2,-ah/2,aw,ah);ctx.restore();}
+function drawLogo(ctx,p=1){if(!S.logo||!S.logoDisplay)return;const t=Math.max(0,Math.min(1,p)),e=1-Math.pow(1-t,3),art=S.logoDisplay,iw=art.width||1,ih=art.height||1,nameTop=920,nameGap=50,targetBottom=nameTop-nameGap,shoulderTop=Math.max(500,Math.min(690,S.shoulderY||560)),safeTop=shoulderTop+24,availableH=Math.max(100,targetBottom-safeTop),maxArtW=990,sc=Math.min(maxArtW/iw,availableH/ih),aw=iw*sc,ah=ih*sc,finalY=targetBottom-ah/2+16,startY=90,x=540,y=startY+(finalY-startY)*e;ctx.save();ctx.translate(x,y);
+// Full-width backlight field: even brightness behind the complete crest + wordmark, with smooth edge and vertical falloff.
+const gw=Math.max(2,Math.ceil(aw+190)),gh=Math.max(2,Math.ceil(ah+180)),glow=document.createElement('canvas');glow.width=gw;glow.height=gh;const gx=glow.getContext('2d'),cx=gw/2,cy=gh/2+14;
+// Broad outer field.
+const outer=document.createElement('canvas');outer.width=gw;outer.height=gh;const ox=outer.getContext('2d');let vg=ox.createLinearGradient(0,0,0,gh);vg.addColorStop(0,'rgba(255,255,255,0)');vg.addColorStop(.18,'rgba(255,255,255,.10)');vg.addColorStop(.34,'rgba(255,255,255,.30)');vg.addColorStop(.50,'rgba(255,255,255,.38)');vg.addColorStop(.66,'rgba(255,255,255,.30)');vg.addColorStop(.84,'rgba(255,255,255,.08)');vg.addColorStop(1,'rgba(255,255,255,0)');ox.fillStyle=vg;ox.fillRect(0,0,gw,gh);ox.globalCompositeOperation='destination-in';let hg=ox.createLinearGradient(0,0,gw,0);hg.addColorStop(0,'rgba(0,0,0,0)');hg.addColorStop(.08,'rgba(0,0,0,1)');hg.addColorStop(.92,'rgba(0,0,0,1)');hg.addColorStop(1,'rgba(0,0,0,0)');ox.fillStyle=hg;ox.fillRect(0,0,gw,gh);ox.globalCompositeOperation='source-over';gx.save();gx.filter='blur(18px)';gx.drawImage(outer,0,10);gx.restore();
+// Bright inner field kept even across almost the entire logo width.
+const innerW=Math.min(gw-24,Math.ceil(aw+70)),innerH=Math.max(56,Math.ceil(ah*.82)),ix=(gw-innerW)/2,iy=cy-innerH/2;gx.save();gx.filter='blur(12px)';const ig=gx.createLinearGradient(0,iy,0,iy+innerH);ig.addColorStop(0,'rgba(255,255,255,0)');ig.addColorStop(.18,'rgba(255,255,255,.38)');ig.addColorStop(.38,'rgba(255,255,255,.78)');ig.addColorStop(.62,'rgba(255,255,255,.78)');ig.addColorStop(.84,'rgba(255,255,255,.34)');ig.addColorStop(1,'rgba(255,255,255,0)');gx.fillStyle=ig;gx.beginPath();gx.roundRect(ix,iy,innerW,innerH,Math.min(44,innerH/2));gx.fill();gx.restore();
+ctx.save();ctx.drawImage(glow,-gw/2,-gh/2+10,gw,gh);ctx.restore();
+// Small tight lift directly under the logo, still spanning its complete width.
+ctx.save();ctx.globalAlpha=.18;ctx.shadowColor='rgba(255,255,255,1)';ctx.shadowBlur=16;ctx.fillStyle='rgba(255,255,255,.36)';ctx.beginPath();ctx.roundRect(-aw/2-8,-ah*.34+10,aw+16,ah*.68,Math.min(34,ah*.30));ctx.fill();ctx.restore();
+ctx.save();ctx.shadowColor='rgba(0,10,28,.18)';ctx.shadowBlur=8;ctx.shadowOffsetY=4;ctx.drawImage(art,-aw/2,-ah/2,aw,ah);ctx.restore();ctx.drawImage(art,-aw/2,-ah/2,aw,ah);ctx.restore();}
 function draw(progress=S.progress){const c=q('caCanvas');if(!c)return;const ctx=c.getContext('2d');ctx.clearRect(0,0,W,H);ctx.fillStyle='#06142c';ctx.fillRect(0,0,W,H);if(S.base){const iw=S.base.naturalWidth||S.base.width,ih=S.base.naturalHeight||S.base.height,sc=Math.max(W/iw,H/ih),dw=iw*sc,dh=ih*sc;ctx.drawImage(S.base,(W-dw)/2,(H-dh)/2,dw,dh);drawLogo(ctx,progress);}else{ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot',W/2,H/2);}}
 function play(){if(!S.base||!S.logo){q('caStatus').textContent='Choose a Main Headshot and college logo first.';return;}cancelAnimationFrame(S.anim);const start=performance.now(),dur=720;function f(now){const t=Math.min(1,(now-start)/dur);S.progress=t<.84?t/.84:1+Math.sin((t-.84)/.16*Math.PI)*.018;draw();if(t<1)S.anim=requestAnimationFrame(f);else{S.progress=1;draw();}}S.anim=requestAnimationFrame(f);}
 function downloadPng(){if(!S.base)return;S.progress=1;draw();const a=document.createElement('a');a.download='college-acceptance.png';a.href=q('caCanvas').toDataURL('image/png');a.click();}
