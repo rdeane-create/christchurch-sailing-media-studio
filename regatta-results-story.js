@@ -32,10 +32,10 @@ function drawFinalHeader(ctx){
   ctx.drawImage(headerImg,SRC_W-1,0,1,SRC_H,DST_X+DST_W,LOGO_Y,W-(DST_X+DST_W),DST_H);
   // Permanent bottom fade from banner into content beneath it.
   const fade=ctx.createLinearGradient(0,SOLID_H,0,SOLID_H+FADE_H);
-  fade.addColorStop(0,'rgba(238,241,244,0)');
-  fade.addColorStop(.18,'rgba(238,241,244,.24)');
-  fade.addColorStop(.42,'rgba(238,241,244,.50)');
-  fade.addColorStop(.68,'rgba(238,241,244,.28)');
+  fade.addColorStop(0,BANNER_BG);
+  fade.addColorStop(.16,'rgba(242,242,241,.68)');
+  fade.addColorStop(.38,'rgba(238,241,244,.46)');
+  fade.addColorStop(.66,'rgba(238,241,244,.24)');
   fade.addColorStop(.86,'rgba(238,241,244,.10)');
   fade.addColorStop(1,'rgba(238,241,244,0)');
   ctx.fillStyle=fade;
