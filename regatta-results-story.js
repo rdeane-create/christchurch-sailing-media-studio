@@ -20,7 +20,7 @@ function drawFinalHeader(ctx){
   const SRC_W=1023,SRC_H=218;
   const DST_W=1004,DST_H=251,DST_X=(W-DST_W)/2,DST_Y=0;
   const LOGO_Y=-25;
-  const SOLID_H=LOGO_Y+DST_H,FADE_H=110;
+  const SOLID_H=LOGO_Y+DST_H,FADE_H=190;
   const BANNER_BG='#f2f2f1';
   ctx.save();
   // Approved banner graphic, fixed size and position.
@@ -31,10 +31,12 @@ function drawFinalHeader(ctx){
   ctx.drawImage(headerImg,0,0,1,SRC_H,0,LOGO_Y,DST_X,DST_H);
   ctx.drawImage(headerImg,SRC_W-1,0,1,SRC_H,DST_X+DST_W,LOGO_Y,W-(DST_X+DST_W),DST_H);
   // Permanent bottom fade from banner into content beneath it.
-  const fade=ctx.createLinearGradient(0,SOLID_H,0,SOLID_H+FADE_H);
-  fade.addColorStop(0,'rgba(238,241,244,1)');
-  fade.addColorStop(.35,'rgba(238,241,244,.92)');
-  fade.addColorStop(.7,'rgba(238,241,244,.45)');
+  const fade=ctx.createLinearGradient(0,SOLID_H-18,0,SOLID_H+FADE_H);
+  fade.addColorStop(0,'rgba(238,241,244,.88)');
+  fade.addColorStop(.18,'rgba(238,241,244,.78)');
+  fade.addColorStop(.42,'rgba(238,241,244,.56)');
+  fade.addColorStop(.68,'rgba(238,241,244,.28)');
+  fade.addColorStop(.86,'rgba(238,241,244,.10)');
   fade.addColorStop(1,'rgba(238,241,244,0)');
   ctx.fillStyle=fade;
   ctx.fillRect(0,SOLID_H,W,FADE_H);
