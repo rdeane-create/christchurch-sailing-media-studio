@@ -1,0 +1,28 @@
+name: Install College Acceptance v1
+on:
+  push:
+    paths:
+      - '.github/workflows/install-college-acceptance-v1.yml'
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply College Acceptance
+        run: python .github/scripts/install_college_acceptance_v1.py
+      - name: Validate and commit
+        run: |
+          git diff --check
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Restore College Acceptance template"
+            git push origin main
+          fi
