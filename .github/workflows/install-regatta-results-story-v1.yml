@@ -28,19 +28,20 @@ jobs:
           idx=Path('index.html').read_text()
           js=Path('regatta-results-story.js').read_text()
           assert '<script src="regatta-results-story.js?v=20260815-v1"></script>' in idx
-          assert 'REGATTA RESULTS STORY — BUILD v5' in js
-          assert '20260815-regatta-results-story-v5-approved-overlay-full-diagonal' in js
+          assert 'REGATTA RESULTS STORY — BUILD v6' in js
+          assert '20260815-regatta-results-story-v6-native-overlay-broad-diagonal' in js
           assert 'ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp' in js
-          assert 'function drawApprovedMainHeaderFade' in js
+          assert 'ctx.drawImage(approvedMainOverlay,0,0,1080,1350)' in js
           assert 'function drawCoverBand' in js
-          assert 'ctx.lineTo(W,H);ctx.lineTo(570,H)' in js
+          assert 'ctx.moveTo(0,1490);ctx.lineTo(W,1010)' in js
+          assert 'ctx.lineTo(430,H)' in js
           assert 'id="rrsCoverScale"' in js
           assert 'id="rrsCoverX"' in js
           assert 'id="rrsCoverY"' in js
           assert 'id="rrsCoverOpacity"' in js
           cover=js[js.index('function drawCover(ctx){'):js.index('\nfunction drawScore(ctx){')]
           assert 'footer(ctx' not in cover
-          print('Regatta Results Story v5 approved overlay/full-height diagonal validated')
+          print('Regatta Results Story v6 native overlay/broad diagonal validated')
           PY
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
           sha256sum college-acceptance.js > /tmp/college.after
@@ -54,5 +55,5 @@ jobs:
           git config user.email "rdeane@christchurchschool.org"
           git add index.html regatta-results-story.js
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Use approved header fade and full-height results panel"
+          git commit -m "Broaden Regatta Results panel and use native approved overlay"
           git push
