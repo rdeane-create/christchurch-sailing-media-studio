@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260814-regatta-lineup-layout-v7';
+const VERSION='20260814-regatta-lineup-layout-v8';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -41,9 +41,9 @@ function previewPanel(){
     [...w.children].find(el=>el!==left&&(el.querySelector?.('canvas,video')||/preview/i.test(norm(el.textContent))))||null;
 }
 function addStyles(){
-  if(q('csmsRegattaLayoutStylesV7'))return;
-  ['csmsRegattaLayoutStylesV6','csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
-  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV7';s.textContent=`
+  if(q('csmsRegattaLayoutStylesV8'))return;
+  ['csmsRegattaLayoutStylesV7','csmsRegattaLayoutStylesV6','csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
+  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV8';s.textContent=`
 #workspace-video .csmsRegattaTitle{padding:2px 0 16px;margin:0 0 18px;border-bottom:1px solid #d8e2ed;overflow:hidden}
 #workspace-video .csmsRegattaEyebrow{color:#10213c;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;margin:0 0 6px 2px}
 #workspace-video .csmsRegattaTitleText{display:inline-block;color:#07152f;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:42px;font-weight:900;font-style:italic;letter-spacing:-.06em;line-height:.92;transform:skewX(-9deg);transform-origin:left center;text-transform:uppercase}
@@ -121,7 +121,13 @@ async function addCardById(id){
       const blob=b64Blob(result.card.data,result.card.mimeType||'image/png');
       loadedFiles.set(id,new File([blob],meta.name||'athlete-card.png',{type:result.card.mimeType||'image/png'}));
     }
-    if(!selectedCardIds.includes(id))selectedCardIds.push(id);
+    if(!selectedCardIds.includes(id)){
+      if(selectedCardIds.length>=12){
+        if(hint)hint.textContent='Maximum 12 athlete cards per lineup.';
+        return;
+      }
+      selectedCardIds.push(id);
+    }
     const dt=new DataTransfer();selectedCardIds.forEach(cardId=>{const f=loadedFiles.get(cardId);if(f)dt.items.add(f);});
     input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));
     if(hint)hint.textContent=`Added ${String(meta.name||'Athlete Card').replace(/\.png$/i,'')} • ${selectedCardIds.length} athlete card${selectedCardIds.length===1?'':'s'} in lineup.`;
@@ -146,9 +152,19 @@ function findRegattaControls(panel){
     if(c.closest('#csmsRegattaMetaBottom'))continue;
     const label=controlText(c).toLowerCase();
     const full=norm(c.textContent).toLowerCase();
-    if(/^(regatta lineup|regatta|location)(\b|$)/.test(label)||/^(regatta lineup|regatta|location)(\b|$)/.test(full))out.push(c);
+    if(/^(regatta lineup|regatta)(\b|$)/.test(label)||/^(regatta lineup|regatta)(\b|$)/.test(full))out.push(c);
   }
   return [...new Set(out)];
+}
+
+function placeEventLocation(){
+  const event=q('eventName'),location=q('location');
+  const eventControl=event?.closest('.control')||event?.parentElement;
+  const locationControl=location?.closest('.control')||location?.parentElement;
+  if(!eventControl||!locationControl||eventControl===locationControl)return;
+  if(eventControl.nextElementSibling!==locationControl){
+    eventControl.insertAdjacentElement('afterend',locationControl);
+  }
 }
 function moveRegattaDetails(){
   const panel=videoPanel();if(!panel)return;
@@ -193,7 +209,7 @@ function movePreviewActions(){
     }
   }
 }
-function refresh(){addStyles();ensureTitle();wireNativeAthleteSelect();moveRegattaDetails();movePreviewActions();}
+function refresh(){addStyles();ensureTitle();wireNativeAthleteSelect();placeEventLocation();moveRegattaDetails();movePreviewActions();}
 function scheduleRefresh(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,80);}
 function init(){refresh();new MutationObserver(scheduleRefresh).observe(document.body,{childList:true,subtree:true});}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
