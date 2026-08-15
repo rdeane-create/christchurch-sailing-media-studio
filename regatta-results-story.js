@@ -1,7 +1,7 @@
 (function(){
 'use strict';
-const VERSION='20260815-regatta-results-story-v27-gray-to-edges';
-const TEMPLATE_NAME='REGATTA RESULTS STORY — BUILD v27';
+const VERSION='20260815-regatta-results-story-v28-gray-full-width';
+const TEMPLATE_NAME='REGATTA RESULTS STORY — BUILD v28';
 const W=1080,H=1920,NAVY='#06295a',NAVY2='#0d3467',ORANGE='#f4511e',WHITE='#ffffff',INK='#102d4c',MIST='#f4f6f8',LINE='#d9e0e7';
 let scoreImage=null,coverPhoto=null,mediaItems=[];
 let state={scene:'cover',eventName:'Regatta Results',date:'',location:'',place:'8',team:'Seahorses One',a:'143',b:'170',total:'313',coverScale:1,coverX:0,coverY:0,coverOpacity:1,events:[{name:'Next Event',date:'',location:''}]};
@@ -22,10 +22,9 @@ function drawFinalHeader(ctx){
   const SOLID_H=251,FADE_H=110;
   const BANNER_BG='#eef1f4';
   ctx.save();
-  // Extend the banner asset's own gray background to both card edges.
-  ctx.imageSmoothingEnabled=true;
-  ctx.imageSmoothingQuality='high';
-  ctx.drawImage(headerImg,SRC_W-12,0,12,SRC_H,0,0,W,SOLID_H);
+  // Extend the existing gray banner background to both card edges.
+  ctx.fillStyle=BANNER_BG;
+  ctx.fillRect(0,0,W,SOLID_H);
   // Approved banner graphic, fixed size and position.
   ctx.imageSmoothingEnabled=true;
   ctx.imageSmoothingQuality='high';
