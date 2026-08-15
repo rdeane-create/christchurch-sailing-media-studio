@@ -5,7 +5,7 @@ p=Path('index.html')
 t=p.read_text()
 
 t=re.sub(r'\s*<script src="regatta-lineup-output-branding-v1\.js\?v=[^"]+"></script>\s*','\n',t)
-marker='<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v7"></script>'
+marker='<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>'
 if '</body>' not in t:
     raise SystemExit('Missing </body>')
 t=t.replace('</body>',marker+'\n</body>',1)
@@ -75,5 +75,52 @@ if old_placeholder in t:
     t=t.replace(old_placeholder,new_placeholder,1)
 elif new_placeholder not in t:
     raise SystemExit('Could not patch card placeholder border')
+
+# Burn the Christchurch Regatta branding into the native frame itself.
+# This avoids the previous second requestAnimationFrame paint pass that caused flicker.
+hook="if(window.__CSMS_REGATTA_OUTPUT_BRANDING__?.drawOverlay)window.__CSMS_REGATTA_OUTPUT_BRANDING__.drawOverlay();"
+if hook not in t:
+    signatures=[
+        'function drawFrame(t,staticOnly=false){',
+        'function drawFrame(t=0,staticOnly=false){',
+        'function drawFrame(t, staticOnly=false){',
+        'function drawFrame(t = 0, staticOnly = false){'
+    ]
+    start=-1
+    for sig in signatures:
+        start=t.find(sig)
+        if start!=-1:
+            break
+    if start==-1:
+        raise SystemExit('Could not find native drawFrame function')
+    open_brace=t.find('{',start)
+    depth=0
+    close_brace=-1
+    quote=None
+    escape=False
+    i=open_brace
+    while i<len(t):
+        ch=t[i]
+        if quote:
+            if escape:
+                escape=False
+            elif ch=='\\':
+                escape=True
+            elif ch==quote:
+                quote=None
+        else:
+            if ch in "'\"`":
+                quote=ch
+            elif ch=='{':
+                depth+=1
+            elif ch=='}':
+                depth-=1
+                if depth==0:
+                    close_brace=i
+                    break
+        i+=1
+    if close_brace==-1:
+        raise SystemExit('Could not locate end of native drawFrame function')
+    t=t[:close_brace]+'\n    '+hook+'\n  '+t[close_brace:]
 
 p.write_text(t)
