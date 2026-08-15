@@ -31,7 +31,7 @@ function drawFinalHeader(ctx){
   ctx.drawImage(headerImg,0,0,1,SRC_H,0,LOGO_Y,DST_X,DST_H);
   ctx.drawImage(headerImg,SRC_W-1,0,1,SRC_H,DST_X+DST_W,LOGO_Y,W-(DST_X+DST_W),DST_H);
   // Permanent bottom fade from banner into content beneath it.
-  const fade=ctx.createLinearGradient(0,SOLID_H-18,0,SOLID_H+FADE_H);
+  const fade=ctx.createLinearGradient(0,SOLID_H,0,SOLID_H+FADE_H);
   fade.addColorStop(0,'rgba(238,241,244,.88)');
   fade.addColorStop(.18,'rgba(238,241,244,.78)');
   fade.addColorStop(.42,'rgba(238,241,244,.56)');
@@ -39,7 +39,7 @@ function drawFinalHeader(ctx){
   fade.addColorStop(.86,'rgba(238,241,244,.10)');
   fade.addColorStop(1,'rgba(238,241,244,0)');
   ctx.fillStyle=fade;
-  ctx.fillRect(0,SOLID_H-18,W,FADE_H+18);
+  ctx.fillRect(0,SOLID_H,W,FADE_H);
   ctx.restore();
 }
 function drawFadeBridge(ctx){ctx.save();const start=coverPhoto?690:760;const g=ctx.createLinearGradient(0,start,0,1390);g.addColorStop(0,'rgba(6,41,90,0)');g.addColorStop(.30,'rgba(6,41,90,.06)');g.addColorStop(.58,'rgba(6,41,90,.22)');g.addColorStop(.80,'rgba(6,41,90,.55)');g.addColorStop(1,'rgba(6,41,90,.96)');ctx.fillStyle=g;ctx.fillRect(0,start,W,1390-start);ctx.restore()}
