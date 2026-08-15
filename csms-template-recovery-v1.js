@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v16-soft-feathered-edge';
+const VERSION='20260815-welcome-athlete-main-drive-v17-orange-bottom-vertical-fade';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -132,14 +132,10 @@ function drawWelcomeOverlay(ctx,progress=1){
   grad.addColorStop(.18,'#f85a24');
   grad.addColorStop(.36,'#f4511e');
   grad.addColorStop(.66,'#f4511e');
-  grad.addColorStop(.73,'#f05220');
-  grad.addColorStop(.79,'#e94f22');
-  grad.addColorStop(.84,'#df4b26');
-  grad.addColorStop(.89,'#cb462d');
-  grad.addColorStop(.93,'#aa4036');
-  grad.addColorStop(.96,'#813b40');
-  grad.addColorStop(.985,'#4a3749');
-  grad.addColorStop(1,'#17304d');
+  grad.addColorStop(.78,'#f4511e');
+  grad.addColorStop(.88,'#f04f1f');
+  grad.addColorStop(.95,'#ec4d1f');
+  grad.addColorStop(1,'#e94b1f');
 
   lx.beginPath();
   lx.moveTo(leftTop,topY);
@@ -182,26 +178,27 @@ function drawWelcomeOverlay(ctx,progress=1){
   // preserve the banner width and the WELCOME / ABOARD safe area.
   lx.save();
   lx.globalCompositeOperation='destination-out';
-  lx.filter='blur(16px)';
+  lx.filter='blur(20px)';
   lx.beginPath();
-  lx.moveTo(leftTop-5,topY+40);
-  lx.lineTo(leftBottom-5,1350);
-  lx.lineWidth=30;
+  lx.moveTo(leftTop-6,topY+40);
+  lx.lineTo(leftBottom-6,1350);
+  lx.lineWidth=34;
   lx.lineCap='round';
-  lx.strokeStyle='rgba(0,0,0,.54)';
+  lx.strokeStyle='rgba(0,0,0,.50)';
   lx.stroke();
   lx.restore();
 
-  // A second, softer pass broadens the blend without creating a visible halo.
+  // A second soft pass feathers only the athlete-side edge farther into the
+  // photo. It does not change the top fade or extend the orange upward.
   lx.save();
   lx.globalCompositeOperation='destination-out';
-  lx.filter='blur(28px)';
+  lx.filter='blur(34px)';
   lx.beginPath();
-  lx.moveTo(leftTop-11,topY+75);
-  lx.lineTo(leftBottom-11,1350);
-  lx.lineWidth=18;
+  lx.moveTo(leftTop-13,topY+75);
+  lx.lineTo(leftBottom-13,1350);
+  lx.lineWidth=20;
   lx.lineCap='round';
-  lx.strokeStyle='rgba(0,0,0,.22)';
+  lx.strokeStyle='rgba(0,0,0,.20)';
   lx.stroke();
   lx.restore();
 
