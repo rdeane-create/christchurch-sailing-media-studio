@@ -1,15 +1,15 @@
 (function(){
 'use strict';
 
-const VERSION='20260814-regatta-output-branding-v7';
+const VERSION='20260814-regatta-output-branding-v8';
 const q=id=>document.getElementById(id);
 const nativeRAF=window.requestAnimationFrame.bind(window);
-const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v7';
+const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v8';
 const APPROVED_HEADER_SOURCE_H=170;
 const STORY_CARD_TOP=238;
+const HEADER_GRAY='#d0d6df';
 let approvedOverlay=null;
 let approvedOverlayReady=false;
-let installedRAF=false;
 let scheduled=false;
 
 function workspace(){return q('workspace-video');}
@@ -49,25 +49,27 @@ function drawExactApprovedHeader(ctx,W){
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
 
-  // Keep the approved headshot title art intact while including enough vertical
-  // source artwork to preserve the full circular crest without clipping.
+  // Solid neutral gray foundation prevents the sailing photograph from bleeding
+  // through any transparent pixels in the locked title artwork.
+  ctx.fillStyle=HEADER_GRAY;
+  ctx.fillRect(0,0,W,destH);
+
+  // Keep the approved headshot title artwork intact and fully opaque in placement.
   ctx.drawImage(
     approvedOverlay,
     0,0,1080,APPROVED_HEADER_SOURCE_H,
     0,0,W,destH
   );
 
-  // Continue the title transition all the way to the actual first-row card edge.
-  // The transition begins at the lower gray edge of the approved art and finishes
-  // in Christchurch navy exactly where the cards begin.
+  // Continue the same gray family all the way to the card edge, then resolve to navy.
+  // No white stop is used anywhere in this transition.
   if(transitionEnd>destH){
     const g=ctx.createLinearGradient(0,destH,0,transitionEnd);
-    g.addColorStop(0,'rgba(231,233,235,1)');
-    g.addColorStop(.16,'rgba(217,221,226,1)');
-    g.addColorStop(.34,'rgba(184,193,204,1)');
-    g.addColorStop(.54,'rgba(132,147,166,1)');
-    g.addColorStop(.74,'rgba(70,91,120,1)');
-    g.addColorStop(.90,'rgba(27,46,75,1)');
+    g.addColorStop(0,'rgba(208,214,223,1)');
+    g.addColorStop(.22,'rgba(190,199,211,1)');
+    g.addColorStop(.46,'rgba(146,160,178,1)');
+    g.addColorStop(.68,'rgba(91,109,135,1)');
+    g.addColorStop(.86,'rgba(42,61,89,1)');
     g.addColorStop(1,'rgba(7,21,47,1)');
     ctx.fillStyle=g;
     ctx.fillRect(0,destH,W,transitionEnd-destH);
@@ -171,17 +173,6 @@ function queueOverlay(delays=[0,80,250]){
   delays.forEach(ms=>setTimeout(()=>nativeRAF(drawOverlay),ms));
 }
 
-function installRAFWrapper(){
-  if(installedRAF)return;
-  installedRAF=true;
-  window.requestAnimationFrame=function(callback){
-    return nativeRAF(function(ts){
-      callback(ts);
-      if(isActive())drawOverlay();
-    });
-  };
-}
-
 function addStyles(){
   if(q('csmsRegattaOutputBrandingStyles'))return;
   const s=document.createElement('style');
@@ -193,7 +184,6 @@ function addStyles(){
 function init(){
   addStyles();
   loadApprovedOverlay();
-  installRAFWrapper();
   queueOverlay([0,150,500,1000]);
 
   document.addEventListener('input',e=>{
