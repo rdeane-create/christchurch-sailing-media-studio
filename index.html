@@ -13754,14 +13754,23 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   function layout(count){
     count=Math.max(1,Math.min(12,Number(count)||1));
-    /* CSMS_LINEUP_GRID_1_12: 1=1x1,2=2x1,3-4=2x2,5-6=2x3,7-9=3x3,10-12=3x4 */
+    /* CSMS_LINEUP_GRID_1_12_V9: array-backed native row maps; 1 through 12 cards */
     const maps={
-      4:[[0,1],[2,3]],5:[[0,1,2],[3,4]],6:[[0,1,2],[3,4,5]],
-      7:[[0,1,2,3],[4,5,6]],8:[[0,1,2,3],[4,5,6,7]],
-      9:[[0,1,2],[3,4,5],[6,7,8]],10:[[0,1,2,3,4],[5,6,7,8,9]]
+      1:[[0]],
+      2:[[0,1]],
+      3:[[0,1,2]],
+      4:[[0,1],[2,3]],
+      5:[[0,1,2],[3,4]],
+      6:[[0,1,2],[3,4,5]],
+      7:[[0,1,2,3],[4,5,6]],
+      8:[[0,1,2,3],[4,5,6,7]],
+      9:[[0,1,2],[3,4,5],[6,7,8]],
+      10:[[0,1,2,3,4],[5,6,7,8,9]],
+      11:[[0,1,2,3],[4,5,6,7],[8,9,10]],
+      12:[[0,1,2,3],[4,5,6,7],[8,9,10,11]]
     };
     const zones=safeZones();
-    let rows=count<=2?1:count<=4?2:count<=6?3:count<=9?3:4;
+    let rows=maps[count]||maps[4];
     let top,bottom,rowGap,side,colGap;
 
     if(activeProfile==='story'||activeProfile==='reel'){
@@ -13796,7 +13805,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const out=Array(count);
 
     rows.forEach((row,ri)=>{
-      const cols=count===1?1:count<=6?2:3;
+      const cols=row.length;
       const rightMargin=activeProfile==='landscape'?40:side;
       const usableW=W-side-rightMargin;
       const cellW=(usableW-colGap*(cols-1))/cols;
