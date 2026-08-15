@@ -1,0 +1,21 @@
+name: Diagnose obsolete template entries
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/diagnose-obsolete-template-entries.yml'
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find obsolete template entries
+        run: |
+          echo '--- COLLEGE ANNOUNCEMENT MASTER ---'
+          grep -n -C 8 -F 'COLLEGE ANNOUNCEMENT — MASTER v1.0' index.html || true
+          grep -n -C 8 -F 'COLLEGE ANNOUNCEMENT' index.html || true
+          echo '--- CHRISTCHURCH HERO CARD MASTER ---'
+          grep -n -C 8 -F 'CHRISTCHURCH HERO CARD — MASTER v1.0' index.html || true
+          grep -n -C 8 -F 'CHRISTCHURCH HERO CARD' index.html || true
+          echo '--- ATHLETE MAIN HEADSHOT (DO NOT CHANGE) ---'
+          grep -n -C 3 -F 'Athlete Main Headshot' index.html | head -80 || true
