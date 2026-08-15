@@ -13,14 +13,14 @@ function fit(ctx,text,max,size,min=24){let s=size;while(s>min){ctx.font=`900 ${s
 function coverImage(ctx,img,x,y,w,h){if(!img)return;const ir=img.width/img.height,br=w/h;let sx=0,sy=0,sw=img.width,sh=img.height;if(ir>br){sw=img.height*br;sx=(img.width-sw)/2}else{sh=img.width/br;sy=(img.height-sh)/2}ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h)}
 function drawAdjustableCover(ctx,img,x,y,w,h){if(!img)return;const base=Math.max(w/img.width,h/img.height),scale=base*state.coverScale,dw=img.width*scale,dh=img.height*scale,dx=x+(w-dw)/2+state.coverX,dy=y+(h-dh)/2+state.coverY;ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.globalAlpha=state.coverOpacity;ctx.drawImage(img,dx,dy,dw,dh);ctx.restore()}
 function drawAthleteMainExactPhoto(ctx,img){if(!img)return;const stageW=1080,stageH=1350,base=Math.max(stageW/img.width,stageH/img.height),sc=base*state.coverScale,dw=img.width*sc,dh=img.height*sc;ctx.save();ctx.beginPath();ctx.rect(0,0,stageW,stageH);ctx.clip();ctx.globalAlpha=state.coverOpacity;ctx.drawImage(img,(stageW-dw)/2+state.coverX,(stageH-dh)/2+state.coverY,dw,dh);ctx.restore()}
-function drawAthleteMainExactStage(ctx){ctx.save();ctx.fillStyle=WHITE;ctx.fillRect(0,0,1080,1350);if(coverPhoto){drawAthleteMainExactPhoto(ctx,coverPhoto)}else{const g=ctx.createLinearGradient(0,270,0,1350);g.addColorStop(0,'#ffffff');g.addColorStop(.32,'#f4f6f8');g.addColorStop(.58,'#cfd6dd');g.addColorStop(.78,'#7f8f9f');g.addColorStop(1,'#163b60');ctx.fillStyle=g;ctx.fillRect(0,270,1080,1080);ctx.fillStyle='#718396';ctx.textAlign='center';ctx.font='800 36px Arial';ctx.fillText('ADD REGATTA PHOTO',540,790);ctx.font='400 27px Arial';ctx.fillText('Photo fills the full stage behind the banner',540,838);ctx.textAlign='left'}ctx.restore()}
+function drawAthleteMainExactStage(ctx){ctx.save();ctx.fillStyle=WHITE;ctx.fillRect(0,0,1080,1350);if(coverPhoto){drawAthleteMainExactPhoto(ctx,coverPhoto)}else{const g=ctx.createLinearGradient(0,226,0,1350);g.addColorStop(0,'#ffffff');g.addColorStop(.32,'#f4f6f8');g.addColorStop(.58,'#cfd6dd');g.addColorStop(.78,'#7f8f9f');g.addColorStop(1,'#163b60');ctx.fillStyle=g;ctx.fillRect(0,226,1080,1124);ctx.fillStyle='#718396';ctx.textAlign='center';ctx.font='800 36px Arial';ctx.fillText('ADD REGATTA PHOTO',540,790);ctx.font='400 27px Arial';ctx.fillText('Photo fills the full stage behind the banner',540,838);ctx.textAlign='left'}ctx.restore()}
 function drawLockedHeroHeaderContract(ctx){if(!(headerImg.complete&&headerImg.naturalWidth))return;ctx.save();ctx.beginPath();ctx.rect(0,0,1080,209);ctx.clip();ctx.fillStyle=WHITE;ctx.fillRect(0,0,1080,209);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';const srcW=1023,srcH=218,dstW=1080,dstH=srcH*(dstW/srcW),dstY=(209-dstH)/2;ctx.drawImage(headerImg,0,0,srcW,srcH,0,dstY,dstW,dstH);ctx.restore()}
 function drawFinalHeader(ctx){
   if(!(headerImg.complete&&headerImg.naturalWidth))return;
   const SRC_W=1023,SRC_H=218;
   const DST_W=1004,DST_H=251,DST_X=(W-DST_W)/2,DST_Y=0;
   const LOGO_Y=-25;
-  const SOLID_H=251,FADE_H=110;
+  const SOLID_H=LOGO_Y+DST_H,FADE_H=110;
   const BANNER_BG='#f2f2f1';
   ctx.save();
   // Approved banner graphic, fixed size and position.
@@ -28,8 +28,8 @@ function drawFinalHeader(ctx){
   ctx.imageSmoothingQuality='high';
   ctx.drawImage(headerImg,0,0,SRC_W,SRC_H,DST_X,LOGO_Y,DST_W,DST_H);
   // Extend only the banner's own gray edge pixels to the card edges.
-  ctx.drawImage(headerImg,0,0,1,SRC_H,0,DST_Y,DST_X,DST_H);
-  ctx.drawImage(headerImg,SRC_W-1,0,1,SRC_H,DST_X+DST_W,DST_Y,W-(DST_X+DST_W),DST_H);
+  ctx.drawImage(headerImg,0,0,1,SRC_H,0,LOGO_Y,DST_X,DST_H);
+  ctx.drawImage(headerImg,SRC_W-1,0,1,SRC_H,DST_X+DST_W,LOGO_Y,W-(DST_X+DST_W),DST_H);
   // Permanent bottom fade from banner into content beneath it.
   const fade=ctx.createLinearGradient(0,SOLID_H,0,SOLID_H+FADE_H);
   fade.addColorStop(0,'rgba(238,241,244,1)');
