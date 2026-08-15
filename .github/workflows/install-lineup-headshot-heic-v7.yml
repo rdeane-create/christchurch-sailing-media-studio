@@ -1,0 +1,34 @@
+name: Install Lineup Headshot HEIC Support v7
+on:
+  push:
+    paths:
+      - '.github/workflows/install-lineup-headshot-heic-v7.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply HEIC athlete upload support
+        run: python .github/scripts/install_lineup_headshot_heic_v7.py
+      - name: Validate locked Main Headshot and HEIC support
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          t=Path('lineup-headshot.js').read_text()
+          assert 'heic2any@0.0.4' in t
+          assert 'loadAthleteFile' in t
+          assert '20260814-lineup-headshot-v7-heic-support' in t
+          print('Validation passed.')
+          PY
+      - name: Commit HEIC support
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add lineup-headshot.js
+          git commit -m "Fix HEIC athlete uploads in Lineup Headshot" || exit 0
+          git push origin main
