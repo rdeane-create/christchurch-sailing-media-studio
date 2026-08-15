@@ -4,17 +4,18 @@ p=Path('csms-template-recovery-v1.js')
 s=p.read_text()
 
 for old in [
+    "const VERSION='20260815-welcome-athlete-main-drive-v13-photo-fade-wedge';",
     "const VERSION='20260815-welcome-athlete-main-drive-v12-wide-white-fade-wedge';",
-    "const VERSION='20260815-welcome-athlete-main-drive-v11-lower-right-wedge';",
 ]:
-    s=s.replace(old, "const VERSION='20260815-welcome-athlete-main-drive-v13-photo-fade-wedge';", 1)
+    s=s.replace(old, "const VERSION='20260815-welcome-athlete-main-drive-v14-continuous-photo-fade-wedge';", 1)
 
 new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   const p=Math.max(0,Math.min(1,progress)),eased=1-Math.pow(1-p,3);
   const slide=(1-eased)*470;
 
-  // Wide lower-right announcement wedge. It protects the athlete-name safe
-  // zone while giving WELCOME / ABOARD enough room to sit comfortably.
+  // One continuous lower-right announcement wedge. The top dissolves into the
+  // Athlete Main photo, the orange stays behind the type, and the lower field
+  // blends smoothly into navy without breaking the wedge apart.
   const topY=600;
   const leftTop=840+slide;
   const leftBottom=735+slide;
@@ -24,17 +25,15 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   layer.width=1080;layer.height=1350;
   const lx=layer.getContext('2d');
 
-  // Strong Christchurch orange through the body of the wedge, transitioning
-  // gradually through warm dark orange into navy at the bottom. The extra
-  // intermediate stops keep the orange/navy transition smooth and editorial.
   const grad=lx.createLinearGradient(0,topY,0,1350);
-  grad.addColorStop(0,'#ff6a2f');
+  grad.addColorStop(0,'#ff672d');
   grad.addColorStop(.18,'#f85a24');
-  grad.addColorStop(.36,'#f4511e');
-  grad.addColorStop(.70,'#f4511e');
-  grad.addColorStop(.80,'#e94d23');
-  grad.addColorStop(.88,'#c5412a');
-  grad.addColorStop(.94,'#7a3540');
+  grad.addColorStop(.34,'#f4511e');
+  grad.addColorStop(.68,'#f4511e');
+  grad.addColorStop(.76,'#ed5021');
+  grad.addColorStop(.84,'#d44728');
+  grad.addColorStop(.90,'#a13e34');
+  grad.addColorStop(.95,'#593744');
   grad.addColorStop(1,'#17304d');
 
   lx.beginPath();
@@ -46,7 +45,6 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   lx.fillStyle=grad;
   lx.fill();
 
-  // Quiet depth along the diagonal athlete-side edge.
   lx.save();
   lx.beginPath();
   lx.moveTo(leftTop-8,topY);
@@ -60,7 +58,6 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   lx.fill();
   lx.restore();
 
-  // Double white editorial rails follow the wedge edge.
   const rail=(offset,width,alpha)=>{
     lx.save();
     lx.beginPath();
@@ -74,26 +71,28 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   rail(15,8,.96);
   rail(29,3,.72);
 
-  // Fade the top of the entire wedge — orange and rails together — directly
-  // into the underlying Athlete Main photo. No white panel is introduced.
+  // Apply one full-height alpha mask. This is the key: the mask becomes fully
+  // opaque below the top transition and stays opaque, so the wedge remains one
+  // continuous shape instead of leaving a detached orange fragment.
   lx.globalCompositeOperation='destination-in';
-  const photoFade=lx.createLinearGradient(0,topY,0,790);
+  const photoFade=lx.createLinearGradient(0,topY,0,1350);
   photoFade.addColorStop(0,'rgba(0,0,0,0)');
-  photoFade.addColorStop(.24,'rgba(0,0,0,.10)');
-  photoFade.addColorStop(.48,'rgba(0,0,0,.34)');
-  photoFade.addColorStop(.72,'rgba(0,0,0,.72)');
+  photoFade.addColorStop(.08,'rgba(0,0,0,.08)');
+  photoFade.addColorStop(.16,'rgba(0,0,0,.24)');
+  photoFade.addColorStop(.24,'rgba(0,0,0,.52)');
+  photoFade.addColorStop(.32,'rgba(0,0,0,.82)');
+  photoFade.addColorStop(.38,'rgba(0,0,0,1)');
   photoFade.addColorStop(1,'rgba(0,0,0,1)');
   lx.fillStyle=photoFade;
-  lx.fillRect(0,topY,1080,220);
+  lx.fillRect(0,topY,1080,1350-topY);
   lx.globalCompositeOperation='source-over';
 
   ctx.drawImage(layer,0,0);
 
-  // Move the announcement lower so both words sit comfortably inside the
-  // strongest orange field instead of crowding the top transition.
-  const textY=1045;
+  // Keep both words fully inside the strong-orange middle of the wedge.
+  const textY=1060;
   const leftAtText=leftTop+(leftBottom-leftTop)*((textY-topY)/(1350-topY));
-  const midX=(leftAtText+1080)/2+6;
+  const midX=(leftAtText+1080)/2+4;
   ctx.save();
   ctx.textAlign='center';
   ctx.textBaseline='middle';
@@ -103,12 +102,12 @@ new_overlay = r'''function drawWelcomeOverlay(ctx,progress=1){
   ctx.shadowOffsetY=3;
   const family='"Avenir Next Condensed","Helvetica Neue Condensed","Arial Narrow",Impact,sans-serif';
   ctx.font=`700 40px ${family}`;
-  ctx.fillText('WELCOME',midX,982);
+  ctx.fillText('WELCOME',midX,1004);
   ctx.font=`900 78px ${family}`;
-  ctx.fillText('ABOARD',midX,1072);
+  ctx.fillText('ABOARD',midX,1094);
   ctx.shadowColor='transparent';
   ctx.fillStyle='rgba(255,255,255,.94)';
-  ctx.fillRect(midX-54,1135,108,4);
+  ctx.fillRect(midX-54,1157,108,4);
   ctx.restore();
 }'''
 
@@ -116,14 +115,14 @@ start=s.index('function drawWelcomeOverlay(ctx,progress=1){')
 end=s.index('\nfunction drawWelcomeCard()', start)
 s=s[:start]+new_overlay+s[end:]
 
-assert "20260815-welcome-athlete-main-drive-v13-photo-fade-wedge" in s
-assert "const photoFade=lx.createLinearGradient(0,topY,0,790)" in s
-assert "photoFade.addColorStop(0,'rgba(0,0,0,0)')" in s
-assert "grad.addColorStop(.94,'#7a3540')" in s
-assert "ctx.fillText('WELCOME',midX,982)" in s
-assert "ctx.fillText('ABOARD',midX,1072)" in s
+assert "20260815-welcome-athlete-main-drive-v14-continuous-photo-fade-wedge" in s
+assert "photoFade.addColorStop(.38,'rgba(0,0,0,1)')" in s
+assert "photoFade.addColorStop(1,'rgba(0,0,0,1)')" in s
+assert "lx.fillRect(0,topY,1080,1350-topY)" in s
+assert "ctx.fillText('WELCOME',midX,1004)" in s
+assert "ctx.fillText('ABOARD',midX,1094)" in s
 assert "rgba(255,255,255,.98)" not in s[s.index('function drawWelcomeOverlay'):s.index('function drawWelcomeCard')]
 assert "ctx.translate(midX-27,810)" not in s
 
 p.write_text(s)
-print('Installed Welcome Aboard photo-fade wedge v13')
+print('Installed continuous Welcome Aboard photo-fade wedge v14')
