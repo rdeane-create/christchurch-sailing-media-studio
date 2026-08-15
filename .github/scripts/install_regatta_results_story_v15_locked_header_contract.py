@@ -34,3 +34,4 @@ assert "const leftY=1370,rightY=1185" in s
 
 p.write_text(s)
 print('Prepared Regatta Results v15 frozen header contract')
+# workflow trigger
