@@ -1,0 +1,38 @@
+name: Move banner logo up half
+on:
+  push:
+    paths:
+      - '.github/workflows/move-banner-logo-up-half.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move logo upward only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('regatta-results-story.js')
+          s=p.read_text()
+          old="""  const DST_W=1004,DST_H=251,DST_X=(W-DST_W)/2,DST_Y=0;\n"""
+          new="""  const DST_W=1004,DST_H=251,DST_X=(W-DST_W)/2,DST_Y=0;\n  const LOGO_Y=-25;\n"""
+          if old not in s:
+              raise SystemExit('Banner size line not found')
+          s=s.replace(old,new,1)
+          old2="""  ctx.drawImage(headerImg,0,0,SRC_W,SRC_H,DST_X,DST_Y,DST_W,DST_H);\n"""
+          new2="""  ctx.drawImage(headerImg,0,0,SRC_W,SRC_H,DST_X,LOGO_Y,DST_W,DST_H);\n"""
+          if old2 not in s:
+              raise SystemExit('Banner draw line not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s)
+          PY
+      - name: Commit logo move
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add regatta-results-story.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'Move Regatta Results logo up by half the top gap'
+          git push
