@@ -1,0 +1,45 @@
+name: Hotfix Regatta Grid Rows v9
+
+on:
+  push:
+    paths:
+      - 'hotfix-regatta-grid-rows-v9.py'
+      - '.github/workflows/hotfix-regatta-grid-rows-v9.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Repair native Regatta row maps
+        run: python3 hotfix-regatta-grid-rows-v9.py
+
+      - name: Validate repaired renderer
+        run: |
+          grep -q 'CSMS_LINEUP_GRID_1_12_V9' index.html
+          grep -q 'let rows=maps\[count\]||maps\[4\];' index.html
+          grep -q 'const cols=row.length;' index.html
+          grep -q '11:\[\[0,1,2,3\],\[4,5,6,7\],\[8,9,10\]\]' index.html
+          grep -q '12:\[\[0,1,2,3\],\[4,5,6,7\],\[8,9,10,11\]\]' index.html
+          grep -q 'Math.min(12,Number(count)||1)' index.html
+          if grep -q 'let rows=count<=2?1:count<=4?2:count<=6?3:count<=9?3:4;' index.html; then
+            echo 'Broken numeric rows assignment still present.'
+            exit 1
+          fi
+
+      - name: Commit repaired renderer
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add index.html
+          if git diff --cached --quiet; then
+            echo 'Renderer already repaired.'
+            exit 0
+          fi
+          git commit -m 'Fix Regatta rows.forEach renderer crash'
+          git push
