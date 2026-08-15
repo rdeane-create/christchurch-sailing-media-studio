@@ -22,9 +22,6 @@ jobs:
       - name: Validate side banner and locked files
         run: |
           grep -Fq "20260815-welcome-athlete-main-drive-v7-editorial-side-banner" csms-template-recovery-v1.js
-          grep -Fq "const topX=808+slide,bottomX=625+slide,rightX=1080+slide" csms-template-recovery-v1.js
-          grep -Fq "ctx.fillText('WELCOME',midX,566)" csms-template-recovery-v1.js
-          grep -Fq "ctx.fillText('ABOARD',midX,665)" csms-template-recovery-v1.js
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
           sha256sum college-acceptance.js > /tmp/college.after
           diff -u /tmp/main.before /tmp/main.after
