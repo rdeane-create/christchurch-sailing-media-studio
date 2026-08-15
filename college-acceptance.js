@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const NAME='College Acceptance';
-const VERSION='20260815-college-acceptance-v10-stray-mark-cleanup';
+const VERSION='20260815-college-acceptance-v11-backlit-halo';
 const W=1080,H=1350;
 const S={cards:[],base:null,logo:null,logoDisplay:null,logoBacking:null,progress:1,anim:0,renderUrl:null,shoulderY:560};
 const q=id=>document.getElementById(id);
@@ -78,7 +78,16 @@ function estimateShoulderY(img){
     return Math.max(500,Math.min(690,Math.round(raw+18)));
   }catch(err){console.warn('College Acceptance shoulder estimate fallback',err);return 560;}
 }
-function drawLogo(ctx,p=1){if(!S.logo||!S.logoDisplay)return;const t=Math.max(0,Math.min(1,p)),e=1-Math.pow(1-t,3),art=S.logoDisplay,back=S.logoBacking,iw=art.width||1,ih=art.height||1,nameTop=920,nameGap=62,targetBottom=nameTop-nameGap,shoulderTop=Math.max(500,Math.min(690,S.shoulderY||560)),safeTop=shoulderTop+24,availableH=Math.max(100,targetBottom-safeTop),maxArtW=990,sc=Math.min(maxArtW/iw,availableH/ih),aw=iw*sc,ah=ih*sc,finalY=targetBottom-ah/2,startY=90,x=540,y=startY+(finalY-startY)*e;ctx.save();ctx.translate(x,y);if(back){const backingScale=sc,bw=(back.width||1)*backingScale,bh=(back.height||1)*backingScale;ctx.save();ctx.globalAlpha=.14;ctx.shadowColor='rgba(255,255,255,1)';ctx.shadowBlur=76;ctx.drawImage(back,-bw/2,-bh/2,bw,bh);ctx.restore();ctx.save();ctx.globalAlpha=.26;ctx.shadowColor='rgba(255,255,255,.98)';ctx.shadowBlur=42;ctx.drawImage(back,-bw/2,-bh/2,bw,bh);ctx.restore();ctx.save();ctx.globalAlpha=.52;ctx.filter='blur(3.2px)';ctx.drawImage(back,-bw/2,-bh/2,bw,bh);ctx.restore();}ctx.save();ctx.shadowColor='rgba(0,10,28,.30)';ctx.shadowBlur=12;ctx.shadowOffsetY=5;ctx.drawImage(art,-aw/2,-ah/2,aw,ah);ctx.restore();ctx.drawImage(art,-aw/2,-ah/2,aw,ah);ctx.restore();}
+function drawLogo(ctx,p=1){if(!S.logo||!S.logoDisplay)return;const t=Math.max(0,Math.min(1,p)),e=1-Math.pow(1-t,3),art=S.logoDisplay,back=S.logoBacking,iw=art.width||1,ih=art.height||1,nameTop=920,nameGap=62,targetBottom=nameTop-nameGap,shoulderTop=Math.max(500,Math.min(690,S.shoulderY||560)),safeTop=shoulderTop+24,availableH=Math.max(100,targetBottom-safeTop),maxArtW=990,sc=Math.min(maxArtW/iw,availableH/ih),aw=iw*sc,ah=ih*sc,finalY=targetBottom-ah/2,startY=90,x=540,y=startY+(finalY-startY)*e;ctx.save();ctx.translate(x,y);if(back){const backingScale=sc,bw=(back.width||1)*backingScale,bh=(back.height||1)*backingScale;
+  // Broad outer aura: softer and less visible at the edge.
+  ctx.save();ctx.globalAlpha=.08;ctx.shadowColor='rgba(255,255,255,.96)';ctx.shadowBlur=96;ctx.drawImage(back,-bw/2,-bh/2,bw,bh);ctx.restore();
+  // Mid glow bridges the fade into the brighter backlight.
+  ctx.save();ctx.globalAlpha=.16;ctx.shadowColor='rgba(255,255,255,.99)';ctx.shadowBlur=54;ctx.drawImage(back,-bw/2,-bh/2,bw,bh);ctx.restore();
+  // Bright inner halo creates the backlit pop immediately behind the logo.
+  ctx.save();ctx.globalAlpha=.44;ctx.shadowColor='rgba(255,255,255,1)';ctx.shadowBlur=22;ctx.drawImage(back,-bw/2,-bh/2,bw,bh);ctx.restore();
+  // Tight luminous support keeps the logo crisp and readable without altering it.
+  ctx.save();ctx.globalAlpha=.80;ctx.filter='blur(1.5px)';ctx.drawImage(back,-bw/2,-bh/2,bw,bh);ctx.restore();
+}ctx.save();ctx.shadowColor='rgba(0,10,28,.22)';ctx.shadowBlur=10;ctx.shadowOffsetY=4;ctx.drawImage(art,-aw/2,-ah/2,aw,ah);ctx.restore();ctx.drawImage(art,-aw/2,-ah/2,aw,ah);ctx.restore();}
 function draw(progress=S.progress){const c=q('caCanvas');if(!c)return;const ctx=c.getContext('2d');ctx.clearRect(0,0,W,H);ctx.fillStyle='#06142c';ctx.fillRect(0,0,W,H);if(S.base){const iw=S.base.naturalWidth||S.base.width,ih=S.base.naturalHeight||S.base.height,sc=Math.max(W/iw,H/ih),dw=iw*sc,dh=ih*sc;ctx.drawImage(S.base,(W-dw)/2,(H-dh)/2,dw,dh);drawLogo(ctx,progress);}else{ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot',W/2,H/2);}}
 function play(){if(!S.base||!S.logo){q('caStatus').textContent='Choose a Main Headshot and college logo first.';return;}cancelAnimationFrame(S.anim);const start=performance.now(),dur=720;function f(now){const t=Math.min(1,(now-start)/dur);S.progress=t<.84?t/.84:1+Math.sin((t-.84)/.16*Math.PI)*.018;draw();if(t<1)S.anim=requestAnimationFrame(f);else{S.progress=1;draw();}}S.anim=requestAnimationFrame(f);}
 function downloadPng(){if(!S.base)return;S.progress=1;draw();const a=document.createElement('a');a.download='college-acceptance.png';a.href=q('caCanvas').toDataURL('image/png');a.click();}
