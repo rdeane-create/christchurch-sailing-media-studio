@@ -1,0 +1,32 @@
+name: Install College Acceptance Max Logo v6
+on:
+  push:
+    paths:
+      - '.github/scripts/install_college_acceptance_max_logo_v6.py'
+      - '.github/workflows/install-college-acceptance-max-logo-v6.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record locked Main Headshot hash
+        run: sha256sum athlete-main-headshot-approved-exact.js | tee /tmp/main_before.sha
+      - name: Apply College Acceptance max logo treatment
+        run: python3 .github/scripts/install_college_acceptance_max_logo_v6.py
+      - name: Validate locked Main Headshot and College Acceptance
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js | tee /tmp/main_after.sha
+          diff /tmp/main_before.sha /tmp/main_after.sha
+          grep -q "college-acceptance-v6-max-contour" college-acceptance.js
+          grep -q "maxArtW=990" college-acceptance.js
+          grep -q "makeWhiteBacking" college-acceptance.js
+      - name: Commit College Acceptance change
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add college-acceptance.js
+          git commit -m "Maximize College Acceptance logo with contour backing" || exit 0
+          git push
