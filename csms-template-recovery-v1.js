@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260815-welcome-athlete-main-drive-v11-lower-right-wedge';
+const VERSION='20260815-welcome-athlete-main-drive-v12-wide-white-fade-wedge';
 const INSTAGRAM_W=1080,INSTAGRAM_H=1350;
 const LEGACY_DB='ChristchurchMediaStudio';
 const LEGACY_STORE='media';
@@ -113,27 +113,28 @@ function drawWelcomeOverlay(ctx,progress=1){
   const p=Math.max(0,Math.min(1,progress)),eased=1-Math.pow(1-p,3);
   const slide=(1-eased)*470;
 
-  // Lower-right announcement wedge only. It begins at the bottom of the card
-  // and stops at the lower edge of the athlete's face, leaving the upper image
-  // completely untouched. The left edge stays well right of the name block so
-  // longer athlete names have a generous safe area.
-  const topY=620;
-  const leftTop=900+slide;
-  const leftBottom=790+slide;
+  // Wider lower-right announcement wedge. It still protects the athlete-name
+  // safe zone, but gives WELCOME / ABOARD enough room to breathe.
+  const topY=600;
+  const leftTop=840+slide;
+  const leftBottom=735+slide;
   const rightX=1080+slide;
 
   const layer=document.createElement('canvas');
   layer.width=1080;layer.height=1350;
   const lx=layer.getContext('2d');
 
-  // Strong Christchurch orange through the body of the wedge with only a
-  // restrained navy blend at the very bottom to marry into the Athlete Main card.
+  // The wedge appears softly at the lower edge of the face: white at the very
+  // top, then a short warm fade into strong Christchurch orange. Orange stays
+  // dominant through the body with only a restrained navy blend at the bottom.
   const grad=lx.createLinearGradient(0,topY,0,1350);
-  grad.addColorStop(0,'#ff672d');
-  grad.addColorStop(.18,'#f85a24');
-  grad.addColorStop(.42,'#f4511e');
-  grad.addColorStop(.78,'#f4511e');
-  grad.addColorStop(.92,'#dc4822');
+  grad.addColorStop(0,'rgba(255,255,255,.98)');
+  grad.addColorStop(.10,'rgba(255,248,244,.98)');
+  grad.addColorStop(.20,'#ffb18e');
+  grad.addColorStop(.31,'#ff672d');
+  grad.addColorStop(.43,'#f4511e');
+  grad.addColorStop(.80,'#f4511e');
+  grad.addColorStop(.93,'#df4822');
   grad.addColorStop(1,'#563343');
 
   lx.beginPath();
@@ -153,13 +154,13 @@ function drawWelcomeOverlay(ctx,progress=1){
   lx.lineTo(leftBottom+14,1350);
   lx.lineTo(leftBottom-8,1350);
   lx.closePath();
-  lx.shadowColor='rgba(2,18,40,.20)';
+  lx.shadowColor='rgba(2,18,40,.18)';
   lx.shadowBlur=14;
-  lx.fillStyle='rgba(2,18,40,.09)';
+  lx.fillStyle='rgba(2,18,40,.08)';
   lx.fill();
   lx.restore();
 
-  // Double white editorial rails run only along the lower wedge edge.
+  // Double white editorial rails follow only the wedge edge.
   const rail=(offset,width,alpha)=>{
     lx.save();
     lx.beginPath();
@@ -175,11 +176,10 @@ function drawWelcomeOverlay(ctx,progress=1){
 
   ctx.drawImage(layer,0,0);
 
-  // Welcome Aboard sits in the same visual band as the athlete name while
-  // remaining entirely inside the right-side wedge.
+  // Keep the announcement in the athlete-name band, now with adequate width.
   const textY=955;
   const leftAtText=leftTop+(leftBottom-leftTop)*((textY-topY)/(1350-topY));
-  const midX=(leftAtText+1080)/2+8;
+  const midX=(leftAtText+1080)/2+6;
   ctx.save();
   ctx.textAlign='center';
   ctx.textBaseline='middle';
@@ -188,13 +188,13 @@ function drawWelcomeOverlay(ctx,progress=1){
   ctx.shadowBlur=7;
   ctx.shadowOffsetY=3;
   const family='"Avenir Next Condensed","Helvetica Neue Condensed","Arial Narrow",Impact,sans-serif';
-  ctx.font=`700 42px ${family}`;
+  ctx.font=`700 40px ${family}`;
   ctx.fillText('WELCOME',midX,908);
-  ctx.font=`900 84px ${family}`;
+  ctx.font=`900 78px ${family}`;
   ctx.fillText('ABOARD',midX,997);
   ctx.shadowColor='transparent';
   ctx.fillStyle='rgba(255,255,255,.94)';
-  ctx.fillRect(midX-50,1060,100,4);
+  ctx.fillRect(midX-54,1060,108,4);
   ctx.restore();
 }
 function drawWelcomeCard(){const e=welcomeEls();if(!e.canvas)return;if(e.canvas.width!==INSTAGRAM_W)e.canvas.width=INSTAGRAM_W;if(e.canvas.height!==INSTAGRAM_H)e.canvas.height=INSTAGRAM_H;const ctx=e.canvas.getContext('2d');ctx.clearRect(0,0,INSTAGRAM_W,INSTAGRAM_H);if(welcomeHeroImage){ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(welcomeHeroImage,0,0,INSTAGRAM_W,INSTAGRAM_H);drawWelcomeOverlay(ctx,welcomeDropProgress);}else{ctx.fillStyle='#06142c';ctx.fillRect(0,0,INSTAGRAM_W,INSTAGRAM_H);ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot card',INSTAGRAM_W/2,INSTAGRAM_H/2);}}
