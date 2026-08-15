@@ -1,18 +1,50 @@
 (function(){
 'use strict';
 const NAME='College Acceptance';
-const VERSION='20260815-college-acceptance-v2-logo-safe-zone';
+const VERSION='20260815-college-acceptance-v3-dynamic-logo-zone';
 const W=1080,H=1350;
-const S={cards:[],base:null,logo:null,logoTrim:null,progress:1,anim:0,renderUrl:null};
+const S={cards:[],base:null,logo:null,logoTrim:null,progress:1,anim:0,renderUrl:null,shoulderY:560};
 const q=id=>document.getElementById(id);
 function bridge(action,payload={}){if(typeof csmsAuthenticatedBridgeCall!=='function')return Promise.reject(new Error('Google Drive Bridge unavailable'));return (async()=>{if(typeof csmsEnsureAuthenticatedBridge==='function')await csmsEnsureAuthenticatedBridge({userInitiated:true});return csmsAuthenticatedBridgeCall(action,payload,{userInitiated:true});})();}
 function b64Blob(base64,mime){const bin=atob(base64),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime||'image/png'});}
 async function loadCards(){const sel=q('caCardSelect');if(!sel)return;sel.innerHTML='<option value="">Loading Athlete Main Headshots…</option>';try{const r=await bridge('listSavedCards',{});const all=Array.isArray(r&&r.cards)?r.cards:[];S.cards=all.filter(c=>{const t=String(c.cardType||c.type||'').toUpperCase();const n=String(c.name||'').toUpperCase();return (t.includes('ATHLETE HEADSHOT')&&!t.includes('LINEUP'))||n.includes('ATHLETE HEADSHOT CARD');});sel.innerHTML='<option value="">Select Athlete Main Headshot</option>';S.cards.forEach(c=>{const o=document.createElement('option');o.value=c.fileId;o.textContent=String(c.name||'Athlete Main Headshot').replace(/\.png$/i,'');sel.appendChild(o);});q('caStatus').textContent=S.cards.length?'Choose an Athlete Main Headshot and add a college logo.':'No saved Athlete Main Headshot cards found.';}catch(err){console.error(err);sel.innerHTML='<option value="">Could not load cards</option>';q('caStatus').textContent='Could not load saved Athlete Main Headshots.';}}
-async function loadBase(fileId){if(!fileId){S.base=null;draw();return;}try{const r=await bridge('getSavedCard',{fileId});if(!r||!r.ok||!r.card||!r.card.data)throw new Error('Saved card unavailable');const blob=b64Blob(r.card.data,r.card.mimeType);const url=URL.createObjectURL(blob);const im=new Image();im.onload=()=>{S.base=im;S.progress=1;draw();setTimeout(()=>URL.revokeObjectURL(url),60000);q('caStatus').textContent='Using the saved Athlete Main Headshot unchanged.';};im.onerror=()=>{URL.revokeObjectURL(url);q('caStatus').textContent='Could not open that saved card.';};im.src=url;}catch(err){console.error(err);q('caStatus').textContent='Could not load the saved Athlete Main Headshot.';}}
+async function loadBase(fileId){if(!fileId){S.base=null;draw();return;}try{const r=await bridge('getSavedCard',{fileId});if(!r||!r.ok||!r.card||!r.card.data)throw new Error('Saved card unavailable');const blob=b64Blob(r.card.data,r.card.mimeType);const url=URL.createObjectURL(blob);const im=new Image();im.onload=()=>{S.base=im;S.shoulderY=estimateShoulderY(im);S.progress=1;draw();setTimeout(()=>URL.revokeObjectURL(url),60000);q('caStatus').textContent='Using the saved Athlete Main Headshot unchanged. Logo safe zone adjusted to this athlete.';};im.onerror=()=>{URL.revokeObjectURL(url);q('caStatus').textContent='Could not open that saved card.';};im.src=url;}catch(err){console.error(err);q('caStatus').textContent='Could not load the saved Athlete Main Headshot.';}}
 function trimLogo(img){const iw=img.naturalWidth||img.width||1,ih=img.naturalHeight||img.height||1;const src=document.createElement('canvas');src.width=iw;src.height=ih;const c=src.getContext('2d',{willReadFrequently:true});c.drawImage(img,0,0,iw,ih);let d;try{d=c.getImageData(0,0,iw,ih).data;}catch(_){return src;}const border=(x,y)=>{const i=(y*iw+x)*4,r=d[i],g=d[i+1],b=d[i+2],a=d[i+3];return a<18||(r>246&&g>246&&b>246);};let l=0,r=iw-1,t=0,b=ih-1;const row=y=>{let n=0;for(let x=l;x<=r;x++)if(border(x,y))n++;return n/Math.max(1,r-l+1)>.985;};const col=x=>{let n=0;for(let y=t;y<=b;y++)if(border(x,y))n++;return n/Math.max(1,b-t+1)>.985;};while(t<b&&row(t))t++;while(b>t&&row(b))b--;while(l<r&&col(l))l++;while(r>l&&col(r))r--;const w=Math.max(1,r-l+1),h=Math.max(1,b-t+1),out=document.createElement('canvas');out.width=w;out.height=h;out.getContext('2d').drawImage(src,l,t,w,h,0,0,w,h);return out;}
 function loadLogo(file){if(!file){S.logo=S.logoTrim=null;draw();return;}const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{S.logo=im;S.logoTrim=trimLogo(im);S.progress=1;draw();q('caStatus').textContent='College logo loaded. Play the drop animation.';setTimeout(()=>URL.revokeObjectURL(u),60000);};im.onerror=()=>{URL.revokeObjectURL(u);q('caStatus').textContent='Could not load that logo file.';};im.src=u;}
 function rounded(ctx,x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
-function drawLogo(ctx,p=1){if(!S.logo)return;const t=Math.max(0,Math.min(1,p)),e=1-Math.pow(1-t,3);const x=540,y=110+(760-110)*e;const art=S.logoTrim||S.logo,iw=art.width||art.naturalWidth||1,ih=art.height||art.naturalHeight||1,sc=Math.min(760/iw,180/ih),aw=iw*sc,ah=ih*sc,padX=14,padY=10,bw=aw+padX*2,bh=ah+padY*2;ctx.save();ctx.translate(x,y);ctx.save();ctx.shadowColor='rgba(2,18,40,.28)';ctx.shadowBlur=9;ctx.shadowOffsetY=4;rounded(ctx,-bw/2,-bh/2,bw,bh,4);ctx.fillStyle='#fff';ctx.fill();ctx.restore();ctx.drawImage(art,-aw/2,-ah/2,aw,ah);ctx.restore();}
+function estimateShoulderY(img){
+  try{
+    const sw=270,sh=Math.round(sw*H/W),cv=document.createElement('canvas');cv.width=sw;cv.height=sh;
+    const cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(img,0,0,sw,sh);
+    const data=cx.getImageData(0,0,sw,sh).data;
+    const px=(x,y)=>{const i=(y*sw+x)*4;return[data[i],data[i+1],data[i+2]];};
+    const dist=(a,b)=>Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])+Math.abs(a[2]-b[2]);
+    const y0=Math.round(400*sh/H),y1=Math.round(760*sh/H);
+    let bestY=Math.round(560*sh/H),bestScore=-1;
+    for(let y=y0;y<=y1;y++){
+      let bg=[0,0,0],n=0;
+      for(let x=0;x<Math.round(sw*.16);x++){const c=px(x,y);bg[0]+=c[0];bg[1]+=c[1];bg[2]+=c[2];n++;}
+      for(let x=Math.round(sw*.84);x<sw;x++){const c=px(x,y);bg[0]+=c[0];bg[1]+=c[1];bg[2]+=c[2];n++;}
+      bg=bg.map(v=>v/Math.max(1,n));
+      let run=0,maxRun=0,edges=0,prev=null;
+      for(let x=Math.round(sw*.12);x<Math.round(sw*.88);x++){
+        const c=px(x,y),fg=dist(c,bg)>75;
+        if(fg){run++;if(run>maxRun)maxRun=run;}else run=0;
+        if(prev&&dist(c,prev)>80)edges++;
+        prev=c;
+      }
+      const widthScore=maxRun/(sw*.76);
+      const edgeScore=Math.min(1,edges/28);
+      const center=px(Math.round(sw/2),y);
+      const centerScore=Math.min(1,dist(center,bg)/260);
+      const score=widthScore*.62+centerScore*.28+edgeScore*.10;
+      if(widthScore>.38&&score>bestScore){bestScore=score;bestY=y;}
+    }
+    const raw=bestY*H/sh;
+    return Math.max(500,Math.min(690,Math.round(raw+18)));
+  }catch(err){console.warn('College Acceptance shoulder estimate fallback',err);return 560;}
+}
+function drawLogo(ctx,p=1){if(!S.logo)return;const t=Math.max(0,Math.min(1,p)),e=1-Math.pow(1-t,3);const art=S.logoTrim||S.logo,iw=art.width||art.naturalWidth||1,ih=art.height||art.naturalHeight||1,padX=14,padY=10;const targetBottom=887,shoulderTop=Math.max(500,Math.min(690,S.shoulderY||560)),safeGap=8,availableH=Math.max(90,targetBottom-shoulderTop-safeGap),maxPanelW=930,maxArtW=maxPanelW-padX*2,maxArtH=Math.max(60,availableH-padY*2),sc=Math.min(maxArtW/iw,maxArtH/ih),aw=iw*sc,ah=ih*sc,bw=aw+padX*2,bh=ah+padY*2,finalY=targetBottom-bh/2,startY=95,x=540,y=startY+(finalY-startY)*e;ctx.save();ctx.translate(x,y);ctx.save();ctx.shadowColor='rgba(2,18,40,.28)';ctx.shadowBlur=9;ctx.shadowOffsetY=4;rounded(ctx,-bw/2,-bh/2,bw,bh,4);ctx.fillStyle='#fff';ctx.fill();ctx.restore();ctx.drawImage(art,-aw/2,-ah/2,aw,ah);ctx.restore();}
 function draw(progress=S.progress){const c=q('caCanvas');if(!c)return;const ctx=c.getContext('2d');ctx.clearRect(0,0,W,H);ctx.fillStyle='#06142c';ctx.fillRect(0,0,W,H);if(S.base){const iw=S.base.naturalWidth||S.base.width,ih=S.base.naturalHeight||S.base.height,sc=Math.max(W/iw,H/ih),dw=iw*sc,dh=ih*sc;ctx.drawImage(S.base,(W-dw)/2,(H-dh)/2,dw,dh);drawLogo(ctx,progress);}else{ctx.fillStyle='rgba(255,255,255,.86)';ctx.textAlign='center';ctx.font='600 34px Arial,sans-serif';ctx.fillText('Select an Athlete Main Headshot',W/2,H/2);}}
 function play(){if(!S.base||!S.logo){q('caStatus').textContent='Choose a Main Headshot and college logo first.';return;}cancelAnimationFrame(S.anim);const start=performance.now(),dur=720;function f(now){const t=Math.min(1,(now-start)/dur);S.progress=t<.84?t/.84:1+Math.sin((t-.84)/.16*Math.PI)*.018;draw();if(t<1)S.anim=requestAnimationFrame(f);else{S.progress=1;draw();}}S.anim=requestAnimationFrame(f);}
 function downloadPng(){if(!S.base)return;S.progress=1;draw();const a=document.createElement('a');a.download='college-acceptance.png';a.href=q('caCanvas').toDataURL('image/png');a.click();}
