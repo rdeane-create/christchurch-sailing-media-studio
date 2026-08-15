@@ -26,3 +26,4 @@ assert "const leftY=1370,rightY=1185" in s
 
 p.write_text(s)
 print('Prepared Regatta Results v14 exact Athlete Main asset URL')
+# workflow trigger
