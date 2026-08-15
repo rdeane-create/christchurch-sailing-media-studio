@@ -1,0 +1,51 @@
+name: Install Regatta Results Story v12 Banner Exact
+on:
+  push:
+    paths:
+      - '.github/workflows/install-regatta-results-story-v12-banner-exact.yml'
+      - '.github/scripts/install_regatta_results_story_v12_banner_exact.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record protected template hashes
+        run: |
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.before
+          sha256sum college-acceptance.js > /tmp/college.before
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.before
+      - name: Install exact Athlete Main banner scale
+        run: python .github/scripts/install_regatta_results_story_v12_banner_exact.py
+      - name: Validate banner-only change
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          js=Path('regatta-results-story.js').read_text()
+          assert 'REGATTA RESULTS STORY — BUILD v12' in js
+          assert '20260815-regatta-results-story-v12-athlete-main-banner-exact' in js
+          assert 'drawAthleteMainExactStage(ctx);drawAthleteMainBrandHeader(ctx);drawCoverBand(ctx)' in js
+          assert '.rrsCanvasWrap canvas{width:min(100%,500px);' in js
+          assert 'function drawCoverBand(ctx){const leftY=1370,rightY=1185' in js
+          assert 'ctx.bezierCurveTo(300,1360,760,1250,W,rightY)' in js
+          assert 'ctx.bezierCurveTo(300,1346,760,1236,W+8,rightY-14)' in js
+          print('Regatta Results v12 exact Athlete Main banner validated; lower panel unchanged')
+          PY
+          sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
+          sha256sum college-acceptance.js > /tmp/college.after
+          sha256sum csms-template-recovery-v1.js > /tmp/welcome.after
+          diff -u /tmp/main.before /tmp/main.after
+          diff -u /tmp/college.before /tmp/college.after
+          diff -u /tmp/welcome.before /tmp/welcome.after
+      - name: Commit Studio install
+        run: |
+          git config user.name "rdeane-create"
+          git config user.email "rdeane@christchurchschool.org"
+          git add regatta-results-story.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Match Regatta Results banner scale to Athlete Main"
+          git push
