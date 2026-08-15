@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260814-regatta-lineup-layout-v8';
+const VERSION='20260814-regatta-lineup-layout-v11';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -41,9 +41,9 @@ function previewPanel(){
     [...w.children].find(el=>el!==left&&(el.querySelector?.('canvas,video')||/preview/i.test(norm(el.textContent))))||null;
 }
 function addStyles(){
-  if(q('csmsRegattaLayoutStylesV8'))return;
-  ['csmsRegattaLayoutStylesV7','csmsRegattaLayoutStylesV6','csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
-  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV8';s.textContent=`
+  if(q('csmsRegattaLayoutStylesV11'))return;
+  ['csmsRegattaLayoutStylesV8','csmsRegattaLayoutStylesV7','csmsRegattaLayoutStylesV6','csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
+  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV11';s.textContent=`
 #workspace-video .csmsRegattaTitle{padding:2px 0 16px;margin:0 0 18px;border-bottom:1px solid #d8e2ed;overflow:hidden}
 #workspace-video .csmsRegattaEyebrow{color:#10213c;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;margin:0 0 6px 2px}
 #workspace-video .csmsRegattaTitleText{display:inline-block;color:#07152f;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:42px;font-weight:900;font-style:italic;letter-spacing:-.06em;line-height:.92;transform:skewX(-9deg);transform-origin:left center;text-transform:uppercase}
@@ -52,7 +52,7 @@ function addStyles(){
 #workspace-video .csmsRegattaMetaBottom{margin-top:26px;padding-top:18px;border-top:2px solid #d8e2ed}
 #workspace-video .csmsRegattaMetaBottom h2{margin:0 0 12px;color:#10213c;font-size:20px}
 #workspace-video .csmsRegattaMetaBottom .control{margin-bottom:12px}
-#workspace-video .csmsPreviewActionBar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:stretch;width:100%;margin:8px 0 12px;padding:10px;background:#f8fafc;border:1px solid #d8e2ed;border-radius:12px;box-sizing:border-box}
+#workspace-video .csmsPreviewActionBar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:stretch;width:100%;margin:8px 0 12px;padding:10px;background:#f8fafc;border:1px solid #d8e2ed;border-radius:12px;box-sizing:border-box}
 #workspace-video .csmsPreviewActionBar button,#workspace-video .csmsPreviewActionBar a{margin:0!important;width:100%!important;min-width:0!important;min-height:44px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;box-sizing:border-box!important}
 @media(max-width:900px){#workspace-video .csmsPreviewActionBar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 `;
@@ -173,6 +173,58 @@ function moveRegattaDetails(){
   findRegattaControls(panel).forEach(c=>box.appendChild(c));
   if(box.childElementCount>1&&box.parentElement!==panel)panel.appendChild(box);
 }
+// CSMS_SAVE_RENDERED_LINEUP_TO_LIBRARY_V11
+async function saveRenderedLineupToLibrary(){
+  const btn=q('csmsSaveToLibraryBtn');
+  const status=q('status');
+  const link=q('downloadLink');
+  if(!link||!link.href||link.style.display==='none'){
+    if(status)status.textContent='Render Video first, then Save to Library.';
+    return;
+  }
+  const original=btn?.textContent||'Save to Library';
+  try{
+    if(btn){btn.disabled=true;btn.textContent='Saving…';}
+    const response=await fetch(link.href);
+    if(!response.ok)throw new Error('Rendered video could not be read.');
+    const blob=await response.blob();
+    const fallback=`Christchurch_Regatta_Lineup_${new Date().toISOString().slice(0,10)}.webm`;
+    const filename=link.download||fallback;
+    const file=new File([blob],filename,{type:blob.type||'video/webm',lastModified:Date.now()});
+    if(typeof addUnifiedMedia!=='function')throw new Error('Studio Media Library is unavailable.');
+    await addUnifiedMedia([file]);
+    const id=`media_${file.name}_${file.size}_${file.lastModified}`;
+    if(typeof persistentMediaPut==='function'){
+      await persistentMediaPut({id,file});
+    }
+    if(typeof loadMediaMeta==='function'&&typeof saveMediaMeta==='function'){
+      const meta=loadMediaMeta();
+      const current=meta[id]||{};
+      const collections=Array.isArray(current.collections)?current.collections.slice():[];
+      if(!collections.includes('Regatta Lineup'))collections.push('Regatta Lineup');
+      meta[id]={...current,collections,addedAt:current.addedAt||new Date().toISOString()};
+      saveMediaMeta(meta);
+    }
+    if(typeof renderUnifiedMedia==='function')renderUnifiedMedia();
+    if(status)status.textContent=`Saved ${filename} to Library → Videos.`;
+    if(btn){btn.textContent='Saved to Library ✓';setTimeout(()=>{btn.textContent=original;btn.disabled=false;},1600);}
+  }catch(err){
+    console.error('Save Regatta lineup to Library failed',err);
+    if(status)status.textContent=err?.message||'Could not save the rendered video to Library.';
+    if(btn){btn.textContent=original;btn.disabled=false;}
+  }
+}
+function ensureSaveToLibraryButton(){
+  let btn=q('csmsSaveToLibraryBtn');
+  if(btn)return btn;
+  btn=document.createElement('button');
+  btn.id='csmsSaveToLibraryBtn';
+  btn.type='button';
+  btn.className='secondary';
+  btn.textContent='Save to Library';
+  btn.addEventListener('click',saveRenderedLineupToLibrary);
+  return btn;
+}
 function buttonLabel(btn){return norm(btn.textContent||btn.value||btn.getAttribute('aria-label')||btn.title).toLowerCase();}
 function actionKind(btn){
   const t=buttonLabel(btn);
@@ -193,7 +245,7 @@ function movePreviewActions(){
   const buttons=[...w.querySelectorAll('button,a')].filter(b=>b!==bar&&isPreviewAction(b));
   const byKind=new Map();
   for(const b of buttons){const kind=actionKind(b);if(kind&&!byKind.has(kind))byKind.set(kind,b);}
-  const desired=['preview','render','save','export'].map(kind=>byKind.get(kind)).filter(Boolean);
+  const desired=[byKind.get('preview'),byKind.get('render'),ensureSaveToLibraryButton(),byKind.get('save'),byKind.get('export')].filter(Boolean);
   desired.forEach((b,i)=>{
     const current=bar.children[i]||null;
     if(current!==b)bar.insertBefore(b,current);
