@@ -1,0 +1,15 @@
+name: Inspect Add Unified Media
+on:
+  push:
+    paths:
+      - '.github/scripts/inspect_add_unified_media.py'
+      - '.github/workflows/inspect-add-unified-media.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .github/scripts/inspect_add_unified_media.py
