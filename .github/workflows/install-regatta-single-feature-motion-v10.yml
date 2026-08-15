@@ -16,14 +16,14 @@ jobs:
         run: python3 .github/scripts/install_regatta_single_feature_motion_v10.py
       - name: Validate single-card feature motion
         run: |
-          grep -q 'CSMS_SINGLE_CARD_FULL_ZONE_V10' index.html
-          grep -q 'CSMS_FEATURE_MOTION_SAFE_ZONE_V10' index.html
-          grep -q "Math.max(1,Math.min(12,athletes.length||1))" index.html
-          grep -q "athletes.length<1||athletes.length>12" index.html
-          grep -q "heroSafeTop=isStoryLike?238:titleReserve" index.html
-          grep -q "heroSafeBottom=isStoryLike?(H-Math.max(284,safeZones().bottom\*.45))" index.html
-          grep -q "out\[0\]={x:(W-cardW)/2,y:zoneTop,w:cardW,h:cardH}" index.html
-          ! grep -q "Math.max(4,athletes.length||4)" index.html
+          grep -Fq 'CSMS_SINGLE_CARD_FULL_ZONE_V10' index.html
+          grep -Fq 'CSMS_FEATURE_MOTION_SAFE_ZONE_V10' index.html
+          grep -Fq 'Math.max(1,Math.min(12,athletes.length||1))' index.html
+          grep -Fq 'athletes.length<1||athletes.length>12' index.html
+          grep -Fq 'heroSafeTop=isStoryLike?238:titleReserve' index.html
+          grep -Fq 'heroSafeBottom=isStoryLike?(H-Math.max(284,safeZones().bottom*.45))' index.html
+          grep -Fq 'out[0]={x:(W-cardW)/2,y:zoneTop,w:cardW,h:cardH}' index.html
+          if grep -Fq 'Math.max(4,athletes.length||4)' index.html; then exit 1; fi
       - name: Commit native Regatta feature motion
         run: |
           git config user.name 'rdeane-create'
