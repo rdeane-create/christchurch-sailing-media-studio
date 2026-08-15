@@ -1,0 +1,17 @@
+name: Diagnose Welcome Aboard sources 2026-08-15
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/diagnose-welcome-aboard-sources-20260815.yml'
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find all Welcome Aboard sources
+        run: |
+          echo '--- WELCOME ABOARD TEXT ---'
+          grep -RIn -C 6 --exclude-dir=.git -E 'WELCOME ABOARD|Welcome Aboard|welcome_aboard|workspace-welcome|christchurch_welcome' . || true
+          echo '--- LOCKED HASHES ---'
+          sha256sum athlete-main-headshot-approved-exact.js college-acceptance.js
