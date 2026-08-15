@@ -22,8 +22,6 @@ function drawFinalHeader(ctx){
   const SOLID_H=251,FADE_H=110;
   const BANNER_BG='#f2f2f1';
   ctx.save();
-  ctx.translate(SOLID_H+FADE_H,0);
-  ctx.rotate(Math.PI/2);
   // Extend the existing gray banner background to both card edges.
   ctx.fillStyle=BANNER_BG;
   ctx.fillRect(0,0,W,SOLID_H);
