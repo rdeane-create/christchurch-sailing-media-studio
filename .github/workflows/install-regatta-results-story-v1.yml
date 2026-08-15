@@ -28,11 +28,16 @@ jobs:
           idx=Path('index.html').read_text()
           js=Path('regatta-results-story.js').read_text()
           assert '<script src="regatta-results-story.js?v=20260815-v1"></script>' in idx
-          assert 'REGATTA RESULTS STORY — BUILD v3' in js
-          assert '20260815-regatta-results-story-v3-photo-blue-panel' in js
-          assert 'ADD REGATTA PHOTO' in js
-          assert "const W=1080,H=1920" in js
-          print('Regatta Results Story v3 cover validated')
+          assert 'REGATTA RESULTS STORY — BUILD v4' in js
+          assert '20260815-regatta-results-story-v4-exact-header-photo-controls' in js
+          assert "ctx.drawImage(headerImg,0,0,1080,209)" in js
+          assert 'id="rrsCoverScale"' in js
+          assert 'id="rrsCoverX"' in js
+          assert 'id="rrsCoverY"' in js
+          assert 'id="rrsCoverOpacity"' in js
+          assert 'function drawAdjustableCover' in js
+          assert 'diagonalBand(ctx,1010,1485)' in js
+          print('Regatta Results Story v4 exact header/photo controls validated')
           PY
           sha256sum athlete-main-headshot-approved-exact.js > /tmp/main.after
           sha256sum college-acceptance.js > /tmp/college.after
@@ -46,5 +51,5 @@ jobs:
           git config user.email "rdeane@christchurchschool.org"
           git add index.html regatta-results-story.js
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Refine Regatta Results cover photo and blue details layout"
+          git commit -m "Use exact header and adjustable photo in Regatta Results cover"
           git push
