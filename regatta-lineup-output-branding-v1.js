@@ -1,12 +1,12 @@
 (function(){
 'use strict';
 
-const VERSION='20260814-regatta-output-branding-v6';
+const VERSION='20260814-regatta-output-branding-v7';
 const q=id=>document.getElementById(id);
 const nativeRAF=window.requestAnimationFrame.bind(window);
-const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v6';
-const APPROVED_HEADER_SOURCE_H=154;
-const STORY_CARD_TOP=205;
+const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v7';
+const APPROVED_HEADER_SOURCE_H=170;
+const STORY_CARD_TOP=238;
 let approvedOverlay=null;
 let approvedOverlayReady=false;
 let installedRAF=false;
@@ -49,21 +49,25 @@ function drawExactApprovedHeader(ctx,W){
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
 
-  // Keep the approved headshot header completely intact, pixel-for-pixel.
+  // Keep the approved headshot title art intact while including enough vertical
+  // source artwork to preserve the full circular crest without clipping.
   ctx.drawImage(
     approvedOverlay,
     0,0,1080,APPROVED_HEADER_SOURCE_H,
     0,0,W,destH
   );
 
-  // The fade lives only BELOW the artwork. It extends the header's light gray edge
-  // into Christchurch navy across the small transition zone before the cards.
+  // Continue the title transition all the way to the actual first-row card edge.
+  // The transition begins at the lower gray edge of the approved art and finishes
+  // in Christchurch navy exactly where the cards begin.
   if(transitionEnd>destH){
     const g=ctx.createLinearGradient(0,destH,0,transitionEnd);
     g.addColorStop(0,'rgba(231,233,235,1)');
-    g.addColorStop(.18,'rgba(205,211,220,1)');
-    g.addColorStop(.44,'rgba(137,151,170,1)');
-    g.addColorStop(.72,'rgba(57,78,108,1)');
+    g.addColorStop(.16,'rgba(217,221,226,1)');
+    g.addColorStop(.34,'rgba(184,193,204,1)');
+    g.addColorStop(.54,'rgba(132,147,166,1)');
+    g.addColorStop(.74,'rgba(70,91,120,1)');
+    g.addColorStop(.90,'rgba(27,46,75,1)');
     g.addColorStop(1,'rgba(7,21,47,1)');
     ctx.fillStyle=g;
     ctx.fillRect(0,destH,W,transitionEnd-destH);
