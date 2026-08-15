@@ -32,3 +32,4 @@ assert "const leftY=1370,rightY=1185" in s
 
 p.write_text(s)
 print('Prepared Regatta Results v16 aspect-preserved approved header crop')
+# trigger v16 workflow
