@@ -49,3 +49,4 @@ jobs:
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "Paste Athlete Main stage at native size in Regatta Results"
           git push
+# v19 native-stage trigger
