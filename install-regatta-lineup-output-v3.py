@@ -5,7 +5,7 @@ p=Path('index.html')
 t=p.read_text()
 
 t=re.sub(r'\s*<script src="regatta-lineup-output-branding-v1\.js\?v=[^"]+"></script>\s*','\n',t)
-marker='<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v6"></script>'
+marker='<script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v7"></script>'
 if '</body>' not in t:
     raise SystemExit('Missing </body>')
 t=t.replace('</body>',marker+'\n</body>',1)
@@ -35,7 +35,7 @@ old_story="""    if(activeProfile==='story'||activeProfile==='reel'){
       colGap=18;
 """
 new_story="""    if(activeProfile==='story'||activeProfile==='reel'){
-      // Exact Athlete Headshot header ends near 154px; begin cards immediately after its navy fade.
+      // Exact Athlete Headshot header ends near 170px; begin cards immediately after its navy fade.
       // Reserve the compact footer at the bottom and use the full remaining story frame.
       top=Math.max(205,zones.top+40);
       bottom=Math.max(284,zones.bottom*.45);
@@ -45,7 +45,7 @@ new_story="""    if(activeProfile==='story'||activeProfile==='reel'){
 """
 if old_story in t:
     t=t.replace(old_story,new_story,1)
-elif new_story not in t:
+elif new_story not in t and 'top=Math.max(205,zones.top+40);' not in t:
     raise SystemExit('Could not patch story grid reserve')
 
 if '        const ratio=2/3;' in t:
