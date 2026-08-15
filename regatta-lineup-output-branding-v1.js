@@ -1,15 +1,14 @@
 (function(){
 'use strict';
 
-const VERSION='20260814-regatta-output-branding-v5';
+const VERSION='20260814-regatta-output-branding-v6';
 const q=id=>document.getElementById(id);
 const nativeRAF=window.requestAnimationFrame.bind(window);
-const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v5';
+const APPROVED_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260814-regatta-output-branding-v6';
 const APPROVED_HEADER_SOURCE_H=154;
 const STORY_CARD_TOP=205;
 let approvedOverlay=null;
 let approvedOverlayReady=false;
-let headerBuffer=null;
 let installedRAF=false;
 let scheduled=false;
 
@@ -23,7 +22,6 @@ function loadApprovedOverlay(){
   approvedOverlay=new Image();
   approvedOverlay.onload=()=>{
     approvedOverlayReady=true;
-    headerBuffer=null;
     queueOverlay([0,60,180,500]);
   };
   approvedOverlay.onerror=()=>{
@@ -43,58 +41,34 @@ function fitText(ctx,text,maxWidth,startSize,minSize,fontSpec){
   return size;
 }
 
-function makeHeaderBuffer(W){
-  if(!approvedOverlayReady||!approvedOverlay)return null;
-  const destH=Math.round(W*(APPROVED_HEADER_SOURCE_H/1080));
-  if(headerBuffer&&headerBuffer.width===W&&headerBuffer.height===destH)return headerBuffer;
-
-  const off=document.createElement('canvas');
-  off.width=W;off.height=destH;
-  const oc=off.getContext('2d');
-  oc.clearRect(0,0,W,destH);
-  oc.drawImage(approvedOverlay,0,0,1080,APPROVED_HEADER_SOURCE_H,0,0,W,destH);
-
-  // Correct alpha mask: keep all approved title art fully opaque, then fade only
-  // the final bottom edge. The opaque fill above the gradient is essential.
-  const fadeDepth=Math.max(14,Math.round(destH*.11));
-  const fadeStart=destH-fadeDepth;
-  oc.globalCompositeOperation='destination-in';
-  oc.fillStyle='rgba(0,0,0,1)';
-  oc.fillRect(0,0,W,fadeStart);
-  const mask=oc.createLinearGradient(0,fadeStart,0,destH);
-  mask.addColorStop(0,'rgba(0,0,0,1)');
-  mask.addColorStop(.48,'rgba(0,0,0,.98)');
-  mask.addColorStop(.78,'rgba(0,0,0,.68)');
-  mask.addColorStop(1,'rgba(0,0,0,0)');
-  oc.fillStyle=mask;
-  oc.fillRect(0,fadeStart,W,fadeDepth);
-  oc.globalCompositeOperation='source-over';
-
-  headerBuffer=off;
-  return off;
-}
-
 function drawExactApprovedHeader(ctx,W){
-  const buffer=makeHeaderBuffer(W);
-  if(!buffer)return;
-  const destH=buffer.height;
-  const fadeStart=destH-Math.max(14,Math.round(destH*.11));
+  if(!approvedOverlayReady||!approvedOverlay)return;
+  const destH=Math.round(W*(APPROVED_HEADER_SOURCE_H/1080));
   const transitionEnd=Math.round(W*(STORY_CARD_TOP/1080));
 
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
 
-  // Navy foundation beneath the fading gray edge so the visual transition is
-  // gray -> Christchurch navy, not gray -> background photograph.
-  const navy=ctx.createLinearGradient(0,fadeStart,0,transitionEnd);
-  navy.addColorStop(0,'rgba(7,21,47,0)');
-  navy.addColorStop(.34,'rgba(7,21,47,.62)');
-  navy.addColorStop(.62,'rgba(7,21,47,.94)');
-  navy.addColorStop(1,'rgba(7,21,47,1)');
-  ctx.fillStyle=navy;
-  ctx.fillRect(0,fadeStart,W,Math.max(1,transitionEnd-fadeStart));
+  // Keep the approved headshot header completely intact, pixel-for-pixel.
+  ctx.drawImage(
+    approvedOverlay,
+    0,0,1080,APPROVED_HEADER_SOURCE_H,
+    0,0,W,destH
+  );
 
-  ctx.drawImage(buffer,0,0);
+  // The fade lives only BELOW the artwork. It extends the header's light gray edge
+  // into Christchurch navy across the small transition zone before the cards.
+  if(transitionEnd>destH){
+    const g=ctx.createLinearGradient(0,destH,0,transitionEnd);
+    g.addColorStop(0,'rgba(231,233,235,1)');
+    g.addColorStop(.18,'rgba(205,211,220,1)');
+    g.addColorStop(.44,'rgba(137,151,170,1)');
+    g.addColorStop(.72,'rgba(57,78,108,1)');
+    g.addColorStop(1,'rgba(7,21,47,1)');
+    ctx.fillStyle=g;
+    ctx.fillRect(0,destH,W,transitionEnd-destH);
+  }
+
   ctx.restore();
 }
 
