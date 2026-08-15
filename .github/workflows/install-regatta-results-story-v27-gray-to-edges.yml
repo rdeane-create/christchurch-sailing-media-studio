@@ -1,4 +1,4 @@
-name: Install Regatta Results Story v27 Gray To Edges
+name: Install Regatta Results Story v28 Gray Full Width
 on:
   push:
     paths:
@@ -16,15 +16,17 @@ jobs:
           fetch-depth: 0
       - name: Extend banner gray to card edges
         run: python .github/scripts/install_regatta_results_story_v27_extend_gray_edges.py
-      - name: Validate v27
+      - name: Validate v28
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('regatta-results-story.js').read_text()
-          assert "BUILD v27" in s
-          assert "ctx.drawImage(headerImg,SRC_W-12,0,12,SRC_H,0,0,W,SOLID_H);" in s
+          assert "BUILD v28" in s
+          assert "ctx.fillStyle=BANNER_BG;" in s
+          assert "ctx.fillRect(0,0,W,SOLID_H);" in s
+          assert "ctx.drawImage(headerImg,SRC_W-12,0,12,SRC_H,0,0,W,SOLID_H);" not in s
           assert "const leftY=1370,rightY=1185" in s
-          print('v27 validated')
+          print('v28 validated')
           PY
       - name: Commit change
         run: |
@@ -32,5 +34,5 @@ jobs:
           git config user.email "rdeane@christchurchschool.org"
           git add regatta-results-story.js
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Extend Regatta Results banner gray to card edges"
+          git commit -m "Fill Regatta Results banner gray to card edges"
           git push
