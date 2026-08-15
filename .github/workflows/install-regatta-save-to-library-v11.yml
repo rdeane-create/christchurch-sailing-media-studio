@@ -1,0 +1,35 @@
+name: Install Regatta Save to Library v11
+on:
+  push:
+    paths:
+      - '.github/scripts/install_regatta_save_to_library_v11.py'
+      - '.github/workflows/install-regatta-save-to-library-v11.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Regatta Save to Library
+        run: python3 .github/scripts/install_regatta_save_to_library_v11.py
+      - name: Validate Regatta Save to Library
+        run: |
+          grep -Fq 'CSMS_SAVE_RENDERED_LINEUP_TO_LIBRARY_V11' regatta-lineup-layout-v2.js
+          grep -Fq "btn.textContent='Save to Library'" regatta-lineup-layout-v2.js
+          grep -Fq "await addUnifiedMedia([file])" regatta-lineup-layout-v2.js
+          grep -Fq "await persistentMediaPut({id,file})" regatta-lineup-layout-v2.js
+          grep -Fq "Regatta Lineup" regatta-lineup-layout-v2.js
+          grep -Fq 'regatta-lineup-layout-v2.js?v=20260814-save-library-v11' index.html
+      - name: Commit Save to Library button
+        run: |
+          git config user.name 'rdeane-create'
+          git config user.email 'rdeane@christchurchschool.org'
+          git add regatta-lineup-layout-v2.js index.html
+          if git diff --cached --quiet; then
+            echo 'Regatta Save to Library already installed.'
+            exit 0
+          fi
+          git commit -m 'Add Regatta Save to Library action'
+          git push
