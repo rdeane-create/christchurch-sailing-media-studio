@@ -1,0 +1,43 @@
+name: Fix Regatta Results cache key v28
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-regatta-results-cache-key-v28.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix-cache-key:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Regatta Results script cache key
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text()
+          old = 'regatta-results-story.js?v=20260815-v1'
+          new = 'regatta-results-story.js?v=20260815-v28-gray-full-width'
+          if old not in s:
+              raise SystemExit(f'Expected old script reference not found: {old}')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          print('Updated:', new)
+          PY
+      - name: Verify active build and loader reference
+        run: |
+          grep -F "const VERSION='20260815-regatta-results-story-v28-gray-full-width'" regatta-results-story.js
+          grep -F "const TEMPLATE_NAME='REGATTA RESULTS STORY — BUILD v28'" regatta-results-story.js
+          grep -F 'regatta-results-story.js?v=20260815-v28-gray-full-width' index.html
+      - name: Commit cache key fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Fix Regatta Results loader cache key for v28'
+          git push
