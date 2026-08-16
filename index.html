@@ -522,6 +522,10 @@
   .bulkEditPanel,.coveragePanel{border:1px solid #d8e2ed;border-radius:14px;background:#f8fafc;padding:12px;margin:12px 0}
   .coverageGridMini{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:8px}
   .coverageMiniCard{border:1px solid #d8e2ed;border-radius:12px;background:#fff;padding:10px}
+  .videoScoutPanel{border:1px solid #d8e2ed;border-radius:14px;background:#fff;padding:12px;margin:12px 0}
+  .scoutMomentList{display:grid;gap:8px;margin-top:10px}
+  .scoutMoment{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid #d8e2ed;border-radius:12px;background:#f8fafc;padding:10px}
+  .scoutScore{font-weight:800;color:#ff4b1f}
   .colorChip{display:inline-flex;align-items:center;gap:5px}
   .colorDot{width:9px;height:9px;border-radius:50%;display:inline-block}
   .libraryTabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
@@ -1476,6 +1480,43 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     <div class="coveragePanel">
       <strong>Season Coverage</strong>
       <div id="mediaCoverageGrid" class="coverageGridMini"></div>
+    </div>
+
+    <div class="videoScoutPanel">
+      <strong>Video Scout</strong>
+      <div class="hint" style="margin-top:4px">Select one or more videos, then scan for short action windows worth saving.</div>
+      <div class="mediaToolbar" style="margin-top:8px">
+        <div class="control">
+          <label for="videoScoutClipLength">Clip length</label>
+          <select id="videoScoutClipLength">
+            <option value="8">8 seconds</option>
+            <option value="10" selected>10 seconds</option>
+            <option value="12">12 seconds</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="videoScoutMaxClips">Suggested clips</label>
+          <select id="videoScoutMaxClips">
+            <option value="4">Best 4</option>
+            <option value="6" selected>Best 6</option>
+            <option value="10">Best 10</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="videoScoutSensitivity">Sensitivity</label>
+          <select id="videoScoutSensitivity">
+            <option value="0.85">Strict</option>
+            <option value="0.7" selected>Balanced</option>
+            <option value="0.55">More suggestions</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:8px">
+        <button id="videoScoutRunBtn" class="primary" type="button">Find Action Moments</button>
+        <button id="videoScoutApproveAllBtn" class="secondary" type="button">Approve All Suggestions</button>
+      </div>
+      <div id="videoScoutStatus" class="status">Select a video to scan for action moments.</div>
+      <div id="videoScoutResults" class="scoutMomentList"></div>
     </div>
 
     <div id="uploadReviewPanel" class="uploadReviewPanel"></div>
@@ -5845,6 +5886,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       },
       cropNotes:'',
       similarGroup:'',
+      scoutStatus:'',
+      scoutSuggestions:[],
+      approvedClips:[],
       faceCount:0,
       faceMode:'unknown',
       analysisStatus:'pending',
@@ -6437,7 +6481,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         driveFileId:m.driveFileId||'',
         duplicateKey:m.duplicateKey||'',
         checksum:m.checksum||'',
-        cropNotes:m.cropNotes||''
+        cropNotes:m.cropNotes||'',
+        approvedClips:(m.approvedClips||[]).map(clip=>`${formatScoutTime(clip.start)}-${formatScoutTime(clip.end)}`).join('; ')
       };
     });
   }
@@ -6453,7 +6498,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       id:'',fileName:'',type:'',width:'',height:'',duration:'',quality:'',
       approvalStatus:'',rightsStatus:'',eventName:'',eventDate:'',eventLocation:'',
       season:'',source:'',people:'',tags:'',bestUses:'',collections:'',
-      usageCount:'',lastUsed:'',driveFileId:'',duplicateKey:'',checksum:'',cropNotes:''
+      usageCount:'',lastUsed:'',driveFileId:'',duplicateKey:'',checksum:'',cropNotes:'',approvedClips:''
     });
     const csv=[
       headers.join(','),
@@ -6470,6 +6515,225 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     setTimeout(()=>URL.revokeObjectURL(url),1000);
     const status=document.getElementById('unifiedMediaStatus');
     if(status)status.textContent=`Exported archive index with ${rows.length} media record${rows.length===1?'':'s'}.`;
+  }
+
+  function formatScoutTime(seconds){
+    const value=Math.max(0,Math.round(seconds||0));
+    const h=Math.floor(value/3600);
+    const m=Math.floor((value%3600)/60);
+    const s=value%60;
+    return h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`;
+  }
+
+  function seekVideo(video,time){
+    return new Promise((resolve,reject)=>{
+      const done=()=>{cleanup();resolve(true);};
+      const fail=()=>{cleanup();reject(new Error('Video seek failed'));};
+      const cleanup=()=>{
+        video.removeEventListener('seeked',done);
+        video.removeEventListener('error',fail);
+      };
+      video.addEventListener('seeked',done,{once:true});
+      video.addEventListener('error',fail,{once:true});
+      video.currentTime=Math.max(0,Math.min(time,Math.max(0,(video.duration||0)-.2)));
+    });
+  }
+
+  function frameStats(ctx,w,h,previous){
+    const data=ctx.getImageData(0,0,w,h).data;
+    let brightness=0;
+    let contrast=0;
+    let diff=0;
+    const values=[];
+    for(let i=0;i<data.length;i+=4){
+      const v=data[i]*.299+data[i+1]*.587+data[i+2]*.114;
+      values.push(v);
+      brightness+=v;
+      if(previous)diff+=Math.abs(v-previous[i/4]);
+    }
+    brightness/=values.length||1;
+    for(const v of values)contrast+=Math.abs(v-brightness);
+    contrast/=values.length||1;
+    return {
+      gray:values,
+      brightness,
+      contrast,
+      motion:previous?diff/(values.length||1):0
+    };
+  }
+
+  async function scanVideoActionMoments(item,options={}){
+    if(!item?.type?.startsWith('video/'))return [];
+    const video=document.createElement('video');
+    video.src=item.url;
+    video.muted=true;
+    video.playsInline=true;
+    video.preload='auto';
+    await new Promise((resolve,reject)=>{
+      video.onloadedmetadata=()=>resolve(true);
+      video.onerror=()=>reject(new Error('Could not load video for scout scan'));
+    });
+    const duration=Number.isFinite(video.duration)&&video.duration>0?video.duration:item.duration||0;
+    if(duration<2)return [];
+    const clipLength=Number(options.clipLength||10);
+    const maxClips=Number(options.maxClips||6);
+    const sensitivity=Number(options.sensitivity||.7);
+    const sampleCount=Math.max(24,Math.min(260,Math.round(duration/6)));
+    const step=Math.max(1.5,duration/sampleCount);
+    const canvas=document.createElement('canvas');
+    canvas.width=64;canvas.height=36;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    if(!ctx)return [];
+    let previous=null;
+    const samples=[];
+    for(let time=0;time<duration;time+=step){
+      await seekVideo(video,time);
+      ctx.drawImage(video,0,0,canvas.width,canvas.height);
+      const stats=frameStats(ctx,canvas.width,canvas.height,previous);
+      previous=stats.gray;
+      const exposurePenalty=Math.abs(stats.brightness-118)/118*16;
+      const score=Math.max(0,Math.round(stats.motion*1.45+stats.contrast*.55-exposurePenalty));
+      samples.push({time,score,motion:stats.motion,contrast:stats.contrast,brightness:stats.brightness});
+      if(samples.length%12===0){
+        const status=document.getElementById('videoScoutStatus');
+        if(status)status.textContent=`Scanning ${item.file.name}: ${Math.min(100,Math.round(time/duration*100))}%`;
+        await new Promise(resolve=>setTimeout(resolve,0));
+      }
+    }
+    const maxScore=Math.max(1,...samples.map(sample=>sample.score));
+    const threshold=maxScore*sensitivity;
+    const ranked=samples
+      .filter(sample=>sample.score>=threshold)
+      .sort((a,b)=>b.score-a.score);
+    const moments=[];
+    ranked.forEach(sample=>{
+      const start=Math.max(0,Math.min(duration-clipLength,sample.time-clipLength*.38));
+      if(moments.some(moment=>Math.abs(moment.start-start)<clipLength*1.4))return;
+      moments.push({
+        id:`clip_${item.id}_${Math.round(start*10)}`,
+        sourceId:item.id,
+        sourceName:item.file.name,
+        start,
+        end:Math.min(duration,start+clipLength),
+        duration:Math.min(clipLength,duration-start),
+        score:Math.min(99,Math.max(1,Math.round(sample.score/maxScore*99))),
+        motion:Math.round(sample.motion),
+        reason:sample.motion>sample.contrast?'motion spike':'scene/action change',
+        status:'suggested',
+        createdAt:new Date().toISOString()
+      });
+    });
+    return moments
+      .sort((a,b)=>b.score-a.score)
+      .slice(0,maxClips)
+      .sort((a,b)=>a.start-b.start);
+  }
+
+  function videoScoutCurrentSuggestions(){
+    return unifiedMediaRuntime.flatMap(item=>{
+      const meta=mediaMeta(item);
+      return (meta.scoutSuggestions||[]).map(moment=>({item,moment}));
+    });
+  }
+
+  function renderVideoScoutResults(){
+    const box=document.getElementById('videoScoutResults');
+    if(!box)return;
+    box.innerHTML='';
+    const suggestions=videoScoutCurrentSuggestions();
+    if(!suggestions.length){
+      box.innerHTML='<div class="status">No scout suggestions yet.</div>';
+      return;
+    }
+    suggestions.forEach(({item,moment})=>{
+      const row=document.createElement('div');
+      row.className='scoutMoment';
+      const detail=document.createElement('div');
+      detail.innerHTML=`<strong>${formatScoutTime(moment.start)}-${formatScoutTime(moment.end)} · ${item.file.name}</strong><div class="hint">${moment.reason} • ${moment.duration.toFixed(1)} s • score <span class="scoutScore">${moment.score}</span></div>`;
+      const actions=document.createElement('div');
+      actions.className='reviewActions';
+      const preview=document.createElement('button');
+      preview.className='tiny secondary';
+      preview.type='button';
+      preview.textContent='Preview';
+      preview.addEventListener('click',()=>{
+        const media=unifiedMediaRuntime.find(x=>x.id===item.id);
+        if(media?.preview?.tagName==='VIDEO'){
+          media.preview.currentTime=moment.start;
+          media.preview.play().catch(()=>{});
+        }
+      });
+      const approve=document.createElement('button');
+      approve.className='tiny primary';
+      approve.type='button';
+      approve.textContent='Approve';
+      approve.addEventListener('click',()=>approveScoutMoment(item,moment.id));
+      actions.append(preview,approve);
+      row.append(detail,actions);
+      box.append(row);
+    });
+  }
+
+  function approveScoutMoment(item,momentId){
+    const meta=loadMediaMeta();
+    const current=meta[item.id]||defaultMediaMeta(item);
+    const moment=(current.scoutSuggestions||[]).find(x=>x.id===momentId);
+    if(!moment)return;
+    const approved={...moment,status:'approved',approvedAt:new Date().toISOString()};
+    meta[item.id]={
+      ...current,
+      scoutSuggestions:(current.scoutSuggestions||[]).filter(x=>x.id!==momentId),
+      approvedClips:[...new Map([...(current.approvedClips||[]),approved].map(x=>[x.id,x])).values()],
+      tags:[...new Set([...(current.tags||[]),'video scout','action','highlight clip'])],
+      bestUses:[...new Set([...(current.bestUses||[]),'action reel','weekly highlights'])],
+      approvalStatus:current.approvalStatus==='do not use'?'needs review':current.approvalStatus
+    };
+    saveMediaMeta(meta);
+    renderUnifiedMedia();
+    renderVideoScoutResults();
+    const status=document.getElementById('videoScoutStatus');
+    if(status)status.textContent=`Approved ${formatScoutTime(approved.start)}-${formatScoutTime(approved.end)} from ${item.file.name}.`;
+  }
+
+  function approveAllScoutMoments(){
+    videoScoutCurrentSuggestions().forEach(({item,moment})=>approveScoutMoment(item,moment.id));
+  }
+
+  async function runVideoScout(){
+    const status=document.getElementById('videoScoutStatus');
+    const videos=selectedUnifiedMedia().filter(item=>item.type.startsWith('video/'));
+    if(!videos.length){
+      if(status)status.textContent='Select one or more videos before running Video Scout.';
+      return;
+    }
+    const clipLength=Number(document.getElementById('videoScoutClipLength')?.value||10);
+    const maxClips=Number(document.getElementById('videoScoutMaxClips')?.value||6);
+    const sensitivity=Number(document.getElementById('videoScoutSensitivity')?.value||.7);
+    const meta=loadMediaMeta();
+    let total=0;
+    for(const item of videos){
+      if(status)status.textContent=`Scanning ${item.file.name} for action moments...`;
+      try{
+        const moments=await scanVideoActionMoments(item,{clipLength,maxClips,sensitivity});
+        const current=meta[item.id]||defaultMediaMeta(item);
+        meta[item.id]={
+          ...current,
+          scoutStatus:'scanned',
+          scoutSuggestions:moments,
+          scoutScannedAt:new Date().toISOString(),
+          tags:[...new Set([...(current.tags||[]),'video scout scanned'])],
+          bestUses:[...new Set([...(current.bestUses||[]),'action reel'])]
+        };
+        total+=moments.length;
+      }catch(err){
+        const current=meta[item.id]||defaultMediaMeta(item);
+        meta[item.id]={...current,scoutStatus:'error',scoutError:err.message||String(err)};
+      }
+      saveMediaMeta(meta);
+      renderVideoScoutResults();
+    }
+    renderUnifiedMedia();
+    if(status)status.textContent=`Video Scout found ${total} suggested action moment${total===1?'':'s'} across ${videos.length} video${videos.length===1?'':'s'}.`;
   }
 
   function renderUnifiedMedia(){
@@ -6523,6 +6787,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         m.approvalStatus||'approved',
         ...(m.bestUses||[]).slice(0,2),
         ...(m.tags||[]).slice(0,5),
+        (m.approvedClips||[]).length?`${m.approvedClips.length} approved clip${m.approvedClips.length===1?'':'s'}`:'',
+        (m.scoutSuggestions||[]).length?`${m.scoutSuggestions.length} scout suggestion${m.scoutSuggestions.length===1?'':'s'}`:'',
         m.faceCount?`${m.faceCount} face${m.faceCount===1?'':'s'}`:'',
         ...(m.people||[]).slice(0,2).map(name=>`person: ${name}`)
       ].filter(Boolean).join(' • ')||'Analysis pending';
@@ -6613,6 +6879,16 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         renderUnifiedMedia();
       });
 
+      const scout=document.createElement('button');
+      scout.className='tiny secondary';
+      scout.textContent=(m.approvedClips||[]).length?`${m.approvedClips.length} Clips`:'Scout';
+      scout.style.display=item.type.startsWith('video/')?'':'none';
+      scout.addEventListener('click',()=>{
+        updateMediaMeta(item,{selected:true});
+        renderUnifiedMedia();
+        runVideoScout();
+      });
+
       const people=document.createElement('button');
       people.className='tiny secondary';
       people.textContent=m.people?.length?m.people.slice(0,2).join(', '):'Tag People';
@@ -6630,7 +6906,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       select.textContent=m.selected?'Selected':'Select';
       select.addEventListener('click',()=>{updateMediaMeta(item,{selected:!m.selected});renderUnifiedMedia();renderCommandCenter();});
 
-      actions.append(collection,use,details,crop,people,select);
+      actions.append(collection,use,details,crop,scout,people,select);
       card.append(previewWrap,name,metaRow,statusRow,tagLine,rating,color,approvalControl,rightsControl,actions);
       grid.append(card);
     });
@@ -6648,6 +6924,14 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       document.getElementById('unifiedMediaStatus').textContent='Select media first.';
       return;
     }
+    const scoutMap={};
+    items.forEach(item=>{
+      const approved=(mediaMeta(item).approvedClips||[]).slice().sort((a,b)=>b.score-a.score);
+      if(approved.length){
+        scoutMap[`${item.file.name}|${item.file.size}|${item.file.lastModified}`]=approved[0];
+      }
+    });
+    try{sessionStorage.setItem('csms_weekly_scout_clips',JSON.stringify(scoutMap));}catch{}
     const dt=new DataTransfer();
     items.forEach(item=>dt.items.add(item.file));
     const input=document.getElementById('weeklyFiles');
@@ -6733,6 +7017,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   document.getElementById('mediaExportArchiveBtn')?.addEventListener('click',exportMediaArchiveIndex);
   document.getElementById('mediaApplyBulkEdit')?.addEventListener('click',applyBulkMediaEdit);
+  document.getElementById('videoScoutRunBtn')?.addEventListener('click',runVideoScout);
+  document.getElementById('videoScoutApproveAllBtn')?.addEventListener('click',approveAllScoutMoments);
 
   document.getElementById('mediaSendWeekly')?.addEventListener('click',()=>{
     sendUnifiedToWeekly(selectedUnifiedMedia());
@@ -13212,6 +13498,11 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function loadMediaFile(file){
     return new Promise((resolve,reject)=>{
       const url=URL.createObjectURL(file);
+      let scoutClip=null;
+      try{
+        const scoutMap=JSON.parse(sessionStorage.getItem('csms_weekly_scout_clips')||'{}');
+        scoutClip=scoutMap[`${file.name}|${file.size}|${file.lastModified}`]||null;
+      }catch{}
       if(file.type.startsWith('image/')){
         const img=new Image();
         img.onload=()=>resolve({
@@ -13230,7 +13521,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         video.onloadedmetadata=()=>resolve({
           id:`w-${Date.now()}-${Math.random()}`,file,url,type:'video',
           element:video,duration:Number.isFinite(video.duration)?video.duration:5,
-          aspect:video.videoWidth/video.videoHeight
+          aspect:video.videoWidth/video.videoHeight,
+          scoutClipStart:Number.isFinite(scoutClip?.start)?scoutClip.start:null,
+          scoutClipEnd:Number.isFinite(scoutClip?.end)?scoutClip.end:null
         });
         video.onerror=reject;
         video.src=url;
@@ -13426,7 +13719,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
       let clipStart=0;
       if(item.type==='video'&&item.duration>duration+.25){
-        clipStart=Math.max(0,(item.duration-duration)/2);
+        clipStart=Number.isFinite(item.scoutClipStart)
+          ?Math.max(0,Math.min(item.scoutClipStart,Math.max(0,item.duration-duration)))
+          :Math.max(0,(item.duration-duration)/2);
       }
 
       timeline.push({
