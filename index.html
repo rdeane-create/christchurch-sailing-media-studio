@@ -500,7 +500,7 @@
   .createTile strong{display:block;color:#07152f;margin-bottom:4px}
   .recentList{display:grid;gap:8px;margin-top:10px}
   .recentItem{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #e7edf4;padding:8px 0}
-  .mediaToolbar{display:grid;grid-template-columns:2fr repeat(4,minmax(130px,1fr));gap:8px;align-items:end}
+  .mediaToolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end}
   .unifiedMediaGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:14px}
   .unifiedMediaCard{border:1px solid #d8e2ed;border-radius:14px;padding:10px;background:#fff;display:grid;gap:8px}
   .unifiedMediaPreview{position:relative}
@@ -509,6 +509,16 @@
   .mediaStar{position:absolute;top:8px;left:8px;border:0;border-radius:999px;background:rgba(255,255,255,.90);padding:4px 8px;cursor:pointer}
   .mediaMetaRow{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:11px;color:#66758a}
   .mediaCardActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .mediaLibrarySummary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:12px 0}
+  .mediaLibraryStat{border:1px solid #d8e2ed;border-radius:12px;padding:10px;background:#f8fafc}
+  .mediaLibraryStat strong{display:block;color:#07152f;font-size:18px}
+  .uploadReviewPanel{display:none;border:1px solid #f7b27a;border-radius:14px;background:#fff7ef;padding:12px;margin:12px 0}
+  .uploadReviewPanel.active{display:grid;gap:8px}
+  .uploadRejectItem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;border-top:1px solid #f7d1b5;padding-top:8px}
+  .mediaBadge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;background:#e8eef5;color:#102a43}
+  .mediaBadge.approved{background:#dcfae6;color:#067647}
+  .mediaBadge.review{background:#fef0c7;color:#b54708}
+  .mediaBadge.rejected{background:#fee4e2;color:#b42318}
   .colorChip{display:inline-flex;align-items:center;gap:5px}
   .colorDot{width:9px;height:9px;border-radius:50%;display:inline-block}
   .libraryTabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
@@ -518,6 +528,7 @@
   @media(max-width:900px){
     .commandHero{grid-template-columns:1fr}
     .mediaToolbar{grid-template-columns:1fr 1fr}
+    .mediaLibrarySummary{grid-template-columns:1fr 1fr}
     .storyPipeline{grid-template-columns:1fr}
   }
   @media(max-width:560px){
@@ -1311,6 +1322,14 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       <input id="unifiedMediaFiles" type="file" accept="image/*,video/*" multiple>
     </div>
 
+    <div class="mediaLibrarySummary">
+      <div class="mediaLibraryStat"><strong id="libraryApprovedCount">0</strong><span class="hint">Approved</span></div>
+      <div class="mediaLibraryStat"><strong id="libraryReviewCount">0</strong><span class="hint">Needs review</span></div>
+      <div class="mediaLibraryStat"><strong id="libraryDuplicateCount">0</strong><span class="hint">Duplicate groups</span></div>
+      <div class="mediaLibraryStat"><strong id="libraryPeopleCount">0</strong><span class="hint">People tagged</span></div>
+      <div class="mediaLibraryStat"><strong id="libraryDriveCount">0</strong><span class="hint">Drive synced</span></div>
+    </div>
+
     <div class="libraryTabs">
       <button type="button" class="secondary active" data-media-view="all">All</button>
       <button type="button" class="secondary" data-media-view="photos">Photos</button>
@@ -1359,6 +1378,29 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           <option value="rating">Rating</option>
         </select>
       </div>
+      <div class="control">
+        <label for="mediaApprovalFilter">Approval</label>
+        <select id="mediaApprovalFilter">
+          <option value="all">All usable media</option>
+          <option value="approved">Approved</option>
+          <option value="needs review">Needs review</option>
+          <option value="do not use">Do not use</option>
+          <option value="internal only">Internal only</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="mediaBestUseFilter">Best use</label>
+        <select id="mediaBestUseFilter">
+          <option value="all">All uses</option>
+          <option value="hero">Hero</option>
+          <option value="action reel">Action reel</option>
+          <option value="parent gallery">Parent gallery</option>
+          <option value="recruiting">Recruiting</option>
+          <option value="results post">Results post</option>
+          <option value="website banner">Website banner</option>
+          <option value="athlete profile">Athlete profile</option>
+        </select>
+      </div>
     </div>
 
     <div class="actions">
@@ -1367,6 +1409,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       <button id="mediaClearSelection" class="secondary" type="button">Clear Selection</button>
     </div>
 
+    <div id="uploadReviewPanel" class="uploadReviewPanel"></div>
     <div id="unifiedMediaStatus" class="status">Add media or send project files here.</div>
     <div id="unifiedMediaGrid" class="unifiedMediaGrid"></div>
   </section>
@@ -5714,6 +5757,25 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       collections:[],
       tags:[],
       people:[],
+      eventName:'',
+      eventDate:'',
+      eventLocation:'',
+      season:'',
+      source:'',
+      rightsStatus:'cleared for public use',
+      approvalStatus:'approved',
+      intakeStatus:'accepted',
+      intakeReasons:[],
+      bestUses:[],
+      usageContexts:[],
+      cropPresets:{
+        story:{scale:1,x:0,y:0},
+        square:{scale:1,x:0,y:0},
+        banner:{scale:1,x:0,y:0},
+        athlete:{scale:1,x:0,y:0}
+      },
+      cropNotes:'',
+      similarGroup:'',
       faceCount:0,
       faceMode:'unknown',
       analysisStatus:'pending',
@@ -5808,7 +5870,96 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     return 'team/group';
   }
 
-  async function analyzeUnifiedMediaItem(item,currentMeta){
+  function currentMediaEventContext(){
+    const project=(()=>{try{return currentProject();}catch{return null;}})();
+    return {
+      eventName:project?.eventName||project?.event||project?.name||'',
+      eventDate:project?.eventDate||project?.date||'',
+      eventLocation:project?.eventLocation||project?.location||'',
+      season:project?.season||''
+    };
+  }
+
+  function bestUsesForMedia(item,tags,faceCount){
+    const uses=new Set();
+    if(tags.has('action')||item.type.startsWith('video/'))uses.add('action reel');
+    if(tags.has('celebration')||tags.has('team'))uses.add('parent gallery');
+    if(tags.has('team')||tags.has('training')||tags.has('high resolution'))uses.add('recruiting');
+    if(tags.has('celebration')||tags.has('results'))uses.add('results post');
+    if(tags.has('sponsor'))uses.add('sponsor/advancement');
+    if(item.aspect>=1.25&&item.width>=1600)uses.add('website banner');
+    if(faceCount===1||tags.has('faceshot'))uses.add('athlete profile');
+    if((item.width>=3000||item.height>=2000)&&!uses.size)uses.add('hero');
+    if(!uses.size)uses.add('general archive');
+    return [...uses];
+  }
+
+  function defaultCropPresetsForMedia(item){
+    const wide=item.aspect>=1.15;
+    const portrait=item.aspect<=.82;
+    return {
+      story:{scale:portrait?1:1.28,x:0,y:0},
+      square:{scale:wide?1.18:1,x:0,y:0},
+      banner:{scale:wide?1:1.42,x:0,y:0},
+      athlete:{scale:portrait?1:1.35,x:0,y:-.04}
+    };
+  }
+
+  function existingDuplicateKeys(excludeId=''){
+    const meta=loadMediaMeta();
+    const keys=new Set();
+    unifiedMediaRuntime.forEach(item=>{
+      if(item.id===excludeId)return;
+      const m=meta[item.id]||{};
+      const key=m.duplicateKey||mediaDuplicateKeyFallback(item);
+      if(key)keys.add(key);
+    });
+    Object.entries(meta).forEach(([id,m])=>{
+      if(id!==excludeId&&m?.duplicateKey)keys.add(m.duplicateKey);
+    });
+    return keys;
+  }
+
+  function mediaDuplicateKeyFallback(item){
+    const stem=normalizedStem(item.file.name);
+    const sizeBand=Math.round(item.file.size/350000);
+    const widthBand=Math.round(item.width/250);
+    const heightBand=Math.round(item.height/250);
+    const durationBand=item.type.startsWith('video/')?Math.round((item.duration||0)*2):0;
+    return `${stem}|${sizeBand}|${widthBand}|${heightBand}|${durationBand}`;
+  }
+
+  function mediaIntakeDecision(item,meta,duplicateKeys){
+    const reasons=[];
+    const cautions=[];
+    const isVideo=item.type.startsWith('video/');
+    const maxDim=Math.max(item.width||0,item.height||0);
+    const minDim=Math.min(item.width||0,item.height||0);
+    const duplicateKey=meta.duplicateKey||mediaDuplicateKeyFallback(item);
+
+    if(duplicateKeys?.has(duplicateKey))reasons.push('Likely duplicate already in the library');
+    if(!item.width||!item.height)reasons.push('Could not read usable dimensions');
+    if(!isVideo&&maxDim<1000)reasons.push('Image resolution is too small for polished posts');
+    if(!isVideo&&minDim<420)reasons.push('Image is too narrow to crop safely');
+    if(item.aspect>3.4||item.aspect<.28)reasons.push('Shape is too extreme for Studio templates');
+    if(isVideo&&item.duration&&item.duration<1.5)reasons.push('Video is too short to use cleanly');
+    if(isVideo&&item.duration>90)cautions.push('Long raw clip; trim before using in reels');
+    if((meta.quality||0)<50)reasons.push('Quality score is below the library threshold');
+    if((meta.quality||0)>=50&&(meta.quality||0)<64)cautions.push('Usable, but needs review before publishing');
+    if(meta.faceMode==='no faces detected'&&!isVideo&&!(meta.tags||[]).some(tag=>['action','scenic','sponsor','team'].includes(tag))){
+      cautions.push('No clear subject detected');
+    }
+
+    if(reasons.length){
+      return {status:'rejected',approvalStatus:'do not use',reasons};
+    }
+    if(cautions.length){
+      return {status:'needs review',approvalStatus:'needs review',reasons:cautions};
+    }
+    return {status:'accepted',approvalStatus:'approved',reasons:['Meets library quality standards']};
+  }
+
+  async function analyzeUnifiedMediaItem(item,currentMeta,options={}){
     const meta={...(currentMeta||defaultMediaMeta(item)),analysisStatus:'analyzing'};
     const tags=mediaSearchTagsFromName(item);
     tags.add(item.type.startsWith('video/')?'video':'photo');
@@ -5838,10 +5989,28 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       :visualHash
         ?`vh:${dimensionKey}:${visualHash.slice(0,24)}`
         :`meta:${normalizedStem(item.file.name)}:${sizeBand}:${dimensionKey}:${durationBand}`;
+    const mergedTags=[...new Set([...(meta.tags||[]),...tags])].sort();
+    const eventContext=currentMediaEventContext();
+    const bestUses=bestUsesForMedia(item,new Set(mergedTags),count);
+    const draftMeta={
+      ...meta,
+      tags:mergedTags,
+      faceCount:count,
+      faceMode:mode,
+      checksum,
+      visualHash,
+      duplicateKey
+    };
+    const intake=mediaIntakeDecision(
+      item,
+      draftMeta,
+      options.duplicateKeys||existingDuplicateKeys(item.id)
+    );
 
     return {
       ...meta,
-      tags:[...new Set([...(meta.tags||[]),...tags])].sort(),
+      ...eventContext,
+      tags:mergedTags,
       faceCount:count,
       faceMode:mode,
       faceDetectionStatus:faceResult.status,
@@ -5852,6 +6021,15 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         h:Math.round(face.boundingBox?.height||0)
       })),
       people:Array.isArray(meta.people)?meta.people:[],
+      rightsStatus:meta.rightsStatus||'cleared for public use',
+      approvalStatus:meta.approvalStatus&&meta.approvalStatus!=='approved'?meta.approvalStatus:intake.approvalStatus,
+      intakeStatus:intake.status,
+      intakeReasons:intake.reasons,
+      bestUses:[...new Set([...(meta.bestUses||[]),...bestUses])],
+      usageContexts:Array.isArray(meta.usageContexts)?meta.usageContexts:[],
+      cropPresets:meta.cropPresets||defaultCropPresetsForMedia(item),
+      cropNotes:meta.cropNotes||'',
+      similarGroup:duplicateKey,
       checksum,
       visualHash,
       duplicateKey,
@@ -5888,20 +6066,82 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     });
   }
 
-  async function addUnifiedMedia(files){
+  function renderUploadReview(report){
+    const panel=document.getElementById('uploadReviewPanel');
+    if(!panel)return;
+    const rejected=report?.rejected||[];
+    const reviewed=report?.reviewed||[];
+    if(!rejected.length&&!reviewed.length){
+      panel.classList.remove('active');
+      panel.innerHTML='';
+      return;
+    }
+    panel.classList.add('active');
+    panel.innerHTML='';
+    const title=document.createElement('strong');
+    title.textContent=`Upload triage: ${report.accepted||0} approved, ${reviewed.length} needs review, ${rejected.length} rejected`;
+    panel.append(title);
+    [...reviewed,...rejected].slice(0,12).forEach(entry=>{
+      const row=document.createElement('div');
+      row.className='uploadRejectItem';
+      const detail=document.createElement('div');
+      detail.innerHTML=`<strong>${entry.name}</strong><div class="hint">${entry.reasons.join(' • ')}</div>`;
+      const badge=document.createElement('span');
+      badge.className=`mediaBadge ${entry.status==='rejected'?'rejected':'review'}`;
+      badge.textContent=entry.status==='rejected'?'Rejected':'Needs review';
+      row.append(detail,badge);
+      panel.append(row);
+    });
+  }
+
+  async function addUnifiedMedia(files,options={}){
     const meta=loadMediaMeta();
+    const duplicateKeys=existingDuplicateKeys();
+    const report={accepted:0,reviewed:[],rejected:[]};
     for(const file of files){
       if(!file.type.startsWith('image/')&&!file.type.startsWith('video/'))continue;
       try{
         const item=await loadUnifiedFile(file);
+        const analyzed=await analyzeUnifiedMediaItem(
+          item,
+          meta[item.id]||defaultMediaMeta(item),
+          {duplicateKeys}
+        );
+        if(!options.skipIntake&&analyzed.intakeStatus==='rejected'){
+          report.rejected.push({
+            name:file.name,
+            status:'rejected',
+            reasons:analyzed.intakeReasons||['Rejected by library intake']
+          });
+          URL.revokeObjectURL(item.url);
+          continue;
+        }
         if(!unifiedMediaRuntime.some(x=>x.id===item.id)){
           unifiedMediaRuntime.push(item);
+          duplicateKeys.add(analyzed.duplicateKey);
         }
-        meta[item.id]=await analyzeUnifiedMediaItem(item,meta[item.id]||defaultMediaMeta(item));
+        meta[item.id]=analyzed;
+        if(analyzed.intakeStatus==='needs review'){
+          report.reviewed.push({
+            name:file.name,
+            status:'needs review',
+            reasons:analyzed.intakeReasons||['Needs review before publishing']
+          });
+        }else{
+          report.accepted+=1;
+        }
       }catch(err){console.warn(err);}
     }
     saveMediaMeta(meta);
     syncProjectMediaFromUnified();
+    renderUnifiedMedia();
+    renderCommandCenter();
+    renderUploadReview(report);
+    const status=document.getElementById('unifiedMediaStatus');
+    if(status){
+      status.textContent=
+        `${report.accepted} approved • ${report.reviewed.length} needs review • ${report.rejected.length} rejected • ${unifiedMediaRuntime.length} in library`;
+    }
   }
 
   function syncProjectMediaFromUnified(){
@@ -5950,6 +6190,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const query=(document.getElementById('mediaSearch')?.value||'').trim().toLowerCase();
     const collection=document.getElementById('mediaCollectionFilter')?.value||'all';
     const color=document.getElementById('mediaColorFilter')?.value||'all';
+    const approval=document.getElementById('mediaApprovalFilter')?.value||'all';
+    const bestUse=document.getElementById('mediaBestUseFilter')?.value||'all';
     const minRating=+(document.getElementById('mediaMinRating')?.value||0);
     const sort=document.getElementById('mediaSort')?.value||'quality';
 
@@ -5959,15 +6201,21 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       if(unifiedMediaView==='videos'&&!item.type.startsWith('video/'))return false;
       if(unifiedMediaView==='favorites'&&!m.favorite)return false;
       if(unifiedMediaView==='top'&&m.rating<4)return false;
-      if(collection!=='all'&&!m.collections.includes(collection))return false;
+      if(collection!=='all'&&!(m.collections||[]).includes(collection))return false;
       if(color!=='all'&&m.color!==color)return false;
+      if(approval!=='all'&&m.approvalStatus!==approval)return false;
+      if(bestUse!=='all'&&!(m.bestUses||[]).includes(bestUse))return false;
       if(m.rating<minRating)return false;
       const haystack=[
-        item.file.name,item.type,m.color,
+        item.file.name,item.type,m.color,m.approvalStatus,m.rightsStatus,
+        m.eventName,m.eventDate,m.eventLocation,m.season,m.source,
+        m.cropNotes,
         m.faceMode,
         ...(m.collections||[]),
         ...(m.tags||[]),
-        ...(m.people||[])
+        ...(m.people||[]),
+        ...(m.bestUses||[]),
+        ...(m.usageContexts||[])
       ].join(' ').toLowerCase();
       if(query&&!haystack.includes(query))return false;
       return true;
@@ -5989,10 +6237,34 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     return {red:'#d92d20',yellow:'#fdb022',green:'#12b76a',blue:'#2e90fa',none:'#98a2b3'}[value];
   }
 
+  function renderLibrarySummary(){
+    const items=unifiedMediaRuntime;
+    if(!document.getElementById('libraryApprovedCount'))return;
+    const duplicateGroups=new Map();
+    items.forEach(item=>{
+      const key=mediaMeta(item).duplicateKey||mediaDuplicateKeyFallback(item);
+      if(!key)return;
+      if(!duplicateGroups.has(key))duplicateGroups.set(key,0);
+      duplicateGroups.set(key,duplicateGroups.get(key)+1);
+    });
+    const people=new Set();
+    items.forEach(item=>(mediaMeta(item).people||[]).forEach(name=>people.add(name)));
+    document.getElementById('libraryApprovedCount').textContent=
+      items.filter(item=>mediaMeta(item).approvalStatus==='approved').length;
+    document.getElementById('libraryReviewCount').textContent=
+      items.filter(item=>mediaMeta(item).approvalStatus==='needs review').length;
+    document.getElementById('libraryDuplicateCount').textContent=
+      [...duplicateGroups.values()].filter(count=>count>1).length;
+    document.getElementById('libraryPeopleCount').textContent=people.size;
+    document.getElementById('libraryDriveCount').textContent=
+      items.filter(item=>mediaMeta(item).driveStatus==='synced'||mediaMeta(item).driveFileId).length;
+  }
+
   function renderUnifiedMedia(){
     const grid=document.getElementById('unifiedMediaGrid');
     if(!grid)return;
     refreshCollectionFilter();
+    renderLibrarySummary();
     const items=filteredUnifiedMedia();
     grid.innerHTML='';
 
@@ -6035,32 +6307,97 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       const tagLine=document.createElement('div');
       tagLine.className='hint';
       tagLine.textContent=[
+        m.approvalStatus||'approved',
+        ...(m.bestUses||[]).slice(0,2),
         ...(m.tags||[]).slice(0,5),
         m.faceCount?`${m.faceCount} face${m.faceCount===1?'':'s'}`:'',
         ...(m.people||[]).slice(0,2).map(name=>`person: ${name}`)
       ].filter(Boolean).join(' • ')||'Analysis pending';
 
+      const statusRow=document.createElement('div');
+      statusRow.className='mediaMetaRow';
+      const approvalBadge=document.createElement('span');
+      approvalBadge.className=`mediaBadge ${m.approvalStatus==='approved'?'approved':m.approvalStatus==='do not use'?'rejected':'review'}`;
+      approvalBadge.textContent=m.approvalStatus||'approved';
+      const useBadge=document.createElement('span');
+      useBadge.className='mediaBadge';
+      useBadge.textContent=(m.bestUses||[])[0]||'general archive';
+      statusRow.append(approvalBadge,useBadge);
+
       const rating=document.createElement('select');
       rating.innerHTML='<option value="0">Unrated</option><option value="1">1★</option><option value="2">2★</option><option value="3">3★</option><option value="4">4★</option><option value="5">5★</option>';
       rating.value=String(m.rating);
-      rating.addEventListener('change',()=>updateMediaMeta(item,{rating:+rating.value}));
+      rating.addEventListener('change',()=>{updateMediaMeta(item,{rating:+rating.value});renderLibrarySummary();});
 
       const color=document.createElement('select');
       color.innerHTML='<option value="none">No label</option><option value="red">Red — Nationals</option><option value="yellow">Yellow — Charleston</option><option value="green">Green — Recruiting</option><option value="blue">Blue — Sponsor</option>';
       color.value=m.color;
       color.addEventListener('change',()=>updateMediaMeta(item,{color:color.value}));
 
+      const approvalControl=document.createElement('select');
+      approvalControl.innerHTML='<option value="approved">Approved</option><option value="needs review">Needs review</option><option value="do not use">Do not use</option><option value="internal only">Internal only</option>';
+      approvalControl.value=m.approvalStatus||'approved';
+      approvalControl.addEventListener('change',()=>{
+        updateMediaMeta(item,{approvalStatus:approvalControl.value});
+        renderUnifiedMedia();
+      });
+
+      const rightsControl=document.createElement('select');
+      rightsControl.innerHTML='<option value="cleared for public use">Cleared for public use</option><option value="internal only">Internal only</option><option value="credit required">Credit required</option><option value="do not post">Do not post</option>';
+      rightsControl.value=m.rightsStatus||'cleared for public use';
+      rightsControl.addEventListener('change',()=>updateMediaMeta(item,{rightsStatus:rightsControl.value}));
+
       const actions=document.createElement('div');
       actions.className='mediaCardActions';
 
       const collection=document.createElement('button');
       collection.className='tiny secondary';
-      collection.textContent=m.collections.length?m.collections.join(', '):'Add Collection';
+      collection.textContent=(m.collections||[]).length?m.collections.join(', '):'Add Collection';
       collection.addEventListener('click',()=>{
-        const value=safePrompt('Collection name:',m.collections[0]||'Weekend Racing');
+        const value=safePrompt('Collection name:',(m.collections||[])[0]||'Weekend Racing');
         if(!value)return;
         const collections=[...new Set([...(m.collections||[]),value.trim()])];
         updateMediaMeta(item,{collections});
+        renderUnifiedMedia();
+      });
+
+      const use=document.createElement('button');
+      use.className='tiny secondary';
+      use.textContent=(m.bestUses||[])[0]||'Best Use';
+      use.addEventListener('click',()=>{
+        const value=safePrompt('Best uses, separated by commas:',(m.bestUses||[]).join(', '));
+        if(value===null)return;
+        const bestUses=value.split(',').map(x=>x.trim()).filter(Boolean);
+        updateMediaMeta(item,{bestUses});
+        renderUnifiedMedia();
+      });
+
+      const details=document.createElement('button');
+      details.className='tiny secondary';
+      details.textContent=m.eventName?'Event Info':'Add Info';
+      details.addEventListener('click',()=>{
+        const current=[
+          m.eventName||'',
+          m.eventDate||'',
+          m.eventLocation||'',
+          m.season||'',
+          m.source||''
+        ].join(' | ');
+        const value=safePrompt('Event, date, location, season, source:',current);
+        if(value===null)return;
+        const [eventName='',eventDate='',eventLocation='',season='',source='']=value.split('|').map(x=>x.trim());
+        updateMediaMeta(item,{eventName,eventDate,eventLocation,season,source});
+        renderUnifiedMedia();
+      });
+
+      const crop=document.createElement('button');
+      crop.className='tiny secondary';
+      crop.textContent=m.cropNotes?'Crop Saved':'Crop Notes';
+      crop.addEventListener('click',()=>{
+        const value=safePrompt('Crop notes for story, square, banner, or athlete card:',m.cropNotes||'');
+        if(value===null)return;
+        updateMediaMeta(item,{cropNotes:value.trim()});
+        renderUnifiedMedia();
       });
 
       const people=document.createElement('button');
@@ -6078,10 +6415,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       const select=document.createElement('button');
       select.className=m.selected?'tiny primary':'tiny secondary';
       select.textContent=m.selected?'Selected':'Select';
-      select.addEventListener('click',()=>updateMediaMeta(item,{selected:!m.selected}));
+      select.addEventListener('click',()=>{updateMediaMeta(item,{selected:!m.selected});renderUnifiedMedia();renderCommandCenter();});
 
-      actions.append(collection,people,select);
-      card.append(previewWrap,name,metaRow,tagLine,rating,color,actions);
+      actions.append(collection,use,details,crop,people,select);
+      card.append(previewWrap,name,metaRow,statusRow,tagLine,rating,color,approvalControl,rightsControl,actions);
       grid.append(card);
     });
 
@@ -6143,7 +6480,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     });
   });
 
-  ['mediaSearch','mediaCollectionFilter','mediaColorFilter','mediaMinRating','mediaSort']
+  ['mediaSearch','mediaCollectionFilter','mediaColorFilter','mediaMinRating','mediaSort','mediaApprovalFilter','mediaBestUseFilter']
     .forEach(id=>document.getElementById(id)?.addEventListener(
       id==='mediaSearch'?'input':'change',
       renderUnifiedMedia
@@ -6903,7 +7240,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         [file],
         {
           skipPersistence:true,
-          skipDriveSync:true
+          skipDriveSync:true,
+          skipIntake:true
         }
       );
 
@@ -6972,7 +7310,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     await addUnifiedMedia(
       [file],
       {
-        skipDriveSync:true
+        skipDriveSync:true,
+        skipIntake:true
       }
     );
 
@@ -7690,7 +8029,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   const originalAddUnifiedMedia=addUnifiedMedia;
   addUnifiedMedia=async function(files,options={}){
-    await originalAddUnifiedMedia(files);
+    await originalAddUnifiedMedia(files,options);
     if(!options.skipPersistence){
       for(const item of unifiedMediaRuntime){
         if(files.some(file=>
@@ -7699,7 +8038,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           file.lastModified===item.file.lastModified
         )){
           try{await persistentMediaPut(item);}catch(err){console.warn('Persistent media save failed',err);}
-          if(!options.skipDriveSync){if(!options.skipDriveSync){try{await csmsDriveSyncUnifiedMediaItem(item);}catch(err){console.warn('Drive media sync failed',err);}}}
+          if(!options.skipDriveSync){try{await csmsDriveSyncUnifiedMediaItem(item);}catch(err){console.warn('Drive media sync failed',err);}}
         }
       }
     }
@@ -11236,6 +11575,17 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       quality,
       story,
       tags,
+      eventName:mediaMeta(item).eventName||'',
+      eventDate:mediaMeta(item).eventDate||'',
+      eventLocation:mediaMeta(item).eventLocation||'',
+      season:mediaMeta(item).season||'',
+      source:mediaMeta(item).source||'',
+      rightsStatus:mediaMeta(item).rightsStatus||'cleared for public use',
+      approvalStatus:mediaMeta(item).approvalStatus||'approved',
+      bestUses:Array.isArray(mediaMeta(item).bestUses)?mediaMeta(item).bestUses:[],
+      usageContexts:Array.isArray(mediaMeta(item).usageContexts)?mediaMeta(item).usageContexts:[],
+      cropPresets:mediaMeta(item).cropPresets||defaultCropPresetsForMedia(item),
+      cropNotes:mediaMeta(item).cropNotes||'',
       faceCount:Number(mediaMeta(item).faceCount||0),
       faceMode:mediaMeta(item).faceMode||'unknown',
       people:Array.isArray(mediaMeta(item).people)?mediaMeta(item).people:[],
@@ -11259,12 +11609,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(meta.duplicateKey)return meta.duplicateKey;
     if(meta.checksum)return `sha:${meta.checksum}`;
     if(meta.visualHash)return `vh:${Math.round(item.width/250)}x${Math.round(item.height/250)}:${meta.visualHash.slice(0,24)}`;
-    const stem=normalizedStem(item.file.name);
-    const sizeBand=Math.round(item.file.size/350000);
-    const widthBand=Math.round(item.width/250);
-    const heightBand=Math.round(item.height/250);
-    const durationBand=item.type.startsWith('video/')?Math.round((item.duration||0)*2):0;
-    return `${stem}|${sizeBand}|${widthBand}|${heightBand}|${durationBand}`;
+    return mediaDuplicateKeyFallback(item);
   }
 
   function analyzeMediaDNA(){
@@ -11309,9 +11654,15 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     let records=mediaDNARecords.filter(record=>{
       const useScore=use==='all'?record.bestUseScore:record.scores[use];
       if(useScore<min)return false;
+      if(record.approvalStatus==='do not use')return false;
       const haystack=[
         record.fileName,record.type,record.story,record.bestUse,
-        ...record.tags,record.cropSafety
+        record.eventName,record.eventDate,record.eventLocation,record.season,
+        record.rightsStatus,record.approvalStatus,record.cropNotes,
+        ...record.tags,record.cropSafety,
+        ...(record.people||[]),
+        ...(record.bestUses||[]),
+        ...(record.usageContexts||[])
       ].join(' ').toLowerCase();
       return !query||query.split(/\s+/).every(word=>haystack.includes(word));
     });
@@ -11547,11 +11898,11 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function buildEngineBestSelection(){
     if(!mediaDNARecords.length)analyzeMediaDNA();
     const videos=mediaDNARecords
-      .filter(x=>x.type.startsWith('video/')&&x.scores.weekly>=75)
+      .filter(x=>x.approvalStatus!=='do not use'&&x.type.startsWith('video/')&&x.scores.weekly>=75)
       .sort((a,b)=>b.scores.weekly-a.scores.weekly)
       .slice(0,2);
     const photos=mediaDNARecords
-      .filter(x=>x.type.startsWith('image/')&&x.scores.weekly>=75)
+      .filter(x=>x.approvalStatus!=='do not use'&&x.type.startsWith('image/')&&x.scores.weekly>=75)
       .sort((a,b)=>b.scores.weekly-a.scores.weekly);
 
     const chosen=[...videos];
@@ -11579,6 +11930,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   function markMediaUsage(items,useType){
     const usage=loadMediaUsage();
+    const meta=loadMediaMeta();
     items.forEach(item=>{
       const current=usage[item.id]||{count:0,lastUsed:null,uses:[]};
       current.count++;
@@ -11589,8 +11941,14 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         projectId:currentProjectId()
       }].slice(-50);
       usage[item.id]=current;
+      const currentMeta=meta[item.id]||defaultMediaMeta(item);
+      meta[item.id]={
+        ...currentMeta,
+        usageContexts:[...new Set([...(currentMeta.usageContexts||[]),useType])]
+      };
     });
     saveMediaUsage(usage);
+    saveMediaMeta(meta);
     mediaDNARecords=mediaDNARecords.map(record=>{
       const item=unifiedMediaRuntime.find(x=>x.id===record.id);
       return item?buildMediaDNARecord(item):record;
