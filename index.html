@@ -5948,6 +5948,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     return new Promise(resolve=>requestAnimationFrame(()=>resolve()));
   }
 
+  function waitForUiSlice(){
+    return new Promise(resolve=>setTimeout(resolve,0));
+  }
+
   async function mediaChecksum(file){
     if(!window.crypto?.subtle||!file?.arrayBuffer)return '';
     // Large folder drops need to become searchable quickly. Use fast visual/meta
@@ -6121,10 +6125,14 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(item.type.startsWith('video/')&&item.duration>12)tags.add('long video');
 
     let checksum=meta.checksum||'';
-    try{checksum=checksum||await mediaChecksum(item.file)}catch(err){console.warn('Media checksum failed',err)}
+    if(!options.fastIntake){
+      try{checksum=checksum||await mediaChecksum(item.file)}catch(err){console.warn('Media checksum failed',err)}
+    }
 
     const visualHash=meta.visualHash||imageVisualHash(item);
-    const faceResult=await detectMediaFaces(item);
+    const faceResult=options.skipFaces
+      ? {status:'deferred',faces:[]}
+      : await detectMediaFaces(item);
     const faces=faceResult.faces||[];
     const count=faces.length;
     const mode=faceMode(count,item);
@@ -6276,20 +6284,25 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     try{
       setUnifiedMediaStatus(`Starting library review for ${uploadFiles.length} file${uploadFiles.length===1?'':'s'}...`);
       await waitForUiFrame();
+      const bulkMode=options.bulkIntake||uploadFiles.length>50;
       for(const [index,file] of uploadFiles.entries()){
-        if(index===0||index%5===0){
+        if(index===0||index%3===0){
           setUnifiedMediaStatus(
             `Reviewing ${index+1} of ${uploadFiles.length}: ${file.name} • ` +
             `${report.accepted} approved, ${report.reviewed.length} needs review, ${report.rejected.length} rejected`
           );
-          await waitForUiFrame();
+          await waitForUiSlice();
         }
         try{
           const item=await loadUnifiedFile(file);
           const analyzed=await analyzeUnifiedMediaItem(
             item,
             meta[item.id]||defaultMediaMeta(item),
-            {duplicateKeys}
+            {
+              duplicateKeys,
+              fastIntake:bulkMode,
+              skipFaces:bulkMode
+            }
           );
           if(!options.skipIntake&&analyzed.intakeStatus==='rejected'){
             report.rejected.push({
@@ -6317,6 +6330,11 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         }catch(err){
           report.failed+=1;
           console.warn('Library intake failed for',file?.name,err);
+        }
+        if(index>0&&index%25===0){
+          saveMediaMeta(meta);
+          renderLibrarySummary();
+          await waitForUiSlice();
         }
       }
     }finally{
@@ -6458,6 +6476,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const items=unifiedMediaRuntime;
     if(!document.getElementById('libraryApprovedCount'))return;
     const duplicateGroups=new Map();
+
     items.forEach(item=>{
       const key=mediaMeta(item).duplicateKey||mediaDuplicateKeyFallback(item);
       if(!key)return;
@@ -6993,8 +7012,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     renderMediaCoverage();
     const items=filteredUnifiedMedia();
     grid.innerHTML='';
+    const renderLimit=120;
+    const renderItems=items.slice(0,renderLimit);
 
-    items.forEach(item=>{
+    renderItems.forEach(item=>{
       const m=mediaMeta(item);
       const card=document.createElement('div');
       card.className='unifiedMediaCard';
@@ -7167,7 +7188,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     });
 
     document.getElementById('unifiedMediaStatus').textContent=
-      `${items.length} visible • ${unifiedMediaRuntime.length} loaded • ${unifiedMediaRuntime.filter(x=>mediaMeta(x).selected).length} selected`;
+      `${items.length} visible${items.length>renderLimit?` • showing first ${renderLimit}`:''} • ` +
+      `${unifiedMediaRuntime.length} loaded • ${unifiedMediaRuntime.filter(x=>mediaMeta(x).selected).length} selected`;
   }
 
   function selectedUnifiedMedia(){
@@ -7223,9 +7245,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function queueUnifiedMediaFiles(files){
     queuedUnifiedMediaFiles=[...(files||[])];
     setUnifiedMediaStatus(
-      `${queuedUnifiedMediaFiles.length} file${queuedUnifiedMediaFiles.length===1?'':'s'} selected. Starting review...`
+      `${queuedUnifiedMediaFiles.length} file${queuedUnifiedMediaFiles.length===1?'':'s'} selected. Click Start Library Review to import them.`
     );
-    addUnifiedMedia(queuedUnifiedMediaFiles);
   }
 
   ['unifiedMediaFiles','unifiedMediaFolder'].forEach(id=>{
@@ -7241,8 +7262,11 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       setUnifiedMediaStatus('Choose files or a folder first, then start library review.');
       return;
     }
-    setUnifiedMediaStatus(`Restarting library review for ${queuedUnifiedMediaFiles.length} selected files...`);
-    addUnifiedMedia(queuedUnifiedMediaFiles);
+    setUnifiedMediaStatus(`Starting library review for ${queuedUnifiedMediaFiles.length} selected files...`);
+    addUnifiedMedia(queuedUnifiedMediaFiles,{
+      bulkIntake:queuedUnifiedMediaFiles.length>50,
+      skipDriveSync:queuedUnifiedMediaFiles.length>50
+    });
   });
 
   document.querySelectorAll('[data-media-view]').forEach(button=>{
