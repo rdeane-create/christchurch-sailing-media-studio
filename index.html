@@ -5315,8 +5315,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       const name=String(item?.name||'').trim().toUpperCase();
       const id=String(item?.id||'').trim().toLowerCase();
       if(name.includes('COLLEGE ANNOUNCEMENT'))return false;
+      if(name==='CHRISTCHURCH RACE RESULTS')return false;
       if(name==='CHRISTCHURCH HERO CARD — MASTER V1.0')return false;
       if(id==='template_hero_v1')return false;
+      if(id==='christchurch_race_results_template')return false;
       if(id==='christchurch_hero_card_template')return false;
       return true;
     });
