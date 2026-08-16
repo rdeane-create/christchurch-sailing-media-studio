@@ -5914,8 +5914,20 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     return Math.max(1,Math.min(99,Math.round(score)));
   }
 
+  function setUnifiedMediaStatus(message){
+    const status=document.getElementById('unifiedMediaStatus');
+    if(status)status.textContent=message;
+  }
+
+  function waitForUiFrame(){
+    return new Promise(resolve=>requestAnimationFrame(()=>resolve()));
+  }
+
   async function mediaChecksum(file){
     if(!window.crypto?.subtle||!file?.arrayBuffer)return '';
+    // Large folder drops need to become searchable quickly. Use fast visual/meta
+    // duplicate checks first and avoid blocking intake on huge raw files.
+    if(file.size>25*1024*1024)return '';
     const buffer=await file.arrayBuffer();
     const digest=await window.crypto.subtle.digest('SHA-256',buffer);
     return [...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
@@ -6209,11 +6221,26 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   async function addUnifiedMedia(files,options={}){
+    const uploadFiles=[...(files||[])].filter(file=>
+      file?.type?.startsWith('image/')||file?.type?.startsWith('video/')
+    );
+    if(!uploadFiles.length){
+      setUnifiedMediaStatus('No supported photos or videos were selected.');
+      return;
+    }
     const meta=loadMediaMeta();
     const duplicateKeys=existingDuplicateKeys();
-    const report={accepted:0,reviewed:[],rejected:[]};
-    for(const file of files){
-      if(!file.type.startsWith('image/')&&!file.type.startsWith('video/'))continue;
+    const report={accepted:0,reviewed:[],rejected:[],failed:0,total:uploadFiles.length};
+    setUnifiedMediaStatus(`Starting library review for ${uploadFiles.length} file${uploadFiles.length===1?'':'s'}...`);
+    await waitForUiFrame();
+    for(const [index,file] of uploadFiles.entries()){
+      if(index===0||index%5===0){
+        setUnifiedMediaStatus(
+          `Reviewing ${index+1} of ${uploadFiles.length}: ${file.name} • ` +
+          `${report.accepted} approved, ${report.reviewed.length} needs review, ${report.rejected.length} rejected`
+        );
+        await waitForUiFrame();
+      }
       try{
         const item=await loadUnifiedFile(file);
         const analyzed=await analyzeUnifiedMediaItem(
@@ -6244,7 +6271,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         }else{
           report.accepted+=1;
         }
-      }catch(err){console.warn(err);}
+      }catch(err){
+        report.failed+=1;
+        console.warn('Library intake failed for',file?.name,err);
+      }
     }
     saveMediaMeta(meta);
     syncProjectMediaFromUnified();
@@ -6254,7 +6284,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const status=document.getElementById('unifiedMediaStatus');
     if(status){
       status.textContent=
-        `${report.accepted} approved • ${report.reviewed.length} needs review • ${report.rejected.length} rejected • ${unifiedMediaRuntime.length} in library`;
+        `${report.accepted} approved • ${report.reviewed.length} needs review • ${report.rejected.length} rejected` +
+        `${report.failed?` • ${report.failed} could not be read`:''} • ${unifiedMediaRuntime.length} in library`;
     }
   }
 
@@ -6279,6 +6310,32 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const meta=loadMediaMeta();
     meta[item.id]={...(meta[item.id]||defaultMediaMeta(item)),...patch};
     saveMediaMeta(meta);
+  }
+
+  async function deleteUnifiedMediaAsset(item){
+    if(!item)return;
+    const name=item.file?.name||'this asset';
+    if(!confirm(`Delete "${name}" from the Studio library on this browser?`))return;
+    try{
+      await persistentMediaDelete(item.id);
+    }catch(err){
+      console.warn('Persistent media delete failed',err);
+    }
+    try{
+      const meta=loadMediaMeta();
+      delete meta[item.id];
+      saveMediaMeta(meta);
+    }catch(err){
+      console.warn('Media metadata delete failed',err);
+    }
+    unifiedMediaRuntime=unifiedMediaRuntime.filter(existing=>existing.id!==item.id);
+    try{URL.revokeObjectURL(item.url)}catch{}
+    syncProjectMediaFromUnified();
+    renderUnifiedMedia();
+    renderCommandCenter();
+    if(typeof analyzeMediaDNA==='function')analyzeMediaDNA();
+    await updateStorageStatus();
+    setUnifiedMediaStatus(`Deleted "${name}" from this browser's Studio library.`);
   }
 
   function collectionOptions(){
@@ -7053,7 +7110,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       select.textContent=m.selected?'Selected':'Select';
       select.addEventListener('click',()=>{updateMediaMeta(item,{selected:!m.selected});renderUnifiedMedia();renderCommandCenter();});
 
-      actions.append(collection,use,details,crop,scout,people,select);
+      const remove=document.createElement('button');
+      remove.className='tiny danger';
+      remove.textContent='Delete Asset';
+      remove.addEventListener('click',()=>deleteUnifiedMediaAsset(item));
+
+      actions.append(collection,use,details,crop,scout,people,select,remove);
       card.append(previewWrap,name,metaRow,statusRow,tagLine,rating,color,approvalControl,rightsControl,actions);
       grid.append(card);
     });
@@ -8691,17 +8753,32 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   const originalAddUnifiedMedia=addUnifiedMedia;
   addUnifiedMedia=async function(files,options={}){
+    const selectedFiles=[...(files||[])].filter(file=>
+      file?.type?.startsWith('image/')||file?.type?.startsWith('video/')
+    );
     await originalAddUnifiedMedia(files,options);
     if(!options.skipPersistence){
-      for(const item of unifiedMediaRuntime){
-        if(files.some(file=>
+      const changedItems=unifiedMediaRuntime.filter(item=>
+        selectedFiles.some(file=>
           file.name===item.file.name &&
           file.size===item.file.size &&
           file.lastModified===item.file.lastModified
-        )){
+        )
+      );
+      for(const [index,item] of changedItems.entries()){
+        if(index===0||index%10===0){
+          setUnifiedMediaStatus(
+            `Library review complete. Saving backup ${index+1} of ${changedItems.length}: ${item.file.name}`
+          );
+          await waitForUiFrame();
+        }
           try{await persistentMediaPut(item);}catch(err){console.warn('Persistent media save failed',err);}
           if(!options.skipDriveSync){try{await csmsDriveSyncUnifiedMediaItem(item);}catch(err){console.warn('Drive media sync failed',err);}}
-        }
+      }
+      if(changedItems.length){
+        setUnifiedMediaStatus(
+          `${changedItems.length} file${changedItems.length===1?'':'s'} reviewed and saved to the Studio library.`
+        );
       }
     }
     await updateStorageStatus();
