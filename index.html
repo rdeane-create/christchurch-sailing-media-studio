@@ -519,6 +519,9 @@
   .mediaBadge.approved{background:#dcfae6;color:#067647}
   .mediaBadge.review{background:#fef0c7;color:#b54708}
   .mediaBadge.rejected{background:#fee4e2;color:#b42318}
+  .bulkEditPanel,.coveragePanel{border:1px solid #d8e2ed;border-radius:14px;background:#f8fafc;padding:12px;margin:12px 0}
+  .coverageGridMini{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:8px}
+  .coverageMiniCard{border:1px solid #d8e2ed;border-radius:12px;background:#fff;padding:10px}
   .colorChip{display:inline-flex;align-items:center;gap:5px}
   .colorDot{width:9px;height:9px;border-radius:50%;display:inline-block}
   .libraryTabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
@@ -1321,6 +1324,11 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       <label for="unifiedMediaFiles">Add media to the current session and project</label>
       <input id="unifiedMediaFiles" type="file" accept="image/*,video/*" multiple>
     </div>
+    <div class="control">
+      <label for="unifiedMediaFolder">Add an entire folder</label>
+      <input id="unifiedMediaFolder" type="file" accept="image/*,video/*" multiple webkitdirectory directory>
+      <div class="hint">Folder upload works in Chrome and most Chromium browsers. If a browser does not support folders, use multi-select.</div>
+    </div>
 
     <div class="mediaLibrarySummary">
       <div class="mediaLibraryStat"><strong id="libraryApprovedCount">0</strong><span class="hint">Approved</span></div>
@@ -1406,7 +1414,68 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     <div class="actions">
       <button id="mediaSendWeekly" class="primary" type="button">Send Selected to Weekly Highlights</button>
       <button id="mediaSelectTop" class="secondary" type="button">Select Top Media</button>
+      <button id="mediaShowReviewBtn" class="secondary" type="button">Show Needs Review</button>
+      <button id="mediaExportArchiveBtn" class="secondary" type="button">Export Archive Index</button>
       <button id="mediaClearSelection" class="secondary" type="button">Clear Selection</button>
+    </div>
+
+    <div class="bulkEditPanel">
+      <strong>Bulk Edit Selected Media</strong>
+      <div class="mediaToolbar" style="margin-top:8px">
+        <div class="control">
+          <label for="bulkEventName">Event</label>
+          <input id="bulkEventName" type="text" placeholder="Norfolk Academy Fleet Race">
+        </div>
+        <div class="control">
+          <label for="bulkSeason">Season</label>
+          <input id="bulkSeason" type="text" placeholder="Spring 2026">
+        </div>
+        <div class="control">
+          <label for="bulkRights">Rights</label>
+          <select id="bulkRights">
+            <option value="">Leave unchanged</option>
+            <option value="cleared for public use">Cleared for public use</option>
+            <option value="internal only">Internal only</option>
+            <option value="credit required">Credit required</option>
+            <option value="do not post">Do not post</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="bulkApproval">Approval</label>
+          <select id="bulkApproval">
+            <option value="">Leave unchanged</option>
+            <option value="approved">Approved</option>
+            <option value="needs review">Needs review</option>
+            <option value="do not use">Do not use</option>
+            <option value="internal only">Internal only</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="bulkCollection">Collection</label>
+          <input id="bulkCollection" type="text" placeholder="Weekend Racing">
+        </div>
+        <div class="control">
+          <label for="bulkBestUse">Best use</label>
+          <select id="bulkBestUse">
+            <option value="">Leave unchanged</option>
+            <option value="hero">Hero</option>
+            <option value="action reel">Action reel</option>
+            <option value="parent gallery">Parent gallery</option>
+            <option value="recruiting">Recruiting</option>
+            <option value="results post">Results post</option>
+            <option value="website banner">Website banner</option>
+            <option value="athlete profile">Athlete profile</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions" style="margin-top:8px">
+        <button id="mediaApplyBulkEdit" class="primary" type="button">Apply to Selected</button>
+      </div>
+    </div>
+
+    <div class="coveragePanel">
+      <strong>Season Coverage</strong>
+      <div id="mediaCoverageGrid" class="coverageGridMini"></div>
     </div>
 
     <div id="uploadReviewPanel" class="uploadReviewPanel"></div>
@@ -6260,11 +6329,155 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       items.filter(item=>mediaMeta(item).driveStatus==='synced'||mediaMeta(item).driveFileId).length;
   }
 
+  function mediaCoverageData(){
+    const eventMap=new Map();
+    const peopleMap=new Map();
+    unifiedMediaRuntime.forEach(item=>{
+      const m=mediaMeta(item);
+      const event=m.eventName||'Unassigned event';
+      if(!eventMap.has(event))eventMap.set(event,{name:event,count:0,approved:0,review:0});
+      const eventEntry=eventMap.get(event);
+      eventEntry.count+=1;
+      if(m.approvalStatus==='approved')eventEntry.approved+=1;
+      if(m.approvalStatus==='needs review')eventEntry.review+=1;
+      (m.people||[]).forEach(person=>{
+        if(!peopleMap.has(person))peopleMap.set(person,{name:person,count:0,approved:0});
+        const personEntry=peopleMap.get(person);
+        personEntry.count+=1;
+        if(m.approvalStatus==='approved')personEntry.approved+=1;
+      });
+    });
+    return {
+      events:[...eventMap.values()].sort((a,b)=>b.count-a.count),
+      people:[...peopleMap.values()].sort((a,b)=>a.count-b.count)
+    };
+  }
+
+  function renderMediaCoverage(){
+    const grid=document.getElementById('mediaCoverageGrid');
+    if(!grid)return;
+    const data=mediaCoverageData();
+    grid.innerHTML='';
+    const cards=[
+      ['Events covered',data.events.filter(x=>x.name!=='Unassigned event').length||0,'Tie uploads to events for stronger archive search.'],
+      ['Unassigned media',data.events.find(x=>x.name==='Unassigned event')?.count||0,'Bulk edit selected media to assign an event.'],
+      ['People tagged',data.people.length,'Athlete cards can later improve this automatically.'],
+      ['Under-covered people',data.people.filter(x=>x.count<3).length,'Capture or tag more usable photos for these sailors.']
+    ];
+    cards.forEach(([title,value,hint])=>{
+      const card=document.createElement('div');
+      card.className='coverageMiniCard';
+      card.innerHTML=`<strong>${value}</strong><div>${title}</div><div class="hint">${hint}</div>`;
+      grid.append(card);
+    });
+  }
+
+  function selectedMediaIds(){
+    return new Set(selectedUnifiedMedia().map(item=>item.id));
+  }
+
+  function applyBulkMediaEdit(){
+    const ids=selectedMediaIds();
+    const status=document.getElementById('unifiedMediaStatus');
+    if(!ids.size){
+      if(status)status.textContent='Select media before applying bulk edits.';
+      return;
+    }
+    const eventName=document.getElementById('bulkEventName')?.value.trim()||'';
+    const season=document.getElementById('bulkSeason')?.value.trim()||'';
+    const rightsStatus=document.getElementById('bulkRights')?.value||'';
+    const approvalStatus=document.getElementById('bulkApproval')?.value||'';
+    const collection=document.getElementById('bulkCollection')?.value.trim()||'';
+    const bestUse=document.getElementById('bulkBestUse')?.value||'';
+    const meta=loadMediaMeta();
+    unifiedMediaRuntime.forEach(item=>{
+      if(!ids.has(item.id))return;
+      const current=meta[item.id]||defaultMediaMeta(item);
+      meta[item.id]={
+        ...current,
+        ...(eventName?{eventName}:{}),
+        ...(season?{season}:{}),
+        ...(rightsStatus?{rightsStatus}:{}),
+        ...(approvalStatus?{approvalStatus}:{}),
+        collections:collection?[...new Set([...(current.collections||[]),collection])]:current.collections,
+        bestUses:bestUse?[...new Set([...(current.bestUses||[]),bestUse])]:current.bestUses
+      };
+    });
+    saveMediaMeta(meta);
+    renderUnifiedMedia();
+    if(typeof analyzeMediaDNA==='function')analyzeMediaDNA();
+    if(status)status.textContent=`Bulk edit applied to ${ids.size} selected media item${ids.size===1?'':'s'}.`;
+  }
+
+  function archiveIndexRows(){
+    return unifiedMediaRuntime.map(item=>{
+      const m=mediaMeta(item);
+      const usage=loadMediaUsage()[item.id]||{count:0,lastUsed:''};
+      return {
+        id:item.id,
+        fileName:item.file.name,
+        type:item.type,
+        width:item.width,
+        height:item.height,
+        duration:item.duration||0,
+        quality:m.quality||0,
+        approvalStatus:m.approvalStatus||'approved',
+        rightsStatus:m.rightsStatus||'cleared for public use',
+        eventName:m.eventName||'',
+        eventDate:m.eventDate||'',
+        eventLocation:m.eventLocation||'',
+        season:m.season||'',
+        source:m.source||'',
+        people:(m.people||[]).join('; '),
+        tags:(m.tags||[]).join('; '),
+        bestUses:(m.bestUses||[]).join('; '),
+        collections:(m.collections||[]).join('; '),
+        usageCount:usage.count||0,
+        lastUsed:usage.lastUsed||'',
+        driveFileId:m.driveFileId||'',
+        duplicateKey:m.duplicateKey||'',
+        checksum:m.checksum||'',
+        cropNotes:m.cropNotes||''
+      };
+    });
+  }
+
+  function csvEscape(value){
+    const text=String(value??'');
+    return /[",\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
+  }
+
+  function exportMediaArchiveIndex(){
+    const rows=archiveIndexRows();
+    const headers=Object.keys(rows[0]||{
+      id:'',fileName:'',type:'',width:'',height:'',duration:'',quality:'',
+      approvalStatus:'',rightsStatus:'',eventName:'',eventDate:'',eventLocation:'',
+      season:'',source:'',people:'',tags:'',bestUses:'',collections:'',
+      usageCount:'',lastUsed:'',driveFileId:'',duplicateKey:'',checksum:'',cropNotes:''
+    });
+    const csv=[
+      headers.join(','),
+      ...rows.map(row=>headers.map(header=>csvEscape(row[header])).join(','))
+    ].join('\n');
+    const blob=new Blob([csv],{type:'text/csv'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;
+    link.download=`christchurch-media-library-index-${dateKey(new Date())}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const status=document.getElementById('unifiedMediaStatus');
+    if(status)status.textContent=`Exported archive index with ${rows.length} media record${rows.length===1?'':'s'}.`;
+  }
+
   function renderUnifiedMedia(){
     const grid=document.getElementById('unifiedMediaGrid');
     if(!grid)return;
     refreshCollectionFilter();
     renderLibrarySummary();
+    renderMediaCoverage();
     const items=filteredUnifiedMedia();
     grid.innerHTML='';
 
@@ -6471,6 +6684,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   document.getElementById('unifiedMediaFiles')?.addEventListener('change',e=>{
     addUnifiedMedia([...e.target.files]);
   });
+  document.getElementById('unifiedMediaFolder')?.addEventListener('change',e=>{
+    addUnifiedMedia([...e.target.files]);
+  });
 
   document.querySelectorAll('[data-media-view]').forEach(button=>{
     button.addEventListener('click',()=>{
@@ -6488,6 +6704,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   document.getElementById('mediaSelectTop')?.addEventListener('click',()=>{
     const top=[...unifiedMediaRuntime]
+      .filter(item=>mediaMeta(item).approvalStatus!=='do not use')
       .sort((a,b)=>mediaMeta(b).quality-mediaMeta(a).quality)
       .slice(0,Math.min(12,unifiedMediaRuntime.length));
     const ids=new Set(top.map(x=>x.id));
@@ -6505,6 +6722,17 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     });
     saveMediaMeta(meta);renderUnifiedMedia();renderCommandCenter();
   });
+
+  document.getElementById('mediaShowReviewBtn')?.addEventListener('click',()=>{
+    unifiedMediaView='all';
+    document.querySelectorAll('[data-media-view]').forEach(x=>x.classList.toggle('active',x.dataset.mediaView==='all'));
+    const approval=document.getElementById('mediaApprovalFilter');
+    if(approval)approval.value='needs review';
+    renderUnifiedMedia();
+  });
+
+  document.getElementById('mediaExportArchiveBtn')?.addEventListener('click',exportMediaArchiveIndex);
+  document.getElementById('mediaApplyBulkEdit')?.addEventListener('click',applyBulkMediaEdit);
 
   document.getElementById('mediaSendWeekly')?.addEventListener('click',()=>{
     sendUnifiedToWeekly(selectedUnifiedMedia());
