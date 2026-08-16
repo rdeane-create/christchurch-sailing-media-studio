@@ -1301,7 +1301,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   <section class="panel">
     <h2>Unified Media Library</h2>
     <div class="notice">
-      One searchable workspace for project photos, videos, favorites, ratings, collections, and labels.
+      One searchable workspace for project photos, videos, favorites, ratings, collections, labels,
+      duplicate scanning, quality picks, face metadata, and Google Drive restore/sync.
       Source files remain unchanged.
     </div>
 
@@ -1321,7 +1322,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     <div class="mediaToolbar">
       <div class="control">
         <label for="mediaSearch">Search</label>
-        <input id="mediaSearch" type="text" placeholder="Filename, collection, label, or type">
+        <input id="mediaSearch" type="text" placeholder="Filename, action, faceshot, athlete name, collection, or label">
       </div>
       <div class="control">
         <label for="mediaCollectionFilter">Collection</label>
@@ -5711,6 +5712,14 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       rejected:false,
       color:'none',
       collections:[],
+      tags:[],
+      people:[],
+      faceCount:0,
+      faceMode:'unknown',
+      analysisStatus:'pending',
+      checksum:'',
+      visualHash:'',
+      duplicateKey:'',
       selected:false,
       addedAt:new Date().toISOString(),
       quality:estimateMediaQuality(item)
@@ -5727,6 +5736,129 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(item.type.startsWith('video/')&&item.duration>=3&&item.duration<=12)score+=8;
     if(/finish|start|spray|sunset|celebr|team|winner|drone|action|award/.test(name))score+=8;
     return Math.max(1,Math.min(99,Math.round(score)));
+  }
+
+  async function mediaChecksum(file){
+    if(!window.crypto?.subtle||!file?.arrayBuffer)return '';
+    const buffer=await file.arrayBuffer();
+    const digest=await window.crypto.subtle.digest('SHA-256',buffer);
+    return [...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
+  }
+
+  function mediaSearchTagsFromName(item){
+    const name=String(item?.file?.name||'').toLowerCase();
+    const tags=new Set();
+    const keywordMap={
+      action:/action|spray|race|racing|tack|gybe|jibe|mark|start|finish|wind|hike|capsize|boat|sail/,
+      celebration:/celebr|winner|award|trophy|medal|podium|results|champion/,
+      team:/team|group|crew|squad|coach|captain/,
+      scenic:/sunset|sunrise|harbor|dock|drone|wide|landscape|water|river|bay/,
+      training:/practice|training|coach|briefing|clinic|drill/,
+      travel:/travel|hotel|bus|airport|trip|road/,
+      sponsor:/sponsor|logo|partner/,
+      faceshot:/portrait|headshot|athlete|face/
+    };
+    Object.entries(keywordMap).forEach(([tag,pattern])=>{if(pattern.test(name))tags.add(tag)});
+    return tags;
+  }
+
+  function visualHashDistance(a,b){
+    if(!a||!b||a.length!==b.length)return 64;
+    let distance=0;
+    for(let i=0;i<a.length;i++)if(a[i]!==b[i])distance++;
+    return distance;
+  }
+
+  function imageVisualHash(item){
+    if(!item?.type?.startsWith('image/')||!item.preview)return '';
+    const canvas=document.createElement('canvas');
+    canvas.width=8;canvas.height=8;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    if(!ctx)return '';
+    ctx.drawImage(item.preview,0,0,8,8);
+    const data=ctx.getImageData(0,0,8,8).data;
+    const values=[];
+    for(let i=0;i<data.length;i+=4){
+      values.push(Math.round(data[i]*.299+data[i+1]*.587+data[i+2]*.114));
+    }
+    const avg=values.reduce((sum,value)=>sum+value,0)/values.length;
+    return values.map(value=>value>=avg?'1':'0').join('');
+  }
+
+  async function detectMediaFaces(item){
+    if(!item?.type?.startsWith('image/')||!item.preview)return {status:'unsupported',faces:[]};
+    if(typeof window.FaceDetector!=='function')return {status:'unsupported',faces:[]};
+    try{
+      const detector=new FaceDetector({fastMode:true,maxDetectedFaces:24});
+      const faces=await detector.detect(item.preview);
+      return {status:'complete',faces:Array.isArray(faces)?faces:[]};
+    }catch(err){
+      console.warn('Face detection unavailable for media item',err);
+      return {status:'error',faces:[]};
+    }
+  }
+
+  function faceMode(faceCount,item){
+    if(!faceCount)return 'no faces detected';
+    if(faceCount===1){
+      if(item.aspect<=.95)return 'faceshot';
+      return 'single face';
+    }
+    if(faceCount<=4)return 'small group';
+    return 'team/group';
+  }
+
+  async function analyzeUnifiedMediaItem(item,currentMeta){
+    const meta={...(currentMeta||defaultMediaMeta(item)),analysisStatus:'analyzing'};
+    const tags=mediaSearchTagsFromName(item);
+    tags.add(item.type.startsWith('video/')?'video':'photo');
+    if(item.aspect>=1.15)tags.add('wide');
+    if(item.aspect<=.82)tags.add('portrait');
+    if(item.width>=3000||item.height>=2000)tags.add('high resolution');
+    if(item.type.startsWith('video/')&&item.duration<=6)tags.add('short video');
+    if(item.type.startsWith('video/')&&item.duration>12)tags.add('long video');
+
+    let checksum=meta.checksum||'';
+    try{checksum=checksum||await mediaChecksum(item.file)}catch(err){console.warn('Media checksum failed',err)}
+
+    const visualHash=meta.visualHash||imageVisualHash(item);
+    const faceResult=await detectMediaFaces(item);
+    const faces=faceResult.faces||[];
+    const count=faces.length;
+    const mode=faceMode(count,item);
+    if(count)tags.add('faces');
+    if(mode==='faceshot')tags.add('faceshot');
+    if(mode==='small group'||mode==='team/group')tags.add('group');
+
+    const sizeBand=Math.round(item.file.size/350000);
+    const dimensionKey=`${Math.round(item.width/250)}x${Math.round(item.height/250)}`;
+    const durationBand=item.type.startsWith('video/')?Math.round((item.duration||0)*2):0;
+    const duplicateKey=checksum
+      ?`sha:${checksum}`
+      :visualHash
+        ?`vh:${dimensionKey}:${visualHash.slice(0,24)}`
+        :`meta:${normalizedStem(item.file.name)}:${sizeBand}:${dimensionKey}:${durationBand}`;
+
+    return {
+      ...meta,
+      tags:[...new Set([...(meta.tags||[]),...tags])].sort(),
+      faceCount:count,
+      faceMode:mode,
+      faceDetectionStatus:faceResult.status,
+      faces:faces.map(face=>({
+        x:Math.round(face.boundingBox?.x||0),
+        y:Math.round(face.boundingBox?.y||0),
+        w:Math.round(face.boundingBox?.width||0),
+        h:Math.round(face.boundingBox?.height||0)
+      })),
+      people:Array.isArray(meta.people)?meta.people:[],
+      checksum,
+      visualHash,
+      duplicateKey,
+      analysisStatus:'complete',
+      analysisVersion:'media-library-v1',
+      analyzedAt:new Date().toISOString()
+    };
   }
 
   function loadUnifiedFile(file){
@@ -5765,7 +5897,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         if(!unifiedMediaRuntime.some(x=>x.id===item.id)){
           unifiedMediaRuntime.push(item);
         }
-        if(!meta[item.id])meta[item.id]=defaultMediaMeta(item);
+        meta[item.id]=await analyzeUnifiedMediaItem(item,meta[item.id]||defaultMediaMeta(item));
       }catch(err){console.warn(err);}
     }
     saveMediaMeta(meta);
@@ -5832,7 +5964,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       if(m.rating<minRating)return false;
       const haystack=[
         item.file.name,item.type,m.color,
-        ...(m.collections||[])
+        m.faceMode,
+        ...(m.collections||[]),
+        ...(m.tags||[]),
+        ...(m.people||[])
       ].join(' ').toLowerCase();
       if(query&&!haystack.includes(query))return false;
       return true;
@@ -5897,6 +6032,14 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       label.innerHTML=`<span class="colorDot" style="background:${colorValue(m.color)}"></span>${colorName(m.color)}`;
       metaRow.append(dims,label);
 
+      const tagLine=document.createElement('div');
+      tagLine.className='hint';
+      tagLine.textContent=[
+        ...(m.tags||[]).slice(0,5),
+        m.faceCount?`${m.faceCount} face${m.faceCount===1?'':'s'}`:'',
+        ...(m.people||[]).slice(0,2).map(name=>`person: ${name}`)
+      ].filter(Boolean).join(' • ')||'Analysis pending';
+
       const rating=document.createElement('select');
       rating.innerHTML='<option value="0">Unrated</option><option value="1">1★</option><option value="2">2★</option><option value="3">3★</option><option value="4">4★</option><option value="5">5★</option>';
       rating.value=String(m.rating);
@@ -5920,13 +6063,25 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         updateMediaMeta(item,{collections});
       });
 
+      const people=document.createElement('button');
+      people.className='tiny secondary';
+      people.textContent=m.people?.length?m.people.slice(0,2).join(', '):'Tag People';
+      people.addEventListener('click',()=>{
+        const value=safePrompt('People in this media, separated by commas:',(m.people||[]).join(', '));
+        if(value===null)return;
+        const next=value.split(',').map(name=>name.trim()).filter(Boolean);
+        updateMediaMeta(item,{people:next,tags:[...new Set([...(m.tags||[]),...(next.length?['people confirmed']:[])])]});
+        renderUnifiedMedia();
+        if(typeof analyzeMediaDNA==='function')analyzeMediaDNA();
+      });
+
       const select=document.createElement('button');
       select.className=m.selected?'tiny primary':'tiny secondary';
       select.textContent=m.selected?'Selected':'Select';
       select.addEventListener('click',()=>updateMediaMeta(item,{selected:!m.selected}));
 
-      actions.append(collection,select);
-      card.append(previewWrap,name,metaRow,rating,color,actions);
+      actions.append(collection,people,select);
+      card.append(previewWrap,name,metaRow,tagLine,rating,color,actions);
       grid.append(card);
     });
 
@@ -8515,6 +8670,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(meta.rating>=4)tags.add('top rated');
     if(meta.quality>=82)tags.add('hero');
     if(meta.quality<55)tags.add('supporting');
+    (meta.tags||[]).forEach(tag=>tags.add(tag));
+    if(meta.faceCount>0)tags.add('faces');
+    if(meta.faceMode)tags.add(meta.faceMode);
+    (meta.people||[]).forEach(person=>tags.add(`person:${person}`));
 
     return [...tags];
   }
@@ -8561,7 +8720,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function possibleDuplicateGroups(){
     const buckets=new Map();
     unifiedMediaRuntime.forEach(item=>{
-      const stem=normalizedStem(item.file.name);
+      const meta=mediaMeta(item);
+      const stem=meta.duplicateKey||normalizedStem(item.file.name);
       const sizeBand=Math.round(item.file.size/500000);
       const aspectBand=Math.round(item.aspect*10);
       const key=`${stem}|${sizeBand}|${aspectBand}`;
@@ -11076,6 +11236,11 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       quality,
       story,
       tags,
+      faceCount:Number(mediaMeta(item).faceCount||0),
+      faceMode:mediaMeta(item).faceMode||'unknown',
+      people:Array.isArray(mediaMeta(item).people)?mediaMeta(item).people:[],
+      checksum:mediaMeta(item).checksum||'',
+      visualHash:mediaMeta(item).visualHash||'',
       sharpnessEstimate:Math.max(1,Math.min(99,quality+(item.width>=2000?3:-3))),
       exposureEstimate:Math.max(1,Math.min(99,quality-2)),
       compositionEstimate:Math.max(1,Math.min(99,quality+(item.aspect>=1.15?4:0))),
@@ -11090,6 +11255,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function mediaDuplicateKey(item){
+    const meta=mediaMeta(item);
+    if(meta.duplicateKey)return meta.duplicateKey;
+    if(meta.checksum)return `sha:${meta.checksum}`;
+    if(meta.visualHash)return `vh:${Math.round(item.width/250)}x${Math.round(item.height/250)}:${meta.visualHash.slice(0,24)}`;
     const stem=normalizedStem(item.file.name);
     const sizeBand=Math.round(item.file.size/350000);
     const widthBand=Math.round(item.width/250);
