@@ -142,6 +142,42 @@
   }
   .athleteItem img{width:42px;height:52px;object-fit:cover;border-radius:7px}
   .athleteItem span{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #templateLibraryList{gap:10px!important}
+  #templateLibraryList .athleteItem{
+    grid-template-columns:74px minmax(0,1fr) auto!important;
+    min-height:96px!important;padding:10px 12px!important;gap:14px!important;
+    background:#fbfcfe!important;border-color:#d9e2ec!important;
+    box-shadow:0 1px 0 rgba(12,35,64,.03);
+  }
+  #templateLibraryList .templateThumb,
+  #templateLibraryList .athleteItem>div:first-child:not(.templateInfo):not(.templateActions){
+    width:58px!important;height:76px!important;border:1px solid #d8e2ed!important;
+    border-radius:8px!important;overflow:hidden!important;box-sizing:border-box!important;
+    background:linear-gradient(#eef2f6,#fff 38%,#7b8d9c 62%,#061b31)!important;
+  }
+  #templateLibraryList .templateInfo{min-width:0}
+  #templateLibraryList .templateTitle{
+    display:block;font-size:15px;font-weight:900;color:#102d4c;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  #templateLibraryList .templateMeta{
+    margin-top:4px;font-size:12px;line-height:1.3;color:#5f748b;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  #templateLibraryList .templateActions{display:flex;gap:7px;align-items:center;justify-content:flex-end}
+  #templateLibraryList .tiny{width:auto;white-space:nowrap;border-radius:9px}
+  #templateLibraryList .templateThumb.regattaResultsThumb{
+    position:relative;background:linear-gradient(#f5f7fa 0 18%,#061d36 18% 78%,#08356d 78% 100%)!important;
+  }
+  #templateLibraryList .templateThumb.regattaResultsThumb:before{
+    content:"";position:absolute;left:8px;right:8px;top:24px;height:3px;border-radius:5px;
+    background:#f4511e;transform:skewY(-5deg);box-shadow:0 34px 0 #fff,0 37px 0 #f4511e;
+  }
+  #templateLibraryList .templateThumb.regattaResultsThumb:after{
+    content:"1ST";position:absolute;left:13px;top:32px;width:30px;height:18px;border-radius:50%;
+    background:linear-gradient(135deg,#fff7ba,#d4a00e);color:#06295a;font-size:9px;font-weight:900;
+    display:flex;align-items:center;justify-content:center;box-shadow:18px 12px 0 #0f5296;
+  }
   .tiny{padding:7px 9px;font-size:12px}
   #heroCanvas{aspect-ratio:4/5 !important;object-fit:contain;cursor:grab;touch-action:none;border:0!important;outline:0!important}
   #previewTitleBtn{min-height:44px}
@@ -5296,14 +5332,16 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     list.innerHTML='';
     for(const item of items){
       const row=document.createElement('div');row.className='athleteItem';
-      const icon=document.createElement('div');icon.textContent='T';icon.style.fontWeight='900';icon.style.fontSize='22px';
-      const name=document.createElement('span');
+      const icon=document.createElement('div');icon.className='templateThumb';icon.textContent='T';icon.style.display='flex';icon.style.alignItems='center';icon.style.justifyContent='center';icon.style.fontWeight='900';icon.style.fontSize='22px';icon.style.color='#102d4c';
+      const info=document.createElement('div');info.className='templateInfo';
+      const name=document.createElement('span');name.className='templateTitle';
       const when=item.updatedAt?` • ${new Date(item.updatedAt).toLocaleDateString()}`:'';
       const collectionLabel=normalizeTemplateLibraryCollection(item);
-      name.textContent=`${item.name} • ${collectionLabel} • v${item.version}${when}`;
-      const actions=document.createElement('div');
-      actions.style.display='flex';
-      actions.style.gap='6px';
+      name.textContent=item.name;
+      const meta=document.createElement('div');meta.className='templateMeta';
+      meta.textContent=`${collectionLabel} • v${item.version}${when}`;
+      info.append(name,meta);
+      const actions=document.createElement('div');actions.className='templateActions';
       const create=document.createElement('button');create.className='tiny primary';create.textContent='Create From Template';
       create.addEventListener('click',()=>{
         const templateId=resolveCreativeTemplateId(item);
@@ -5331,7 +5369,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         del.addEventListener('click',async()=>{await mediaDelete(item.id);refreshTemplateLibrary();});
         actions.append(del);
       }
-      row.append(icon,name,actions);list.append(row);
+      row.append(icon,info,actions);list.append(row);
     }
   }
 
@@ -22186,6 +22224,6 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
 <script src="regatta-lineup-layout-v2.js?v=20260814-save-library-v11"></script>
 <script src="college-acceptance.js?v=20260815-college-acceptance-v1"></script>
-<script src="regatta-results-story.js?v=20260816-v58-locked-template-clean-ui"></script>
+<script src="regatta-results-story.js?v=20260816-v59-template-gallery-card"></script>
 </body>
 </html>
