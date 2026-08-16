@@ -1333,6 +1333,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       <input id="unifiedMediaFolder" type="file" accept="image/*,video/*" multiple webkitdirectory directory>
       <div class="hint">Folder upload works in Chrome and most Chromium browsers. If a browser does not support folders, use multi-select.</div>
     </div>
+    <div id="unifiedMediaIntakeStatus" class="status">Choose photos, videos, or a folder to start library review.</div>
+    <div class="actions" style="margin-top:8px">
+      <button id="unifiedMediaStartImport" class="secondary" type="button">Start Library Review</button>
+    </div>
 
     <div class="mediaLibrarySummary">
       <div class="mediaLibraryStat"><strong id="libraryApprovedCount">0</strong><span class="hint">Approved</span></div>
@@ -5842,6 +5846,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   const MEDIA_META_KEY='christchurch_unified_media_meta_v31';
   let unifiedMediaRuntime=[];
   let unifiedMediaView='all';
+  let queuedUnifiedMediaFiles=[];
+  let unifiedMediaImportRunning=false;
 
   function normalizeMediaMetaMap(value){
     if(!value||typeof value!=='object'||Array.isArray(value))return {};
@@ -5915,8 +5921,27 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function setUnifiedMediaStatus(message){
-    const status=document.getElementById('unifiedMediaStatus');
-    if(status)status.textContent=message;
+    ['unifiedMediaIntakeStatus','unifiedMediaStatus'].forEach(id=>{
+      const status=document.getElementById(id);
+      if(status)status.textContent=message;
+    });
+  }
+
+  function isSupportedMediaFile(file){
+    const name=String(file?.name||'').toLowerCase();
+    return Boolean(
+      file?.type?.startsWith('image/')||
+      file?.type?.startsWith('video/')||
+      /\.(jpe?g|png|gif|webp|heic|heif|avif|mp4|mov|m4v|webm)$/i.test(name)
+    );
+  }
+
+  function mediaFileKind(file){
+    const type=String(file?.type||'').toLowerCase();
+    const name=String(file?.name||'').toLowerCase();
+    if(type.startsWith('image/')||/\.(jpe?g|png|gif|webp|heic|heif|avif)$/i.test(name))return 'image';
+    if(type.startsWith('video/')||/\.(mp4|mov|m4v|webm)$/i.test(name))return 'video';
+    return '';
   }
 
   function waitForUiFrame(){
@@ -6168,26 +6193,40 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function loadUnifiedFile(file){
     return new Promise((resolve,reject)=>{
       const url=URL.createObjectURL(file);
-      if(file.type.startsWith('image/')){
+      const kind=mediaFileKind(file);
+      const effectiveType=file.type||(kind==='image'?'image/unknown':kind==='video'?'video/unknown':'application/octet-stream');
+      let settled=false;
+      const finish=(fn,value)=>{
+        if(settled)return;
+        settled=true;
+        clearTimeout(timeout);
+        fn(value);
+      };
+      const timeout=setTimeout(()=>{
+        finish(reject,new Error(`Could not read ${file.name} quickly enough`));
+      },8000);
+      if(kind==='image'){
         const img=new Image();
-        img.onload=()=>resolve({
+        img.onload=()=>finish(resolve,{
           id:`media_${file.name}_${file.size}_${file.lastModified}`,
-          file,url,type:file.type,preview:img,
+          file,url,type:effectiveType,preview:img,
           width:img.naturalWidth,height:img.naturalHeight,
           aspect:img.naturalWidth/img.naturalHeight,duration:0
         });
-        img.onerror=reject;img.src=url;
+        img.onerror=()=>finish(reject,new Error(`Could not read image ${file.name}`));
+        img.src=url;
       }else{
         const video=document.createElement('video');
         video.muted=true;video.playsInline=true;video.preload='metadata';
-        video.onloadedmetadata=()=>resolve({
+        video.onloadedmetadata=()=>finish(resolve,{
           id:`media_${file.name}_${file.size}_${file.lastModified}`,
-          file,url,type:file.type,preview:video,
+          file,url,type:effectiveType,preview:video,
           width:video.videoWidth,height:video.videoHeight,
           aspect:video.videoWidth/video.videoHeight,
           duration:Number.isFinite(video.duration)?video.duration:0
         });
-        video.onerror=reject;video.src=url;
+        video.onerror=()=>finish(reject,new Error(`Could not read video ${file.name}`));
+        video.src=url;
       }
     });
   }
@@ -6221,60 +6260,67 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   async function addUnifiedMedia(files,options={}){
-    const uploadFiles=[...(files||[])].filter(file=>
-      file?.type?.startsWith('image/')||file?.type?.startsWith('video/')
-    );
+    if(unifiedMediaImportRunning&&!options.skipPersistence){
+      setUnifiedMediaStatus('A library review is already running. Please wait for it to finish.');
+      return;
+    }
+    const uploadFiles=[...(files||[])].filter(isSupportedMediaFile);
     if(!uploadFiles.length){
       setUnifiedMediaStatus('No supported photos or videos were selected.');
       return;
     }
+    if(!options.skipPersistence)unifiedMediaImportRunning=true;
     const meta=loadMediaMeta();
     const duplicateKeys=existingDuplicateKeys();
     const report={accepted:0,reviewed:[],rejected:[],failed:0,total:uploadFiles.length};
-    setUnifiedMediaStatus(`Starting library review for ${uploadFiles.length} file${uploadFiles.length===1?'':'s'}...`);
-    await waitForUiFrame();
-    for(const [index,file] of uploadFiles.entries()){
-      if(index===0||index%5===0){
-        setUnifiedMediaStatus(
-          `Reviewing ${index+1} of ${uploadFiles.length}: ${file.name} • ` +
-          `${report.accepted} approved, ${report.reviewed.length} needs review, ${report.rejected.length} rejected`
-        );
-        await waitForUiFrame();
+    try{
+      setUnifiedMediaStatus(`Starting library review for ${uploadFiles.length} file${uploadFiles.length===1?'':'s'}...`);
+      await waitForUiFrame();
+      for(const [index,file] of uploadFiles.entries()){
+        if(index===0||index%5===0){
+          setUnifiedMediaStatus(
+            `Reviewing ${index+1} of ${uploadFiles.length}: ${file.name} • ` +
+            `${report.accepted} approved, ${report.reviewed.length} needs review, ${report.rejected.length} rejected`
+          );
+          await waitForUiFrame();
+        }
+        try{
+          const item=await loadUnifiedFile(file);
+          const analyzed=await analyzeUnifiedMediaItem(
+            item,
+            meta[item.id]||defaultMediaMeta(item),
+            {duplicateKeys}
+          );
+          if(!options.skipIntake&&analyzed.intakeStatus==='rejected'){
+            report.rejected.push({
+              name:file.name,
+              status:'rejected',
+              reasons:analyzed.intakeReasons||['Rejected by library intake']
+            });
+            URL.revokeObjectURL(item.url);
+            continue;
+          }
+          if(!unifiedMediaRuntime.some(x=>x.id===item.id)){
+            unifiedMediaRuntime.push(item);
+            duplicateKeys.add(analyzed.duplicateKey);
+          }
+          meta[item.id]=analyzed;
+          if(analyzed.intakeStatus==='needs review'){
+            report.reviewed.push({
+              name:file.name,
+              status:'needs review',
+              reasons:analyzed.intakeReasons||['Needs review before publishing']
+            });
+          }else{
+            report.accepted+=1;
+          }
+        }catch(err){
+          report.failed+=1;
+          console.warn('Library intake failed for',file?.name,err);
+        }
       }
-      try{
-        const item=await loadUnifiedFile(file);
-        const analyzed=await analyzeUnifiedMediaItem(
-          item,
-          meta[item.id]||defaultMediaMeta(item),
-          {duplicateKeys}
-        );
-        if(!options.skipIntake&&analyzed.intakeStatus==='rejected'){
-          report.rejected.push({
-            name:file.name,
-            status:'rejected',
-            reasons:analyzed.intakeReasons||['Rejected by library intake']
-          });
-          URL.revokeObjectURL(item.url);
-          continue;
-        }
-        if(!unifiedMediaRuntime.some(x=>x.id===item.id)){
-          unifiedMediaRuntime.push(item);
-          duplicateKeys.add(analyzed.duplicateKey);
-        }
-        meta[item.id]=analyzed;
-        if(analyzed.intakeStatus==='needs review'){
-          report.reviewed.push({
-            name:file.name,
-            status:'needs review',
-            reasons:analyzed.intakeReasons||['Needs review before publishing']
-          });
-        }else{
-          report.accepted+=1;
-        }
-      }catch(err){
-        report.failed+=1;
-        console.warn('Library intake failed for',file?.name,err);
-      }
+    }finally{
+      if(!options.skipPersistence)unifiedMediaImportRunning=false;
     }
     saveMediaMeta(meta);
     syncProjectMediaFromUnified();
@@ -7174,11 +7220,29 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     });
   }
 
-  document.getElementById('unifiedMediaFiles')?.addEventListener('change',e=>{
-    addUnifiedMedia([...e.target.files]);
+  function queueUnifiedMediaFiles(files){
+    queuedUnifiedMediaFiles=[...(files||[])];
+    setUnifiedMediaStatus(
+      `${queuedUnifiedMediaFiles.length} file${queuedUnifiedMediaFiles.length===1?'':'s'} selected. Starting review...`
+    );
+    addUnifiedMedia(queuedUnifiedMediaFiles);
+  }
+
+  ['unifiedMediaFiles','unifiedMediaFolder'].forEach(id=>{
+    const input=document.getElementById(id);
+    input?.addEventListener('click',()=>{input.value='';});
+    input?.addEventListener('change',e=>{
+      queueUnifiedMediaFiles([...e.target.files]);
+    });
   });
-  document.getElementById('unifiedMediaFolder')?.addEventListener('change',e=>{
-    addUnifiedMedia([...e.target.files]);
+
+  document.getElementById('unifiedMediaStartImport')?.addEventListener('click',()=>{
+    if(!queuedUnifiedMediaFiles.length){
+      setUnifiedMediaStatus('Choose files or a folder first, then start library review.');
+      return;
+    }
+    setUnifiedMediaStatus(`Restarting library review for ${queuedUnifiedMediaFiles.length} selected files...`);
+    addUnifiedMedia(queuedUnifiedMediaFiles);
   });
 
   document.querySelectorAll('[data-media-view]').forEach(button=>{
@@ -13759,7 +13823,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   async function addFiles(files){
     status.textContent='Loading weekly media…';
     for(const file of files){
-      if(!file.type.startsWith('image/')&&!file.type.startsWith('video/'))continue;
+      if(!isSupportedMediaFile(file))continue;
       try{media.push(await loadMediaFile(file));}catch(err){console.warn(err);}
     }
     renderMediaList();
