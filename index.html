@@ -1514,6 +1514,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       <div class="actions" style="margin-top:8px">
         <button id="videoScoutRunBtn" class="primary" type="button">Find Action Moments</button>
         <button id="videoScoutApproveAllBtn" class="secondary" type="button">Approve All Suggestions</button>
+        <button id="videoScoutCreateClipsBtn" class="secondary" type="button">Create Clip Files</button>
       </div>
       <div id="videoScoutStatus" class="status">Select a video to scan for action moments.</div>
       <div id="videoScoutResults" class="scoutMomentList"></div>
@@ -6736,6 +6737,151 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(status)status.textContent=`Video Scout found ${total} suggested action moment${total===1?'':'s'} across ${videos.length} video${videos.length===1?'':'s'}.`;
   }
 
+  function mediaRecorderMime(){
+    const options=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+    return options.find(type=>window.MediaRecorder&&MediaRecorder.isTypeSupported(type))||'';
+  }
+
+  function waitVideoEvent(video,event){
+    return new Promise((resolve,reject)=>{
+      const done=()=>{cleanup();resolve(true);};
+      const fail=()=>{cleanup();reject(new Error(`Video ${event} failed`));};
+      const cleanup=()=>{
+        video.removeEventListener(event,done);
+        video.removeEventListener('error',fail);
+      };
+      video.addEventListener(event,done,{once:true});
+      video.addEventListener('error',fail,{once:true});
+    });
+  }
+
+  function scoutClipFileName(item,clip){
+    const base=String(item.file.name||'video')
+      .replace(/\.[^.]+$/,'')
+      .replace(/[^a-z0-9]+/gi,'-')
+      .replace(/^-|-$/g,'')
+      .slice(0,44)||'video';
+    return `${base}-clip-${formatScoutTime(clip.start).replace(/:/g,'-')}.webm`;
+  }
+
+  async function renderScoutClipFile(item,clip){
+    if(!window.MediaRecorder)throw new Error('This browser cannot create clip files.');
+    const source=document.createElement('video');
+    source.src=item.url;
+    source.muted=true;
+    source.playsInline=true;
+    source.preload='auto';
+    await waitVideoEvent(source,'loadedmetadata');
+    const sourceW=source.videoWidth||item.width||1280;
+    const sourceH=source.videoHeight||item.height||720;
+    const scale=Math.min(1,1280/sourceW);
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(320,Math.round(sourceW*scale));
+    canvas.height=Math.max(180,Math.round(sourceH*scale));
+    const ctx=canvas.getContext('2d');
+    if(!ctx)throw new Error('Clip canvas is unavailable.');
+    const stream=canvas.captureStream(30);
+    const mime=mediaRecorderMime();
+    const chunks=[];
+    const recorder=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:6000000}:undefined);
+    recorder.ondataavailable=event=>{if(event.data?.size)chunks.push(event.data);};
+    const stopped=new Promise(resolve=>{recorder.onstop=resolve;});
+    await seekVideo(source,clip.start);
+    recorder.start(250);
+    const startedAt=performance.now();
+    const durationMs=Math.max(1000,(clip.duration||clip.end-clip.start||10)*1000);
+    let done=false;
+    source.play().catch(()=>{});
+    await new Promise(resolve=>{
+      function draw(){
+        const elapsed=performance.now()-startedAt;
+        if(elapsed>=durationMs||source.currentTime>=clip.end-.05)done=true;
+        ctx.drawImage(source,0,0,canvas.width,canvas.height);
+        if(done)resolve();
+        else requestAnimationFrame(draw);
+      }
+      draw();
+    });
+    source.pause();
+    if(recorder.state!=='inactive')recorder.stop();
+    await stopped;
+    const blob=new Blob(chunks,{type:recorder.mimeType||'video/webm'});
+    return new File([blob],scoutClipFileName(item,clip),{
+      type:blob.type||'video/webm',
+      lastModified:Date.now()
+    });
+  }
+
+  async function createScoutClipFiles(){
+    const status=document.getElementById('videoScoutStatus');
+    const selectedIds=selectedMediaIds();
+    const sources=unifiedMediaRuntime.filter(item=>
+      item.type.startsWith('video/') &&
+      (mediaMeta(item).approvedClips||[]).length &&
+      (!selectedIds.size||selectedIds.has(item.id))
+    );
+    if(!sources.length){
+      if(status)status.textContent='Approve Video Scout moments before creating clip files.';
+      return;
+    }
+    const files=[];
+    const sourceClips=[];
+    for(const item of sources){
+      const clips=(mediaMeta(item).approvedClips||[]).filter(clip=>!clip.extractedMediaId);
+      for(const clip of clips){
+        if(status)status.textContent=`Creating ${formatScoutTime(clip.start)}-${formatScoutTime(clip.end)} from ${item.file.name}...`;
+        try{
+          const file=await renderScoutClipFile(item,clip);
+          files.push(file);
+          sourceClips.push({item,clip,file});
+        }catch(err){
+          console.warn('Scout clip render failed',err);
+          if(status)status.textContent=`Could not create a clip from ${item.file.name}: ${err.message||err}`;
+        }
+      }
+    }
+    if(!files.length)return;
+    await addUnifiedMedia(files,{skipIntake:true});
+    const meta=loadMediaMeta();
+    sourceClips.forEach(({item,clip,file})=>{
+      const newItem=unifiedMediaRuntime.find(candidate=>
+        candidate.file.name===file.name &&
+        candidate.file.size===file.size &&
+        candidate.file.lastModified===file.lastModified
+      );
+      if(!newItem)return;
+      const sourceMeta=meta[item.id]||defaultMediaMeta(item);
+      meta[newItem.id]={
+        ...(meta[newItem.id]||defaultMediaMeta(newItem)),
+        eventName:sourceMeta.eventName||'',
+        eventDate:sourceMeta.eventDate||'',
+        eventLocation:sourceMeta.eventLocation||'',
+        season:sourceMeta.season||'',
+        source:`Video Scout from ${item.file.name}`,
+        rightsStatus:sourceMeta.rightsStatus||'cleared for public use',
+        approvalStatus:'approved',
+        tags:[...new Set([...(sourceMeta.tags||[]),'video scout clip','action','highlight clip'])],
+        bestUses:[...new Set([...(sourceMeta.bestUses||[]),'action reel','weekly highlights'])],
+        collections:[...new Set([...(sourceMeta.collections||[]),'Video Scout Clips'])],
+        scoutSourceId:item.id,
+        scoutStart:clip.start,
+        scoutEnd:clip.end,
+        quality:Math.max(70,Number(sourceMeta.quality||70))
+      };
+      meta[item.id]={
+        ...sourceMeta,
+        approvedClips:(sourceMeta.approvedClips||[]).map(existing=>
+          existing.id===clip.id?{...existing,extractedMediaId:newItem.id,extractedAt:new Date().toISOString()}:existing
+        )
+      };
+    });
+    saveMediaMeta(meta);
+    renderUnifiedMedia();
+    renderVideoScoutResults();
+    if(typeof analyzeMediaDNA==='function')analyzeMediaDNA();
+    if(status)status.textContent=`Created ${files.length} short clip file${files.length===1?'':'s'} and added them to the Media Library.`;
+  }
+
   function renderUnifiedMedia(){
     const grid=document.getElementById('unifiedMediaGrid');
     if(!grid)return;
@@ -6787,6 +6933,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         m.approvalStatus||'approved',
         ...(m.bestUses||[]).slice(0,2),
         ...(m.tags||[]).slice(0,5),
+        m.scoutSourceId?'extracted clip':'',
         (m.approvedClips||[]).length?`${m.approvedClips.length} approved clip${m.approvedClips.length===1?'':'s'}`:'',
         (m.scoutSuggestions||[]).length?`${m.scoutSuggestions.length} scout suggestion${m.scoutSuggestions.length===1?'':'s'}`:'',
         m.faceCount?`${m.faceCount} face${m.faceCount===1?'':'s'}`:'',
@@ -7019,6 +7166,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   document.getElementById('mediaApplyBulkEdit')?.addEventListener('click',applyBulkMediaEdit);
   document.getElementById('videoScoutRunBtn')?.addEventListener('click',runVideoScout);
   document.getElementById('videoScoutApproveAllBtn')?.addEventListener('click',approveAllScoutMoments);
+  document.getElementById('videoScoutCreateClipsBtn')?.addEventListener('click',createScoutClipFiles);
 
   document.getElementById('mediaSendWeekly')?.addEventListener('click',()=>{
     sendUnifiedToWeekly(selectedUnifiedMedia());
