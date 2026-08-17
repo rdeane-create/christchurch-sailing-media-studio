@@ -2688,11 +2688,19 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           </select>
         </div>
         <div class="control">
-          <label for="weeklyTitle">Opening title</label>
-          <input id="weeklyTitle" type="text" value="WEEKLY HIGHLIGHTS">
+          <label for="weeklyOutputFormat">Format</label>
+          <select id="weeklyOutputFormat">
+            <option value="story" selected>Story — 1080 × 1920</option>
+            <option value="reel">Reel — 1080 × 1920</option>
+            <option value="post">Post — 1080 × 1350</option>
+          </select>
         </div>
       </div>
       <div class="row">
+        <div class="control">
+          <label for="weeklyTitle">Opening title</label>
+          <input id="weeklyTitle" type="text" value="WEEKLY HIGHLIGHTS">
+        </div>
         <div class="control">
           <label for="weeklyDate">Week label</label>
           <input id="weeklyDate" type="text" placeholder="August 3–10, 2026">
@@ -13783,6 +13791,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   const libraryOpenEl=document.getElementById('weeklyOpenLibrary');
 
   const outputModeEl=document.getElementById('weeklyOutputMode');
+  const outputFormatEl=document.getElementById('weeklyOutputFormat');
   const durationEl=document.getElementById('weeklyDuration');
   const moodEl=document.getElementById('weeklyMood');
   const paceEl=document.getElementById('weeklyPace');
@@ -13801,7 +13810,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   const textModeEl=document.getElementById('weeklyTextMode');
   const captionSetEl=document.getElementById('weeklyCaptionSet');
 
-  const W=1080,H=1920,FPS=30;
+  let W=1080,H=1920;
+  const FPS=30;
+  const WEEKLY_FORMATS={
+    story:{w:1080,h:1920,label:'Story'},
+    reel:{w:1080,h:1920,label:'Reel'},
+    post:{w:1080,h:1350,label:'Post'}
+  };
   let media=[];
   let clips=[];
   let seed=Date.now()>>>0;
@@ -13834,6 +13849,19 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       [a[i],a[j]]=[a[j],a[i]];
     }
     return a;
+  }
+
+  function selectedWeeklyFormat(){
+    return WEEKLY_FORMATS[outputFormatEl?.value]||WEEKLY_FORMATS.story;
+  }
+
+  function setWeeklyCanvasFormat(){
+    const format=selectedWeeklyFormat();
+    W=format.w;
+    H=format.h;
+    if(canvas.width!==W)canvas.width=W;
+    if(canvas.height!==H)canvas.height=H;
+    canvas.style.aspectRatio=`${W}/${H}`;
   }
 
   function roundedRect(g,x,y,w,h,r){
@@ -14492,6 +14520,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function drawStandalonePost(){
+    setWeeklyCanvasFormat();
     drawBackground();
     const hero=media[0]||null;
     if(hero){
@@ -14548,7 +14577,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const wrapped=wrapTitle(title,920,3,fontBuilder,116,58);
     const lineHeight=wrapped.size*1.08;
     const titleHeight=wrapped.lines.length*lineHeight;
-    const titleY=H*.47-titleHeight/2;
+    const compact=H<1600;
+    const titleY=(compact?H*.48:H*.47)-titleHeight/2;
 
     ctx.font=fontBuilder(wrapped.size);
     ctx.fillStyle='#fff';
@@ -14567,11 +14597,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       ctx.fillText(subtitle,68,titleY+titleHeight+102);
     }
 
+    const footerY=compact?H-190:1600;
     ctx.fillStyle='rgba(255,255,255,.78)';
     ctx.font='700 28px Arial';
-    ctx.fillText('PURSUE EXCELLENCE',68,1600);
+    ctx.fillText('PURSUE EXCELLENCE',68,footerY);
     ctx.fillStyle='#ff6f18';
-    ctx.fillRect(68,1632,360,8);
+    ctx.fillRect(68,footerY+32,360,8);
 
     ctx.strokeStyle='rgba(255,255,255,.72)';
     ctx.lineWidth=3;
@@ -14637,6 +14668,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function drawFrameAt(t){
+    setWeeklyCanvasFormat();
     drawBackground();
     if(outputModeEl?.value==='post'){
       drawStandalonePost();
@@ -14675,6 +14707,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   async function playTimeline({renderMode=false}={}){
+    setWeeklyCanvasFormat();
     if(outputModeEl?.value==='post'){
       drawStandalonePost();
       status.textContent='Standalone title post preview is ready.';
@@ -14733,23 +14766,26 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function downloadStandalonePost(){
+    setWeeklyCanvasFormat();
     drawStandalonePost();
     canvas.toBlob(blob=>{
       if(!blob){
         status.textContent='Could not create the title post image.';
         return;
       }
+      const format=selectedWeeklyFormat();
       download.href=URL.createObjectURL(blob);
-      download.download=`Christchurch_Title_Post_${new Date().toISOString().slice(0,10)}.png`;
-      download.textContent='Download Title Post';
+      download.download=`Christchurch_Title_${format.label}_${new Date().toISOString().slice(0,10)}.png`;
+      download.textContent=`Download ${format.label} Title`;
       download.style.display='block';
-      status.textContent='Standalone title post ready.';
-      completeActiveProductionWork(['Weekly Highlights','Standalone Post'],'Title post completed and ready for review');
+      status.textContent=`Standalone ${format.label.toLowerCase()} title ready at ${format.w} x ${format.h}.`;
+      completeActiveProductionWork(['Weekly Highlights',`${format.label} Title`],'Title post completed and ready for review');
     },'image/png');
   }
 
   async function render(){
     if(rendering)return;
+    setWeeklyCanvasFormat();
     if(outputModeEl?.value==='post'){
       downloadStandalonePost();
       return;
@@ -14779,12 +14815,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     await done;
 
     const blob=new Blob(chunks,{type:recorder.mimeType||'video/webm'});
+    const format=selectedWeeklyFormat();
     download.href=URL.createObjectURL(blob);
-    download.download=`Christchurch_Weekly_Highlights_${new Date().toISOString().slice(0,10)}.webm`;
-    download.textContent='Download Weekly Highlights';
+    download.download=`Christchurch_Weekly_Highlights_${format.label}_${new Date().toISOString().slice(0,10)}.webm`;
+    download.textContent=`Download Weekly Highlights ${format.label}`;
     download.style.display='block';
-    status.textContent='Weekly Highlights ready. Add music inside Instagram.';
-    completeActiveProductionWork(['Weekly Highlights','Instagram Story'],'Video render completed and is ready for review');
+    status.textContent=`Weekly Highlights ${format.label.toLowerCase()} ready at ${format.w} x ${format.h}. Add music inside Instagram.`;
+    completeActiveProductionWork(['Weekly Highlights',format.label],'Video render completed and is ready for review');
     rendering=false;
   }
 
@@ -14795,7 +14832,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     el.addEventListener('change',renderWeeklyLibraryPicker);
   });
   libraryRefreshEl?.addEventListener('click',renderWeeklyLibraryPicker);
-  libraryOpenEl?.addEventListener('click',()=>activateWorkspace('library'));
+  libraryOpenEl?.addEventListener('click',()=>activateWorkspace('media'));
   libraryTopEl?.addEventListener('click',()=>{
     const picks=weeklyLibraryCandidates().slice(0,12).map(entry=>entry.item);
     addUnifiedItemsToWeekly(picks);
@@ -14831,7 +14868,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   [
     durationEl,moodEl,paceEl,endingEl,storyTemplateEl,directorEl,polishEl,colorMatchEl,textModeEl,
-    editorBrainEl,titleStyleEl,titleHoldEl,cropModeEl,outputModeEl,
+    editorBrainEl,titleStyleEl,titleHoldEl,cropModeEl,outputModeEl,outputFormatEl,
     titleEl,dateEl,postSubtitleEl,captionSetEl
   ].forEach(el=>el.addEventListener('change',()=>{
     buildTimeline();
