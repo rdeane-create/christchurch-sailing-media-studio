@@ -7422,6 +7422,26 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     return `name:${stem}:${aspectBand}`;
   }
 
+  function storySampleStem(item){
+    return normalizedStem(item.file.name)
+      .replace(/[-_\s]?(img|dsc|photo|copy|edit|final|export|copy)[-_\s]?/gi,'')
+      .replace(/[-_\s]?\d{1,5}$/,'')
+      .slice(0,22);
+  }
+
+  function storySamplesTooSimilar(a,b,meta){
+    const aMeta=meta[a.id]||defaultMediaMeta(a);
+    const bMeta=meta[b.id]||defaultMediaMeta(b);
+    if(storySampleGroupKey(a,aMeta)===storySampleGroupKey(b,bMeta))return true;
+    if(aMeta.visualHash&&bMeta.visualHash&&visualHashDistance(aMeta.visualHash,bMeta.visualHash)<=12)return true;
+    const aStem=storySampleStem(a);
+    const bStem=storySampleStem(b);
+    if(aStem&&bStem&&aStem===bStem)return true;
+    const aspectClose=Math.abs((a.aspect||1)-(b.aspect||1))<.08;
+    const sizeClose=Math.abs((a.file.size||0)-(b.file.size||0))<90000;
+    return aspectClose&&sizeClose&&normalizedStem(a.file.name).slice(0,12)===normalizedStem(b.file.name).slice(0,12);
+  }
+
   function storySampleScore(item,meta){
     const tags=new Set((meta.tags||[]).map(tag=>String(tag).toLowerCase()));
     const uses=new Set((meta.bestUses||[]).map(use=>String(use).toLowerCase()));
@@ -7460,7 +7480,16 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       })
       .map(item=>({item,meta:meta[item.id]||defaultMediaMeta(item)}))
       .sort((a,b)=>storySampleScore(b.item,b.meta)-storySampleScore(a.item,a.meta));
-    const needsReviewCandidates=storyCandidates.filter(entry=>entry.meta.approvalStatus==='needs review');
+    const needsReviewCandidates=unifiedMediaRuntime
+      .filter(item=>{
+        const m=meta[item.id]||defaultMediaMeta(item);
+        const kind=mediaFileKind(item.file)||(
+          item.type?.startsWith('image/')?'image':item.type?.startsWith('video/')?'video':''
+        );
+        return kind==='image'&&m.approvalStatus==='needs review'&&m.rightsStatus!=='do not post';
+      })
+      .map(item=>({item,meta:meta[item.id]||defaultMediaMeta(item)}))
+      .sort((a,b)=>storySampleScore(b.item,b.meta)-storySampleScore(a.item,a.meta));
     const approvedCandidates=storyCandidates.filter(entry=>entry.meta.approvalStatus!=='needs review');
 
     const picked=[];
@@ -7472,6 +7501,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         if(picked.some(item=>item.id===entry.item.id))continue;
         const group=storySampleGroupKey(entry.item,entry.meta);
         if(usedGroups.has(group))continue;
+        if(picked.some(item=>storySamplesTooSimilar(item,entry.item,meta)))continue;
         picked.push(entry.item);
         usedGroups.add(group);
       }
@@ -7486,6 +7516,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         if(picked.some(item=>item.id===entry.item.id))continue;
       const group=storySampleGroupKey(entry.item,entry.meta);
       if(usedGroups.has(group))continue;
+      if(picked.some(item=>storySamplesTooSimilar(item,entry.item,meta)))continue;
       picked.push(entry.item);
       usedGroups.add(group);
       }
@@ -7506,6 +7537,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         if(picked.some(item=>item.id===entry.item.id))continue;
         const group=storySampleGroupKey(entry.item,entry.meta);
         if(usedGroups.has(group))continue;
+        if(picked.some(item=>storySamplesTooSimilar(item,entry.item,meta)))continue;
         picked.push(entry.item);
         usedGroups.add(group);
         if(picked.length>=target)break;
@@ -14661,6 +14693,45 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.restore();
   }
 
+  function drawKineticWord(text,x,y,size,progress,delay=0,color='#fff'){
+    const r=easeOutCubic(clamp((progress-delay)/.28,0,1));
+    if(r<=0)return;
+    ctx.save();
+    ctx.globalAlpha=r;
+    ctx.translate((1-r)*-120,0);
+    ctx.fillStyle=color;
+    ctx.font=`italic 900 ${size}px Arial`;
+    ctx.fillText(text,x,y);
+    ctx.restore();
+  }
+
+  function drawHypeShutters(p){
+    ctx.save();
+    const a=smoothstep(.02,.24,p)*(1-smoothstep(.78,1,p));
+    ctx.globalAlpha=.34*a;
+    ctx.fillStyle='#ff4f1f';
+    for(let i=0;i<4;i++){
+      ctx.beginPath();
+      const x=-260+i*330+p*180;
+      ctx.moveTo(x,0);
+      ctx.lineTo(x+98,0);
+      ctx.lineTo(x-180,H);
+      ctx.lineTo(x-278,H);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalAlpha=.15*a;
+    ctx.fillStyle='#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(W*.72,0);
+    ctx.lineTo(W*.82,0);
+    ctx.lineTo(W*.56,H);
+    ctx.lineTo(W*.46,H);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawOpening(p,clip={}){
     const bg=ctx.createLinearGradient(0,0,W,H);
     bg.addColorStop(0,'#031027');
@@ -14684,6 +14755,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       ctx.fillRect(0,0,W,H);
       ctx.restore();
     }
+
+    drawHypeShutters(p);
 
     ctx.save();
     ctx.globalAlpha=.09;
@@ -14727,6 +14800,15 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.fillRect(0,124,560*brandReveal,8);
     ctx.restore();
 
+    ctx.save();
+    drawKineticWord('THIS IS',66,H*.33,58,p,.04,'#ff6f18');
+    drawKineticWord('CHRISTCHURCH',66,H*.39,82,p,.12,'#fff');
+    drawKineticWord('SAILING',66,H*.46,96,p,.20,'#fff');
+    ctx.fillStyle='rgba(255,255,255,.18)';
+    ctx.font='900 26px Arial';
+    ctx.fillText('RACE WEEK ENERGY / SEAHORSE STANDARD',70,H*.51);
+    ctx.restore();
+
     const fontBuilder=size=>style==='editorial'
       ?`300 ${size}px Georgia`
       :style==='heritage'
@@ -14736,7 +14818,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const wrapped=wrapTitle(title,900,2,fontBuilder,112,62);
     const lineHeight=wrapped.size*1.12;
     const totalHeight=wrapped.lines.length*lineHeight;
-    const centerY=H*.47;
+    const centerY=H*.62;
     const startY=centerY-totalHeight/2;
 
     ctx.save();
@@ -14915,13 +14997,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
     const category=classifyMedia(item);
     const label=clip.caption||(
-      category==='action'?'ON THE WATER':
-      category==='team' || category==='life'?'TEAM MOMENTS':
-      category==='scenic'?'REGATTA SCENE':
-      category==='training'?'PRACTICE WORK':
-      category==='celebration'?'FINISH STRONG':'THIS WEEK'
+      category==='action'?'PRESSURE ON':
+      category==='team' || category==='life'?'CREW ENERGY':
+      category==='scenic'?'RACE VENUE':
+      category==='training'?'WORK BEFORE THE START':
+      category==='celebration'?'FINISH STRONG':'SEAHORSE STANDARD'
     );
-    const detail=item.type==='video'?'NATIVE-SPEED VIDEO':'CHRISTCHURCH SAILING';
+    const detail=item.type==='video'?'RAW ACTION CLIP':'CHRISTCHURCH SAILING HIGHLIGHTS';
     drawSportsStrap(label,detail,(clip.start+clip.duration*p)/(+durationEl.value||1));
   }
 
