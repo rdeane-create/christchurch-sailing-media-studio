@@ -1428,6 +1428,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       </div>
     </div>
 
+    <div id="unifiedMediaStatus" class="status">Add media or send project files here.</div>
+    <div id="unifiedMediaGrid" class="unifiedMediaGrid"></div>
+
     <div class="actions">
       <button id="mediaSendWeekly" class="primary" type="button">Send Selected to Weekly Highlights</button>
       <button id="mediaSelectTop" class="secondary" type="button">Select Top Media</button>
@@ -1534,8 +1537,6 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     </div>
 
     <div id="uploadReviewPanel" class="uploadReviewPanel"></div>
-    <div id="unifiedMediaStatus" class="status">Add media or send project files here.</div>
-    <div id="unifiedMediaGrid" class="unifiedMediaGrid"></div>
   </section>
 </div>
 
@@ -6532,8 +6533,11 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
     let items=unifiedMediaRuntime.filter(item=>{
       const m=mediaMeta(item);
-      if(unifiedMediaView==='photos'&&!item.type.startsWith('image/'))return false;
-      if(unifiedMediaView==='videos'&&!item.type.startsWith('video/'))return false;
+      const kind=mediaFileKind(item.file)||(
+        item.type?.startsWith('image/')?'image':item.type?.startsWith('video/')?'video':''
+      );
+      if(unifiedMediaView==='photos'&&kind!=='image')return false;
+      if(unifiedMediaView==='videos'&&kind!=='video')return false;
       if(unifiedMediaView==='favorites'&&!m.favorite)return false;
       if(unifiedMediaView==='top'&&m.rating<4)return false;
       if(collection!=='all'&&!(m.collections||[]).includes(collection))return false;
@@ -6542,7 +6546,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       if(bestUse!=='all'&&!(m.bestUses||[]).includes(bestUse))return false;
       if(m.rating<minRating)return false;
       const haystack=[
-        item.file.name,item.type,m.color,m.approvalStatus,m.rightsStatus,
+        item.file.name,item.type,kind,m.color,m.approvalStatus,m.rightsStatus,
         m.eventName,m.eventDate,m.eventLocation,m.season,m.source,
         m.cropNotes,
         m.faceMode,
@@ -7117,12 +7121,15 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
     renderItems.forEach(item=>{
       const m=mediaMeta(item);
+      const kind=mediaFileKind(item.file)||(
+        item.type?.startsWith('image/')?'image':item.type?.startsWith('video/')?'video':'image'
+      );
       const card=document.createElement('div');
       card.className='unifiedMediaCard';
 
       const previewWrap=document.createElement('div');
       previewWrap.className='unifiedMediaPreview';
-      const preview=document.createElement(item.type.startsWith('video/')?'video':'img');
+      const preview=document.createElement(kind==='video'?'video':'img');
       preview.src=item.url;
       if(preview.tagName==='VIDEO'){preview.muted=true;preview.controls=true;}
 
@@ -7143,7 +7150,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       const metaRow=document.createElement('div');
       metaRow.className='mediaMetaRow';
       const dims=document.createElement('span');
-      dims.textContent=item.type.startsWith('video/')
+      dims.textContent=kind==='video'
         ?`${item.duration.toFixed(1)} s • ${item.width}×${item.height}`
         :`${item.width}×${item.height}`;
       const label=document.createElement('span');
@@ -7253,7 +7260,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       const scout=document.createElement('button');
       scout.className='tiny secondary';
       scout.textContent=(m.approvedClips||[]).length?`${m.approvedClips.length} Clips`:'Scout';
-      scout.style.display=item.type.startsWith('video/')?'':'none';
+      scout.style.display=kind==='video'?'':'none';
       scout.addEventListener('click',()=>{
         updateMediaMeta(item,{selected:true});
         renderUnifiedMedia();
@@ -7518,13 +7525,38 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   async function restorePersistentMedia(){
     const stored=await persistentMediaGetAll();
-    const files=stored.map(record=>
-      new File([record.blob],record.name,{
-        type:record.type,
-        lastModified:record.lastModified||Date.now()
-      })
-    );
-    if(files.length)await addUnifiedMedia(files,{skipPersistence:true});
+    if(stored.length){
+      const meta=loadMediaMeta();
+      let restored=0;
+      setUnifiedMediaStatus(`Restoring ${stored.length} saved library asset${stored.length===1?'':'s'}...`);
+      for(const record of stored){
+        try{
+          const file=new File([record.blob],record.name,{
+            type:record.type,
+            lastModified:record.lastModified||Date.now()
+          });
+          const item=await loadUnifiedFile(file);
+          if(!unifiedMediaRuntime.some(existing=>existing.id===item.id)){
+            unifiedMediaRuntime.push(item);
+            meta[item.id]=meta[item.id]||{
+              ...defaultMediaMeta(item),
+              approvalStatus:'needs review',
+              intakeStatus:'restored',
+              analysisStatus:'restored',
+              restoredAt:new Date().toISOString()
+            };
+            restored+=1;
+          }
+        }catch(err){
+          console.warn('Persistent media restore failed',record?.name,err);
+        }
+      }
+      saveMediaMeta(meta);
+      syncProjectMediaFromUnified();
+      renderUnifiedMedia();
+      renderCommandCenter();
+      setUnifiedMediaStatus(`${restored} saved library asset${restored===1?'':'s'} restored and visible.`);
+    }
     /* CSMS DRIVE RESTORE V2 */
     setTimeout(()=>{
       csmsStartupDriveRestore().catch(err=>console.warn('Drive media startup restore failed',err));
