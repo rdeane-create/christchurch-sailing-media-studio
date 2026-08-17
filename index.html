@@ -7489,12 +7489,24 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     }
 
     const ids=new Set(picked.map(item=>item.id));
+    let promoted=0;
     unifiedMediaRuntime.forEach(item=>{
       const current=meta[item.id]||defaultMediaMeta(item);
+      const isPicked=ids.has(item.id);
+      if(isPicked&&current.approvalStatus==='needs review')promoted+=1;
       meta[item.id]={
         ...current,
-        selected:ids.has(item.id),
-        collections:ids.has(item.id)
+        selected:isPicked,
+        approvalStatus:isPicked&&current.approvalStatus==='needs review'
+          ? 'approved'
+          : current.approvalStatus,
+        intakeStatus:isPicked&&current.intakeStatus==='needs review'
+          ? 'accepted'
+          : current.intakeStatus,
+        intakeReasons:isPicked&&current.approvalStatus==='needs review'
+          ? ['Approved by curated story sample builder']
+          : current.intakeReasons,
+        collections:isPicked
           ? [...new Set([...(current.collections||[]),'Curated Story Sample'])]
           : current.collections
       };
@@ -7510,7 +7522,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     renderCommandCenter();
     const status=document.getElementById('unifiedMediaStatus');
     if(status){
-      status.textContent=`Curated ${picked.length} story photo${picked.length===1?'':'s'} with similar/duplicate groups avoided. Use Send Selected to Weekly Highlights next.`;
+      status.textContent=
+        `Curated ${picked.length} story photo${picked.length===1?'':'s'} with similar/duplicate groups avoided` +
+        `${promoted?` • approved ${promoted} needs-review photo${promoted===1?'':'s'}`:''}. ` +
+        'Use Send Selected to Weekly Highlights next.';
     }
   }
 
