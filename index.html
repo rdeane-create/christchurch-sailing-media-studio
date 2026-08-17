@@ -7432,8 +7432,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(/race|spray|start|finish|tack|gybe|mark|action|sail|boat/.test(name))score+=14;
     if(item.aspect>=.62&&item.aspect<=1.95)score+=8;
     if(item.width>=1600&&item.height>=1000)score+=8;
-    if(meta.approvalStatus==='approved')score+=10;
-    if(meta.approvalStatus==='needs review')score-=4;
+    if(meta.approvalStatus==='approved')score+=6;
+    if(meta.approvalStatus==='needs review')score+=6;
     return score;
   }
 
@@ -7441,7 +7441,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const target=14;
     const meta=loadMediaMeta();
     const sourceCount=unifiedMediaRuntime.length;
-    const actionPreferred=unifiedMediaRuntime
+    const storyCandidates=unifiedMediaRuntime
       .filter(item=>{
         const m=meta[item.id]||defaultMediaMeta(item);
         const kind=mediaFileKind(item.file)||(
@@ -7458,15 +7458,35 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       })
       .map(item=>({item,meta:meta[item.id]||defaultMediaMeta(item)}))
       .sort((a,b)=>storySampleScore(b.item,b.meta)-storySampleScore(a.item,a.meta));
+    const needsReviewCandidates=storyCandidates.filter(entry=>entry.meta.approvalStatus==='needs review');
+    const approvedCandidates=storyCandidates.filter(entry=>entry.meta.approvalStatus!=='needs review');
 
     const picked=[];
     const usedGroups=new Set();
-    for(const entry of actionPreferred){
+
+    function pickFrom(entries,limit){
+      for(const entry of entries){
+        if(picked.length>=limit)return;
+        if(picked.some(item=>item.id===entry.item.id))continue;
+        const group=storySampleGroupKey(entry.item,entry.meta);
+        if(usedGroups.has(group))continue;
+        picked.push(entry.item);
+        usedGroups.add(group);
+      }
+    }
+
+    pickFrom(needsReviewCandidates,Math.min(6,target));
+    pickFrom(approvedCandidates,target);
+
+    if(picked.length<target){
+      for(const entry of storyCandidates){
+        if(picked.length>=target)break;
+        if(picked.some(item=>item.id===entry.item.id))continue;
       const group=storySampleGroupKey(entry.item,entry.meta);
       if(usedGroups.has(group))continue;
       picked.push(entry.item);
       usedGroups.add(group);
-      if(picked.length>=target)break;
+      }
     }
 
     if(picked.length<Math.min(target,unifiedMediaRuntime.length)){
