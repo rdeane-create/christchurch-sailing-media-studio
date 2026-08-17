@@ -2681,12 +2681,25 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       </div>
       <div class="row">
         <div class="control">
+          <label for="weeklyOutputMode">Create</label>
+          <select id="weeklyOutputMode">
+            <option value="reel" selected>Weekly update reel</option>
+            <option value="post">Standalone title post</option>
+          </select>
+        </div>
+        <div class="control">
           <label for="weeklyTitle">Opening title</label>
           <input id="weeklyTitle" type="text" value="WEEKLY HIGHLIGHTS">
         </div>
+      </div>
+      <div class="row">
         <div class="control">
           <label for="weeklyDate">Week label</label>
           <input id="weeklyDate" type="text" placeholder="August 3–10, 2026">
+        </div>
+        <div class="control">
+          <label for="weeklyPostSubtitle">Standalone subtitle</label>
+          <input id="weeklyPostSubtitle" type="text" placeholder="Optional supporting line">
         </div>
       </div>
       <div class="control">
@@ -2877,6 +2890,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         <button id="weeklyRandomizeBtn" class="secondary" type="button">Direct This Week</button>
         <button id="weeklyPreviewBtn" class="secondary" type="button">Preview</button>
         <button id="weeklyRenderBtn" class="primary" type="button">Render Video</button>
+        <button id="weeklyDownloadPostBtn" class="secondary" type="button">Download Title Post</button>
       </div>
 
       <div id="weeklyStatus" class="status">Add at least 8 photos or videos for the best result.</div>
@@ -13768,6 +13782,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   const libraryAddSelectedEl=document.getElementById('weeklyAddSelectedLibrary');
   const libraryOpenEl=document.getElementById('weeklyOpenLibrary');
 
+  const outputModeEl=document.getElementById('weeklyOutputMode');
   const durationEl=document.getElementById('weeklyDuration');
   const moodEl=document.getElementById('weeklyMood');
   const paceEl=document.getElementById('weeklyPace');
@@ -13782,6 +13797,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   const titleHoldEl=document.getElementById('weeklyTitleHold');
   const cropModeEl=document.getElementById('weeklyCropMode');
   const dateEl=document.getElementById('weeklyDate');
+  const postSubtitleEl=document.getElementById('weeklyPostSubtitle');
   const textModeEl=document.getElementById('weeklyTextMode');
   const captionSetEl=document.getElementById('weeklyCaptionSet');
 
@@ -14475,6 +14491,94 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.restore();
   }
 
+  function drawStandalonePost(){
+    drawBackground();
+    const hero=media[0]||null;
+    if(hero){
+      ctx.save();
+      ctx.filter=colorFilter();
+      drawCovered(hero.element,0,0,W,H,1.03,0,0);
+      ctx.filter='none';
+      ctx.fillStyle='rgba(3,16,39,.62)';
+      ctx.fillRect(0,0,W,H);
+      const wash=ctx.createLinearGradient(0,0,0,H);
+      wash.addColorStop(0,'rgba(3,16,39,.20)');
+      wash.addColorStop(.48,'rgba(3,16,39,.50)');
+      wash.addColorStop(1,'rgba(3,16,39,.88)');
+      ctx.fillStyle=wash;
+      ctx.fillRect(0,0,W,H);
+      ctx.restore();
+    }else{
+      const bg=ctx.createLinearGradient(0,0,W,H);
+      bg.addColorStop(0,'#031027');
+      bg.addColorStop(.62,'#0b2442');
+      bg.addColorStop(1,'#173a58');
+      ctx.fillStyle=bg;
+      ctx.fillRect(0,0,W,H);
+    }
+
+    ctx.save();
+    ctx.globalAlpha=.10;
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=2;
+    for(let i=0;i<10;i++){
+      ctx.beginPath();
+      for(let x=0;x<=W;x+=22){
+        const y=520+i*92+Math.sin(x*.01+i*.55)*30;
+        if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.fillStyle='#fff';
+    ctx.font='800 40px Arial';
+    ctx.fillText('CHRISTCHURCH',68,250);
+    ctx.fillStyle='#ff6f18';
+    ctx.font='italic 900 48px Arial';
+    ctx.fillText('SAILING',68,305);
+
+    const title=(titleEl.value||'WEEKLY HIGHLIGHTS').toUpperCase();
+    const subtitle=(postSubtitleEl.value||dateEl.value||'').toUpperCase();
+    const fontBuilder=size=>titleStyleEl.value==='heritage'
+      ?`700 ${size}px Georgia`
+      :titleStyleEl.value==='editorial'
+      ?`300 ${size}px Georgia`
+      :`italic 900 ${size}px Arial`;
+    const wrapped=wrapTitle(title,920,3,fontBuilder,116,58);
+    const lineHeight=wrapped.size*1.08;
+    const titleHeight=wrapped.lines.length*lineHeight;
+    const titleY=H*.47-titleHeight/2;
+
+    ctx.font=fontBuilder(wrapped.size);
+    ctx.fillStyle='#fff';
+    wrapped.lines.forEach((line,i)=>ctx.fillText(line,68,titleY+i*lineHeight));
+
+    const rule=ctx.createLinearGradient(68,0,840,0);
+    rule.addColorStop(0,'#ff6f18');
+    rule.addColorStop(.70,'#ff9c4a');
+    rule.addColorStop(1,'rgba(255,111,24,0)');
+    ctx.fillStyle=rule;
+    ctx.fillRect(68,titleY+titleHeight+38,760,10);
+
+    if(subtitle){
+      ctx.fillStyle='rgba(255,255,255,.86)';
+      ctx.font='700 34px Arial';
+      ctx.fillText(subtitle,68,titleY+titleHeight+102);
+    }
+
+    ctx.fillStyle='rgba(255,255,255,.78)';
+    ctx.font='700 28px Arial';
+    ctx.fillText('PURSUE EXCELLENCE',68,1600);
+    ctx.fillStyle='#ff6f18';
+    ctx.fillRect(68,1632,360,8);
+
+    ctx.strokeStyle='rgba(255,255,255,.72)';
+    ctx.lineWidth=3;
+    roundedRect(ctx,14,14,W-28,H-28,28);
+    ctx.stroke();
+  }
+
 
   function drawMediaClip(clip,p){
     const item=clip.item;
@@ -14534,6 +14638,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   function drawFrameAt(t){
     drawBackground();
+    if(outputModeEl?.value==='post'){
+      drawStandalonePost();
+      return;
+    }
     if(!clips.length){
       ctx.fillStyle='#fff';
       ctx.textAlign='center';
@@ -14567,6 +14675,11 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   async function playTimeline({renderMode=false}={}){
+    if(outputModeEl?.value==='post'){
+      drawStandalonePost();
+      status.textContent='Standalone title post preview is ready.';
+      return null;
+    }
     if(!media.length){
       status.textContent='Add weekly media first.';
       return null;
@@ -14609,13 +14722,38 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   async function preview(){
+    if(outputModeEl?.value==='post'){
+      drawStandalonePost();
+      status.textContent='Standalone title post preview is ready.';
+      return;
+    }
     status.textContent='Previewing smooth native-speed Weekly Highlights…';
     await playTimeline();
     status.textContent='Preview complete.';
   }
 
+  function downloadStandalonePost(){
+    drawStandalonePost();
+    canvas.toBlob(blob=>{
+      if(!blob){
+        status.textContent='Could not create the title post image.';
+        return;
+      }
+      download.href=URL.createObjectURL(blob);
+      download.download=`Christchurch_Title_Post_${new Date().toISOString().slice(0,10)}.png`;
+      download.textContent='Download Title Post';
+      download.style.display='block';
+      status.textContent='Standalone title post ready.';
+      completeActiveProductionWork(['Weekly Highlights','Standalone Post'],'Title post completed and ready for review');
+    },'image/png');
+  }
+
   async function render(){
     if(rendering)return;
+    if(outputModeEl?.value==='post'){
+      downloadStandalonePost();
+      return;
+    }
     if(media.length<2){
       status.textContent='Add at least two media files.';
       return;
@@ -14689,11 +14827,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   document.getElementById('weeklyPreviewBtn').addEventListener('click',preview);
   document.getElementById('weeklyRenderBtn').addEventListener('click',render);
+  document.getElementById('weeklyDownloadPostBtn').addEventListener('click',downloadStandalonePost);
 
   [
     durationEl,moodEl,paceEl,endingEl,storyTemplateEl,directorEl,polishEl,colorMatchEl,textModeEl,
-    editorBrainEl,titleStyleEl,titleHoldEl,cropModeEl,
-    titleEl,dateEl,captionSetEl
+    editorBrainEl,titleStyleEl,titleHoldEl,cropModeEl,outputModeEl,
+    titleEl,dateEl,postSubtitleEl,captionSetEl
   ].forEach(el=>el.addEventListener('change',()=>{
     buildTimeline();
     drawFrameAt(0);
