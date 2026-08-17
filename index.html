@@ -6561,10 +6561,11 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       return true;
     });
 
-    if(sort==='name')items.sort((a,b)=>a.file.name.localeCompare(b.file.name));
-    else if(sort==='recent')items.sort((a,b)=>new Date(mediaMeta(b).addedAt)-new Date(mediaMeta(a).addedAt));
-    else if(sort==='rating')items.sort((a,b)=>mediaMeta(b).rating-mediaMeta(a).rating);
-    else items.sort((a,b)=>mediaMeta(b).quality-mediaMeta(a).quality);
+    const selectedFirst=(a,b)=>(mediaMeta(b).selected?1:0)-(mediaMeta(a).selected?1:0);
+    if(sort==='name')items.sort((a,b)=>selectedFirst(a,b)||a.file.name.localeCompare(b.file.name));
+    else if(sort==='recent')items.sort((a,b)=>selectedFirst(a,b)||new Date(mediaMeta(b).addedAt)-new Date(mediaMeta(a).addedAt));
+    else if(sort==='rating')items.sort((a,b)=>selectedFirst(a,b)||mediaMeta(b).rating-mediaMeta(a).rating);
+    else items.sort((a,b)=>selectedFirst(a,b)||mediaMeta(b).quality-mediaMeta(a).quality);
 
     return items;
   }
@@ -7437,8 +7438,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function buildStorySample(){
-    const target=10;
+    const target=14;
     const meta=loadMediaMeta();
+    const sourceCount=unifiedMediaRuntime.length;
     const actionPreferred=unifiedMediaRuntime
       .filter(item=>{
         const m=meta[item.id]||defaultMediaMeta(item);
@@ -7523,9 +7525,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const status=document.getElementById('unifiedMediaStatus');
     if(status){
       status.textContent=
-        `Curated ${picked.length} story photo${picked.length===1?'':'s'} with similar/duplicate groups avoided` +
+        `Curated ${picked.length} story photo${picked.length===1?'':'s'} from ${sourceCount} library asset${sourceCount===1?'':'s'} with similar/duplicate groups avoided` +
         `${promoted?` • approved ${promoted} needs-review photo${promoted===1?'':'s'}`:''}. ` +
-        'Use Send Selected to Weekly Highlights next.';
+        'Selected picks are now at the top. Use Send Selected to Weekly Highlights next.';
     }
   }
 
@@ -14305,11 +14307,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   function mediaScore(item){
     let score=1;
-    if(item.type==='video')score+=2.8;
+    if(item.type==='video')score+=2.4;
     if(item.aspect>1.2)score+=.6;
-    if(item.type==='video'&&item.duration>=3&&item.duration<=8)score+=.8;
+    if(item.aspect>=.62&&item.aspect<=1.95)score+=.7;
+    if(item.type==='video'&&item.duration>=3&&item.duration<=10)score+=1;
     const name=item.file.name.toLowerCase();
-    if(/final|finish|start|spray|sunset|celebr|team|winner|drone|action/.test(name))score+=1.1;
+    if(/race|racing|finish|start|spray|mark|tack|gybe|sail|boat|action/.test(name))score+=2;
+    if(/team|winner|celebr|award|sunset|drone/.test(name))score+=1;
     return score;
   }
 
@@ -14423,7 +14427,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const ranked=sequenceMedia(rng);
 
     const timeline=[{
-      id:'opening',type:'opening',start:0,duration:opening,layout:'opening',items:[]
+      id:'opening',type:'opening',start:0,duration:opening,layout:'opening',items:ranked.slice(0,1),item:ranked[0]
     }];
 
     let cursor=opening;
@@ -14574,13 +14578,73 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.restore();
   }
 
-  function drawOpening(p){
+  function drawSportsStrap(label,detail,progress=0){
+    ctx.save();
+    const top=ctx.createLinearGradient(0,0,0,260);
+    top.addColorStop(0,'rgba(3,16,39,.86)');
+    top.addColorStop(1,'rgba(3,16,39,0)');
+    ctx.fillStyle=top;
+    ctx.fillRect(0,0,W,300);
+
+    const bottom=ctx.createLinearGradient(0,H-520,0,H);
+    bottom.addColorStop(0,'rgba(3,16,39,0)');
+    bottom.addColorStop(.35,'rgba(3,16,39,.72)');
+    bottom.addColorStop(1,'rgba(3,16,39,.94)');
+    ctx.fillStyle=bottom;
+    ctx.fillRect(0,H-560,W,560);
+
+    ctx.fillStyle='#fff';
+    ctx.font='900 28px Arial';
+    ctx.fillText('CHRISTCHURCH SAILING',54,76);
+    ctx.fillStyle='#ff6f18';
+    ctx.fillRect(54,98,260,7);
+
+    if(label){
+      ctx.fillStyle='#fff';
+      ctx.font='italic 900 56px Arial';
+      ctx.fillText(label.toUpperCase(),54,H-168);
+    }
+    if(detail){
+      ctx.fillStyle='rgba(255,255,255,.82)';
+      ctx.font='700 28px Arial';
+      ctx.fillText(detail.toUpperCase(),54,H-118);
+    }
+
+    ctx.fillStyle='rgba(255,255,255,.26)';
+    roundedRect(ctx,54,H-76,W-108,9,6);
+    ctx.fill();
+    const bar=ctx.createLinearGradient(54,0,W-54,0);
+    bar.addColorStop(0,'#ff4f1f');
+    bar.addColorStop(1,'#ffad61');
+    ctx.fillStyle=bar;
+    roundedRect(ctx,54,H-76,(W-108)*clamp(progress,0,1),9,6);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawOpening(p,clip={}){
     const bg=ctx.createLinearGradient(0,0,W,H);
     bg.addColorStop(0,'#031027');
     bg.addColorStop(.58,'#0b2442');
     bg.addColorStop(1,'#173a58');
     ctx.fillStyle=bg;
     ctx.fillRect(0,0,W,H);
+
+    const hero=clip.item||clip.items?.[0]||media[0]||null;
+    if(hero){
+      ctx.save();
+      ctx.globalAlpha=.72;
+      ctx.filter='contrast(1.06) saturate(1.04) brightness(.82)';
+      drawCovered(hero.element,0,0,W,H,1.06+.025*p,0,0);
+      ctx.filter='none';
+      const veil=ctx.createLinearGradient(0,0,0,H);
+      veil.addColorStop(0,'rgba(3,16,39,.78)');
+      veil.addColorStop(.48,'rgba(3,16,39,.50)');
+      veil.addColorStop(1,'rgba(3,16,39,.90)');
+      ctx.fillStyle=veil;
+      ctx.fillRect(0,0,W,H);
+      ctx.restore();
+    }
 
     ctx.save();
     ctx.globalAlpha=.09;
@@ -14633,7 +14697,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const wrapped=wrapTitle(title,900,2,fontBuilder,112,62);
     const lineHeight=wrapped.size*1.12;
     const totalHeight=wrapped.lines.length*lineHeight;
-    const centerY=900;
+    const centerY=H*.47;
     const startY=centerY-totalHeight/2;
 
     ctx.save();
@@ -14667,12 +14731,14 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(date){
       ctx.fillStyle='#dce6ef';
       ctx.font='600 31px Arial';
-      ctx.fillText(date,68,1320);
+      ctx.fillText(date,68,H*.72);
     }
     ctx.fillStyle='rgba(255,255,255,.82)';
     ctx.font='600 23px Arial';
-    ctx.fillText('PURSUE EXCELLENCE',68,1400);
+    ctx.fillText('PURSUE EXCELLENCE',68,H*.72+80);
     ctx.restore();
+
+    drawSportsStrap('', '', p);
   }
 
   function drawStandalonePost(){
@@ -14769,57 +14835,71 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   function drawMediaClip(clip,p){
     const item=clip.item;
-    if(clip.layout==='heroWide'){
-      drawFramed(item,28,250,W-56,1160,p,clip,{radius:26,shadow:true});
-    }else if(clip.layout==='cinemaWide'){
-      drawFramed(item,34,360,W-68,980,p,clip,{radius:24,shadow:true});
-    }else if(clip.layout==='magazineWide'){
-      drawFramed(item,40,220,W-80,900,p,clip,{radius:14,shadow:true});
-      ctx.fillStyle=moodEl.value==='energetic'?'#ff6f18':'#07152f';
-      ctx.font='900 56px Arial';
-      ctx.fillText('THIS WEEK',58,1370);
-      ctx.fillStyle=moodEl.value==='energetic'?'#fff':'#ff6f18';
-      ctx.font='italic 900 76px Arial';
-      ctx.fillText('ON THE WATER',58,1440);
-    }else if(clip.layout==='postcardsWide'){
-      drawFramed(item,85,310,910,980,p,clip,{radius:12,shadow:true,border:18,frame:'#fff'});
-    }else if(clip.layout==='stackedWide'){
-      drawFramed(item,60,260,960,760,p,clip,{radius:18,shadow:true});
-      drawFramed(item,180,1080,720,480,p,clip,{radius:14,shadow:true,border:12,frame:'#fff'});
-    }else if(clip.layout==='mosaicWide'){
-      drawFramed(item,36,230,1008,630,p,clip,{radius:18,shadow:true});
-      drawFramed(item,75,940,430,540,p,clip,{radius:14,shadow:true,border:10,frame:'#fff'});
-      drawFramed(item,575,940,430,540,p,clip,{radius:14,shadow:true,border:10,frame:'#fff'});
-    }else{
-      drawFramed(item,40,300,W-80,1080,p,clip,{radius:22,shadow:true});
-    }
+    const m=motion(clip,p);
+    ctx.save();
+    ctx.filter=colorFilter();
+    drawSmart(item.element,0,0,W,H,1.06+m.scale*.025,m.x*.9,m.y*.9);
+    ctx.filter='none';
+    ctx.restore();
 
-    if(clip.caption){
-      const a=smoothstep(.16,.34,p)*(1-smoothstep(.78,.94,p));
-      ctx.save();
-      ctx.globalAlpha=a;
-      ctx.fillStyle='rgba(5,17,39,.78)';
-      roundedRect(ctx,46,1640,470,112,14);
-      ctx.fill();
-      ctx.fillStyle='#ff6f18';
-      ctx.fillRect(46,1640,12,112);
-      ctx.fillStyle='#fff';
-      ctx.font='800 36px Arial';
-      ctx.fillText(clip.caption.toUpperCase(),82,1671);
-      ctx.restore();
-    }
+    ctx.save();
+    ctx.globalAlpha=.22;
+    const slash=ctx.createLinearGradient(0,0,W,H);
+    slash.addColorStop(0,'rgba(255,111,24,0)');
+    slash.addColorStop(.46,'rgba(255,111,24,.16)');
+    slash.addColorStop(.52,'rgba(255,255,255,.05)');
+    slash.addColorStop(1,'rgba(255,111,24,0)');
+    ctx.fillStyle=slash;
+    ctx.beginPath();
+    ctx.moveTo(W*.64,0);
+    ctx.lineTo(W*.86,0);
+    ctx.lineTo(W*.58,H);
+    ctx.lineTo(W*.36,H);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    const category=classifyMedia(item);
+    const label=clip.caption||(
+      category==='action'?'ON THE WATER':
+      category==='team' || category==='life'?'TEAM MOMENTS':
+      category==='scenic'?'REGATTA SCENE':
+      category==='training'?'PRACTICE WORK':
+      category==='celebration'?'FINISH STRONG':'THIS WEEK'
+    );
+    const detail=item.type==='video'?'NATIVE-SPEED VIDEO':'CHRISTCHURCH SAILING';
+    drawSportsStrap(label,detail,(clip.start+clip.duration*p)/(+durationEl.value||1));
   }
 
   function drawLogoOnly(p){
-    drawBackground();
+    const bg=ctx.createLinearGradient(0,0,W,H);
+    bg.addColorStop(0,'#031027');
+    bg.addColorStop(.56,'#0b2442');
+    bg.addColorStop(1,'#06152e');
+    ctx.fillStyle=bg;
+    ctx.fillRect(0,0,W,H);
     const fade=smoothstep(.04,.28,p)*(1-smoothstep(.92,1,p));
     const scale=.90+.10*easeOutCubic(clamp(p/.82,0,1));
     ctx.save();
     ctx.globalAlpha=fade;
     if(typeof officialPursueBadge!=='undefined'&&officialPursueBadge.complete&&officialPursueBadge.naturalWidth){
-      const size=520*scale;
-      ctx.drawImage(officialPursueBadge,W/2-size/2,H/2-size/2,size,size);
+      const size=430*scale;
+      ctx.drawImage(officialPursueBadge,W/2-size/2,H*.34-size/2,size,size);
     }
+    ctx.textAlign='center';
+    ctx.fillStyle='#fff';
+    ctx.font='italic 900 78px Arial';
+    ctx.fillText('FOLLOW THE SEAHORSES',W/2,H*.58);
+    ctx.fillStyle='rgba(255,255,255,.84)';
+    ctx.font='800 35px Arial';
+    ctx.fillText('CHRISTCHURCH SAILING',W/2,H*.64);
+    ctx.fillStyle='#ff6f18';
+    roundedRect(ctx,W/2-285,H*.69,570,12,8);
+    ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.82)';
+    ctx.font='700 28px Arial';
+    ctx.fillText('Sailing Resources page | link in bio',W/2,H*.76);
+    ctx.textAlign='left';
     ctx.restore();
   }
 
@@ -14848,7 +14928,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.globalAlpha=fadeIn*fadeOut;
 
     if(clip.type==='opening'){
-      drawOpening(p);
+      drawOpening(p,clip);
     }else if(clip.type==='ending'){
       drawLogoOnly(p);
     }else{
