@@ -5468,6 +5468,18 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     }));
     const byId=new Map();
     [...dbTemplates,...creativeTemplates].forEach(item=>{if(!byId.has(item.id))byId.set(item.id,item);});
+    if(!byId.has('christchurch_weekly_highlights_template')){
+      byId.set('christchurch_weekly_highlights_template',{
+        source:'recovered_default',
+        id:'christchurch_weekly_highlights_template',
+        name:'Christchurch Weekly Highlights',
+        collection:'Weekly Highlights',
+        version:1,
+        updatedAt:'',
+        templateType:'video',
+        mine:true
+      });
+    }
     let items=[...byId.values()];
     // Final library visibility filter: hide obsolete historical templates regardless of storage source.
     items=items.filter(item=>{
