@@ -1434,6 +1434,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     <div class="actions">
       <button id="mediaSendWeekly" class="primary" type="button">Send Selected to Weekly Highlights</button>
       <button id="mediaSelectTop" class="secondary" type="button">Select Top Media</button>
+      <button id="mediaBuildStorySample" class="secondary" type="button">Build Story Sample</button>
       <button id="mediaShowReviewBtn" class="secondary" type="button">Show Needs Review</button>
       <button id="mediaExportArchiveBtn" class="secondary" type="button">Export Archive Index</button>
       <button id="mediaClearSelection" class="secondary" type="button">Clear Selection</button>
@@ -7406,6 +7407,114 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     });
     saveMediaMeta(meta);renderUnifiedMedia();renderCommandCenter();
   });
+
+  function storySampleGroupKey(item,meta){
+    if(meta.duplicateKey)return meta.duplicateKey;
+    if(meta.visualHash)return `visual:${String(meta.visualHash).slice(0,18)}`;
+    const stem=normalizedStem(item.file.name)
+      .replace(/[-_\s]?(img|dsc|photo|copy|edit|final|export)[-_\s]?/gi,'')
+      .replace(/[-_\s]?\d{2,}$/,'')
+      .slice(0,28);
+    const aspectBand=Math.round((item.aspect||1)*10);
+    return `name:${stem}:${aspectBand}`;
+  }
+
+  function storySampleScore(item,meta){
+    const tags=new Set((meta.tags||[]).map(tag=>String(tag).toLowerCase()));
+    const uses=new Set((meta.bestUses||[]).map(use=>String(use).toLowerCase()));
+    const name=String(item.file?.name||'').toLowerCase();
+    let score=Number(meta.quality||0)+(Number(meta.rating||0)*12);
+    if(tags.has('action')||uses.has('action reel'))score+=34;
+    if(tags.has('team')||uses.has('parent gallery'))score+=10;
+    if(tags.has('faces')||tags.has('faceshot')||Number(meta.faceCount||0)>0)score+=8;
+    if(tags.has('scenic'))score+=5;
+    if(/race|spray|start|finish|tack|gybe|mark|action|sail|boat/.test(name))score+=14;
+    if(item.aspect>=.62&&item.aspect<=1.95)score+=8;
+    if(item.width>=1600&&item.height>=1000)score+=8;
+    if(meta.approvalStatus==='approved')score+=10;
+    if(meta.approvalStatus==='needs review')score-=4;
+    return score;
+  }
+
+  function buildStorySample(){
+    const target=10;
+    const meta=loadMediaMeta();
+    const actionPreferred=unifiedMediaRuntime
+      .filter(item=>{
+        const m=meta[item.id]||defaultMediaMeta(item);
+        const kind=mediaFileKind(item.file)||(
+          item.type?.startsWith('image/')?'image':item.type?.startsWith('video/')?'video':''
+        );
+        if(kind!=='image')return false;
+        if(m.approvalStatus==='do not use'||m.rightsStatus==='do not post')return false;
+        const terms=[
+          item.file?.name||'',
+          ...(m.tags||[]),
+          ...(m.bestUses||[])
+        ].join(' ').toLowerCase();
+        return /action|race|racing|sail|boat|spray|start|finish|mark|tack|gybe|weekly|highlight|hero/.test(terms);
+      })
+      .map(item=>({item,meta:meta[item.id]||defaultMediaMeta(item)}))
+      .sort((a,b)=>storySampleScore(b.item,b.meta)-storySampleScore(a.item,a.meta));
+
+    const picked=[];
+    const usedGroups=new Set();
+    for(const entry of actionPreferred){
+      const group=storySampleGroupKey(entry.item,entry.meta);
+      if(usedGroups.has(group))continue;
+      picked.push(entry.item);
+      usedGroups.add(group);
+      if(picked.length>=target)break;
+    }
+
+    if(picked.length<Math.min(target,unifiedMediaRuntime.length)){
+      const fallback=unifiedMediaRuntime
+        .filter(item=>{
+          const m=meta[item.id]||defaultMediaMeta(item);
+          const kind=mediaFileKind(item.file)||(
+            item.type?.startsWith('image/')?'image':item.type?.startsWith('video/')?'video':''
+          );
+          return kind==='image'&&m.approvalStatus!=='do not use'&&m.rightsStatus!=='do not post';
+        })
+        .map(item=>({item,meta:meta[item.id]||defaultMediaMeta(item)}))
+        .sort((a,b)=>storySampleScore(b.item,b.meta)-storySampleScore(a.item,a.meta));
+      for(const entry of fallback){
+        if(picked.some(item=>item.id===entry.item.id))continue;
+        const group=storySampleGroupKey(entry.item,entry.meta);
+        if(usedGroups.has(group))continue;
+        picked.push(entry.item);
+        usedGroups.add(group);
+        if(picked.length>=target)break;
+      }
+    }
+
+    const ids=new Set(picked.map(item=>item.id));
+    unifiedMediaRuntime.forEach(item=>{
+      const current=meta[item.id]||defaultMediaMeta(item);
+      meta[item.id]={
+        ...current,
+        selected:ids.has(item.id),
+        collections:ids.has(item.id)
+          ? [...new Set([...(current.collections||[]),'Curated Story Sample'])]
+          : current.collections
+      };
+    });
+    saveMediaMeta(meta);
+    unifiedMediaView='all';
+    document.querySelectorAll('[data-media-view]').forEach(x=>x.classList.toggle('active',x.dataset.mediaView==='all'));
+    const approval=document.getElementById('mediaApprovalFilter');
+    if(approval)approval.value='all';
+    const collection=document.getElementById('mediaCollectionFilter');
+    if(collection)collection.value='all';
+    renderUnifiedMedia();
+    renderCommandCenter();
+    const status=document.getElementById('unifiedMediaStatus');
+    if(status){
+      status.textContent=`Curated ${picked.length} story photo${picked.length===1?'':'s'} with similar/duplicate groups avoided. Use Send Selected to Weekly Highlights next.`;
+    }
+  }
+
+  document.getElementById('mediaBuildStorySample')?.addEventListener('click',buildStorySample);
 
   document.getElementById('mediaClearSelection')?.addEventListener('click',()=>{
     const meta=loadMediaMeta();
