@@ -5516,7 +5516,18 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       info.append(name,meta);
       const actions=document.createElement('div');actions.className='templateActions';
       const create=document.createElement('button');create.className='tiny primary';create.textContent='Create From Template';
+      const token=`${String(item.id||'')} ${String(item.name||'')} ${String(item.collection||'')}`;
+      if(/weekly/i.test(token))create.textContent='Create Weekly Reel';
+      if(/lineup/i.test(token))create.textContent='Create Lineup';
       create.addEventListener('click',()=>{
+        if(/weekly/i.test(token)){
+          activateWorkspace('weekly');
+          return;
+        }
+        if(/lineup/i.test(token)){
+          activateWorkspace('video');
+          return;
+        }
         const templateId=resolveCreativeTemplateId(item);
         if(!templateId){setStatus('This template is not available in the Creative Studio template architecture.');return;}
         if(templateId==='christchurch_hero_card_template'){
@@ -5530,10 +5541,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       });
       const open=document.createElement('button');open.className='tiny secondary';open.textContent='Open';
       open.addEventListener('click',()=>{
-        if(/lineup/i.test(String(item.id||'')+String(item.name||'')))activateWorkspace('video');
-        else if(/weekly/i.test(String(item.id||'')+String(item.name||'')))activateWorkspace('weekly');
-        else if(/race|results/i.test(String(item.id||'')+String(item.name||'')))activateWorkspace('storyboard');
-        else if(/hero/i.test(String(item.id||'')+String(item.name||'')))activateWorkspace('creative');
+        if(/lineup/i.test(token))activateWorkspace('video');
+        else if(/weekly/i.test(token))activateWorkspace('weekly');
+        else if(/race|results/i.test(token))activateWorkspace('storyboard');
+        else if(/hero/i.test(token))activateWorkspace('creative');
         else activateWorkspace('creative');
       });
       actions.append(create,open);
