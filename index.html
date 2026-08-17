@@ -2807,7 +2807,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           <label for="weeklyDuration">Length</label>
           <select id="weeklyDuration">
             <option value="18">18 seconds</option>
-            <option value="20" selected>20 seconds</option>
+            <option value="20">20 seconds</option>
+            <option value="24" selected>24 seconds — recommended</option>
+            <option value="30">30 seconds — showcase</option>
           </select>
         </div>
         <div class="control">
@@ -14340,13 +14342,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function clipDuration(item,isHero,rng){
     const pace=paceEl.value;
     if(item.type==='video'){
-      const max=pace==='relaxed'?5.2:pace==='fast'?3.8:4.5;
-      const min=pace==='relaxed'?3.8:pace==='fast'?2.8:3.3;
-      return clamp(item.duration||min,min,isHero?Math.min(5.5,max+.6):max);
+      const max=pace==='relaxed'?6.2:pace==='fast'?4.8:5.6;
+      const min=pace==='relaxed'?4.4:pace==='fast'?3.6:4.1;
+      return clamp(item.duration||min,min,isHero?Math.min(6.6,max+.8):max);
     }
-    const min=pace==='relaxed'?1.75:pace==='fast'?1.3:1.5;
-    const max=pace==='relaxed'?2.35:pace==='fast'?1.8:2.05;
-    return min+rng()*(max-min)+(isHero?.35:0);
+    const min=pace==='relaxed'?3.2:pace==='fast'?2.35:2.75;
+    const max=pace==='relaxed'?4.1:pace==='fast'?3.05:3.55;
+    return min+rng()*(max-min)+(isHero?.75:0);
   }
 
   function chooseLayout(item,index,rng){
@@ -14435,8 +14437,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function buildTimeline(){
     const rng=rngFactory(seed);
     const total=+durationEl.value;
-    const opening=+titleHoldEl.value;
-    const ending=1.65;
+    const opening=Math.max(+titleHoldEl.value,2.35);
+    const ending=2.25;
     const contentEnd=total-ending;
     const captions=shuffle(
       captionSetEl.value.split(',').map(x=>x.trim()).filter(Boolean),
@@ -14444,7 +14446,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     );
 
     const profile=storyProfile();
-    const ranked=sequenceMedia(rng);
+    const maxScenes=total>=30?8:total>=24?6:5;
+    const ranked=sequenceMedia(rng).slice(0,maxScenes);
 
     const timeline=[{
       id:'opening',type:'opening',start:0,duration:opening,layout:'opening',items:ranked.slice(0,1),item:ranked[0]
@@ -14454,10 +14457,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     let i=0;
     while(cursor<contentEnd-.8&&ranked.length){
       const item=ranked[i%ranked.length];
-      const isHero=editorBrainEl.value==='on'&&(i===0||i===4);
+      const isHero=editorBrainEl.value==='on'&&(i===0||i===3);
       let duration=clipDuration(item,isHero,rng);
       if(cursor+duration>contentEnd)duration=contentEnd-cursor;
-      if(duration<.75)break;
+      if(duration<1.6)break;
 
       let clipStart=0;
       if(item.type==='video'&&item.duration>duration+.25){
@@ -14471,8 +14474,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         type:'media',
         start:cursor,
         duration,
-        layout:isHero?'heroWide':(profile.layouts[i%profile.layouts.length]||chooseLayout(item,i,rng)),
-        items:[item],
+        layout:isHero?'spotlight':(i%3===1?'editorialDuo':i%3===2?'broadcastMoment':'spotlight'),
+        items:[item,ranked[(i+1)%ranked.length],ranked[(i+2)%ranked.length]].filter(Boolean),
         item,
         clipStart,
         direction:['left','right','push','pull'][Math.floor(rng()*4)],
@@ -14639,6 +14642,22 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.fillStyle=bar;
     roundedRect(ctx,54,H-76,(W-108)*clamp(progress,0,1),9,6);
     ctx.fill();
+    ctx.restore();
+  }
+
+  function drawInsetMedia(source,x,y,w,h,p,clip){
+    if(!source)return;
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,.35)';
+    ctx.shadowBlur=26;
+    ctx.shadowOffsetY=14;
+    roundedRect(ctx,x,y,w,h,18);
+    ctx.fillStyle='rgba(255,255,255,.92)';
+    ctx.fill();
+    ctx.shadowColor='transparent';
+    roundedRect(ctx,x+8,y+8,w-16,h-16,12);
+    ctx.clip();
+    drawSmart(source.element,x+8,y+8,w-16,h-16,1.04+.018*p,0,0);
     ctx.restore();
   }
 
@@ -14856,6 +14875,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function drawMediaClip(clip,p){
     const item=clip.item;
     const m=motion(clip,p);
+    const altA=clip.items?.[1];
+    const altB=clip.items?.[2];
     ctx.save();
     ctx.filter=colorFilter();
     drawSmart(item.element,0,0,W,H,1.06+m.scale*.025,m.x*.9,m.y*.9);
@@ -14878,6 +14899,19 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.closePath();
     ctx.fill();
     ctx.restore();
+
+    if(clip.layout==='editorialDuo'&&altA&&altA.id!==item.id){
+      ctx.save();
+      ctx.globalAlpha=smoothstep(.16,.34,p)*(1-smoothstep(.82,.98,p));
+      drawInsetMedia(altA,70,H*.50,390,520,p,clip);
+      ctx.restore();
+    }else if(clip.layout==='broadcastMoment'&&altA&&altB){
+      ctx.save();
+      ctx.globalAlpha=smoothstep(.18,.36,p)*(1-smoothstep(.82,.98,p));
+      drawInsetMedia(altA,62,H*.48,300,390,p,clip);
+      if(altB.id!==altA.id)drawInsetMedia(altB,W-362,H*.56,300,390,p,clip);
+      ctx.restore();
+    }
 
     const category=classifyMedia(item);
     const label=clip.caption||(
@@ -15066,6 +15100,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const done=new Promise(resolve=>recorder.onstop=resolve);
 
     recorder.start(250);
+    await new Promise(resolve=>setTimeout(resolve,120));
     await playTimeline({renderMode:true});
     recorder.stop();
     await done;
