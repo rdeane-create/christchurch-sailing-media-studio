@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const NAME='Athlete Main Headshot — Approved';
-  const VERSION='20260826-dock-bg-cutout-1';
+  const VERSION='20260827-dock-bg-sharp-1';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
