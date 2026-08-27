@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const NAME='Athlete Main Headshot — Approved';
-  const VERSION='20260827-dock-bg-sharp-1';
+  const VERSION='20260827-dock-bg-sharp-2';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -284,6 +284,25 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
     ctx.fillStyle=top;ctx.fillRect(0,0,W,350);
   }
   function athleteGeometry(){if(!S.img)return null;const base=Math.max(W/S.img.width,H/S.img.height),sc=base*S.scale,dw=S.img.width*sc,dh=S.img.height*sc;return{x:(W-dw)/2+S.x,y:(H-dh)/2+S.y,w:dw,h:dh}}
+  function removeGreenEdgeSpill(canvas){
+    const cx=canvas.getContext('2d',{willReadFrequently:true});
+    const data=cx.getImageData(0,0,canvas.width,canvas.height);
+    const p=data.data;
+    for(let i=0;i<p.length;i+=4){
+      const a=p[i+3];if(a<8)continue;
+      const r=p[i],g=p[i+1],b=p[i+2];
+      const max=Math.max(r,g,b),min=Math.min(r,g,b),sat=max-min;
+      const greenLead=g-Math.max(r,b);
+      const foliage=(g>72&&greenLead>7&&sat>14)||(g>95&&g>r+5&&g>b+4&&sat>9);
+      if(!foliage)continue;
+      const strength=Math.min(1,Math.max(0,(greenLead+sat-18)/72));
+      p[i+3]=Math.round(a*(1-.92*strength));
+      p[i]=Math.round(r*(1-.35*strength)+235*.35*strength);
+      p[i+1]=Math.round(g*(1-.65*strength)+238*.65*strength);
+      p[i+2]=Math.round(b*(1-.35*strength)+238*.35*strength);
+    }
+    cx.putImageData(data,0,0);
+  }
   function drawPhoto(ctx){
     if(!S.img)return;const g=athleteGeometry();
     if(!S.cutoutMask){ctx.drawImage(S.img,g.x,g.y,g.w,g.h);return;}
@@ -292,6 +311,7 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
     lx.globalCompositeOperation='destination-in';
     if(S.cutoutEdge>0)lx.filter=`blur(${S.cutoutEdge}px)`;
     lx.drawImage(S.cutoutMask,g.x,g.y,g.w,g.h);lx.filter='none';lx.globalCompositeOperation='source-over';
+    removeGreenEdgeSpill(layer);
     ctx.save();
     if(S.cutoutShadow>0){ctx.shadowColor=`rgba(0,18,32,${Math.min(.35,S.cutoutShadow/100)})`;ctx.shadowBlur=22;ctx.shadowOffsetY=8;}
     ctx.drawImage(layer,0,0);ctx.restore();
