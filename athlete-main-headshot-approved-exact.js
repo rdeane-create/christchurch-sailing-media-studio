@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const NAME='Athlete Main Headshot — Approved';
-  const VERSION='20260827-hair-edge-cleanup-1';
+  const VERSION='20260827-hair-preserve-1';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -279,8 +279,8 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
   function drawDockBackground(ctx){
     if(S.dockBg){
       ctx.save();
-      ctx.filter='blur(3px)';
-      ctx.drawImage(S.dockBg,-16,-16,W+32,H+32);
+      ctx.filter='blur(4px)';
+      ctx.drawImage(S.dockBg,-20,-20,W+40,H+40);
       ctx.restore();
     }
     else{ctx.fillStyle='#eef4f6';ctx.fillRect(0,0,W,H);}
@@ -294,30 +294,40 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
     const data=cx.getImageData(0,0,canvas.width,canvas.height);
     const p=data.data,w=canvas.width,h=canvas.height;
     const alphaAt=(x,y)=>p[(y*w+x)*4+3];
+    const nearTransparent=(x,y)=>{
+      for(let yy=Math.max(0,y-2);yy<=Math.min(h-1,y+2);yy++){
+        for(let xx=Math.max(0,x-2);xx<=Math.min(w-1,x+2);xx++){
+          if(alphaAt(xx,yy)<220)return true;
+        }
+      }
+      return false;
+    };
     for(let i=0;i<p.length;i+=4){
       const a=p[i+3];if(a<4)continue;
       const px=i/4,x=px%w,y=Math.floor(px/w);
       const r=p[i],g=p[i+1],b=p[i+2];
       const max=Math.max(r,g,b),min=Math.min(r,g,b),sat=max-min;
       const greenLead=g-Math.max(r,b);
-      let edge=a<246;
+      let edge=a<246||nearTransparent(x,y);
       if(!edge&&x>0&&x<w-1&&y>0&&y<h-1){
         edge=alphaAt(x-1,y)<235||alphaAt(x+1,y)<235||alphaAt(x,y-1)<235||alphaAt(x,y+1)<235;
       }
-      if(!edge)continue;
-      const upperBody=y<h*.62;
-      const foliage=(g>62&&greenLead>3&&sat>9)||(g>78&&g>r&&g>b&&sat>10);
-      const yellowGreen=(g>76&&r>62&&b<115&&g>b+10&&sat>12);
-      if(foliage||yellowGreen){
-        const strength=Math.min(1,Math.max(0,(greenLead+sat-8)/70));
-        const alphaCut=upperBody ? .42+.45*strength : .22+.28*strength;
-        const neutral=upperBody?214:226;
-        p[i+3]=Math.round(a*(1-alphaCut));
-        p[i]=Math.round(r*(1-.45*strength)+neutral*.45*strength);
-        p[i+1]=Math.round(g*(1-.78*strength)+neutral*.78*strength);
-        p[i+2]=Math.round(b*(1-.45*strength)+neutral*.45*strength);
-      }else if(a<120&&sat>26){
-        p[i+3]=Math.round(a*.62);
+      const skinLike=(r>118&&g>74&&b>48&&r>=g*.96&&r>b+18&&g>b+8)||(r>150&&g>108&&b>78&&r>b+22);
+      const blondHairLike=r>126&&g>104&&b>52&&r>=g-22&&g>b+22&&r>b+42;
+      const whiteJacketLike=r>150&&g>155&&b>150&&sat<55;
+      const protectedSubject=skinLike||blondHairLike||whiteJacketLike;
+      const greenSpill=(g>r*1.04&&g>b*1.08&&greenLead>7)||(g>86&&r>64&&b<128&&g>b+14&&sat>18);
+      if(!edge&&!(y<h*.58&&greenSpill&&!skinLike&&!whiteJacketLike))continue;
+      if(greenSpill){
+        const strength=Math.min(1,Math.max(.18,(greenLead+sat-12)/90));
+        const targetG=Math.min(g,Math.round((r+b)/2+14));
+        p[i+1]=Math.round(g*(1-.72*strength)+targetG*.72*strength);
+        if(blondHairLike)p[i]=Math.min(255,Math.round(r+5*strength));
+        if(!protectedSubject&&a<235){
+          p[i+3]=Math.round(a*(.88-.16*strength));
+        }
+      }else if(!protectedSubject&&a<110&&sat>34){
+        p[i+3]=Math.round(a*.76);
       }
     }
     cx.putImageData(data,0,0);
