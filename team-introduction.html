@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Christchurch Team Introduction Studio</title>
+<style>
+  html,body{margin:0;height:100%;background:#07152f;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+  #studioFrame{border:0;width:100%;height:100%;display:block;background:#fff}
+  #status{position:fixed;left:16px;bottom:16px;z-index:10;background:#07152f;color:#fff;border:1px solid rgba(255,255,255,.24);border-radius:12px;padding:10px 12px;font-size:13px;box-shadow:0 12px 28px rgba(0,0,0,.28)}
+</style>
+</head>
+<body>
+<div id="status">Opening Team Introduction...</div>
+<iframe id="studioFrame" src="./?teamIntro=1&cache=20260830-team-introduction-direct"></iframe>
+<script>
+(function(){
+  'use strict';
+  const frame=document.getElementById('studioFrame');
+  const status=document.getElementById('status');
+  function setStatus(text){if(status)status.textContent=text;}
+  function inject(){
+    try{
+      const win=frame.contentWindow;
+      const doc=frame.contentDocument;
+      if(!win||!doc||!doc.body)return false;
+      win.localStorage.setItem('csms_video_template_mode','team_intro');
+      if(!doc.querySelector('script[data-csms-team-introduction-direct]')){
+        const script=doc.createElement('script');
+        script.src='team-introduction-layout-v1.js?v=20260830-team-introduction-direct';
+        script.async=false;
+        script.dataset.csmsTeamIntroductionDirect='1';
+        script.onload=function(){
+          try{win.CSMSTeamIntroRefresh&&win.CSMSTeamIntroRefresh();}catch(_){ }
+          setStatus('Team Introduction ready');
+          setTimeout(()=>{if(status)status.style.display='none';},1800);
+        };
+        doc.head.appendChild(script);
+      }
+      if(typeof win.CSMSTeamIntroRefresh==='function')win.CSMSTeamIntroRefresh();
+      return true;
+    }catch(err){
+      setStatus('Still loading Team Introduction...');
+      return false;
+    }
+  }
+  frame.addEventListener('load',()=>{
+    let tries=0;
+    const timer=setInterval(()=>{
+      tries++;
+      const ok=inject();
+      if(ok||tries>80)clearInterval(timer);
+    },250);
+  });
+})();
+</script>
+</body>
+</html>
