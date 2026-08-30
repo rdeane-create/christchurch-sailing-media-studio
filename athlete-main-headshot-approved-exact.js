@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const NAME='Athlete Main Headshot — Approved';
-  const VERSION='20260830-clean-athlete-cutout-1';
+  const VERSION='20260830-clean-athlete-cutout-2';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -289,6 +289,7 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
     ctx.fillStyle=top;ctx.fillRect(0,0,W,350);
   }
   function athleteGeometry(){if(!S.img)return null;const base=Math.max(W/S.img.width,H/S.img.height),sc=base*S.scale,dw=S.img.width*sc,dh=S.img.height*sc;return{x:(W-dw)/2+S.x,y:(H-dh)/2+S.y,w:dw,h:dh}}
+  const clampByte=v=>Math.max(0,Math.min(255,Math.round(v)));
   function refineCutoutEdges(canvas){
     const cx=canvas.getContext('2d',{willReadFrequently:true});
     const data=cx.getImageData(0,0,canvas.width,canvas.height);
@@ -308,39 +309,50 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
       const r=p[i],g=p[i+1],b=p[i+2];
       const max=Math.max(r,g,b),min=Math.min(r,g,b),sat=max-min;
       const greenLead=g-Math.max(r,b);
+      const blueLag=Math.min(r,g)-b;
+      const upperHairZone=y<h*.54;
       let edge=a<250||nearTransparent(x,y,4,244);
       if(!edge&&x>0&&x<w-1&&y>0&&y<h-1){
         edge=alphaAt(x-1,y)<244||alphaAt(x+1,y)<244||alphaAt(x,y-1)<244||alphaAt(x,y+1)<244;
       }
       const skinLike=(r>118&&g>74&&b>48&&r>=g*.96&&r>b+18&&g>b+8)||(r>150&&g>108&&b>78&&r>b+22);
       const blondHairLike=r>126&&g>104&&b>52&&r>=g-22&&g>b+22&&r>b+42;
-      const brownHairLike=r>48&&g>34&&b>22&&r>=g-4&&g>=b-2&&max<145&&sat<70;
+      const brownHairLike=r>48&&g>34&&b>22&&r>=g-4&&g>=b-2&&max<145&&sat<70&&!(upperHairZone&&edge&&g>r+8&&blueLag>22);
       const darkHairLike=max<82&&sat<46;
       const whiteJacketLike=r>150&&g>155&&b>150&&sat<55;
       const navyGearLike=b>r+10&&b>=g-8&&max<128&&sat>18;
       const protectedSubject=skinLike||blondHairLike||brownHairLike||darkHairLike||whiteJacketLike||navyGearLike;
       const greenSpill=(g>r*1.035&&g>b*1.075&&greenLead>6)||(g>82&&r>48&&b<138&&g>b+13&&sat>16);
-      const leafLike=greenSpill&&g>68&&greenLead>8&&sat>20&&r<188&&y<h*.74;
+      const oliveSpill=upperHairZone&&edge&&g>58&&r>42&&b<128&&blueLag>18&&g>=r-7&&g<=r+42&&sat>18&&max<178;
+      const barkSpill=upperHairZone&&edge&&r>52&&g>44&&b<98&&blueLag>20&&sat>20&&max<158&&a<242;
+      const leafLike=(greenSpill&&g>68&&greenLead>8&&sat>20&&r<188&&y<h*.74)||oliveSpill||barkSpill;
       const heavyLeaf=leafLike&&((g>r*1.15&&g>b*1.18)||(greenLead>28&&sat>48));
       const edgeBlend=Math.min(1,Math.max(0,(252-a)/76)+(edge?0.55:0));
       if(!edge&&!leafLike)continue;
       if(greenSpill){
         const strength=Math.min(1,Math.max(.18,(greenLead+sat-12)/82)+(edge?0.18:0));
         const targetG=Math.min(g,Math.round((r+b)/2+14));
-        p[i+1]=Math.round(g*(1-.82*strength)+targetG*.82*strength);
-        p[i]=Math.min(255,Math.round(r+4*strength*edgeBlend));
-        p[i+2]=Math.min(255,Math.round(b+3*strength*edgeBlend));
-        if(blondHairLike)p[i]=Math.min(255,Math.round(r+5*strength));
+        p[i+1]=clampByte(g*(1-.82*strength)+targetG*.82*strength);
+        p[i]=clampByte(r+4*strength*edgeBlend);
+        p[i+2]=clampByte(b+3*strength*edgeBlend);
+        if(blondHairLike)p[i]=clampByte(r+5*strength);
         if(!protectedSubject&&leafLike){
-          const alphaKeep=heavyLeaf?0.30:0.52;
-          p[i+3]=Math.round(a*(alphaKeep-.14*edgeBlend));
+          const alphaKeep=upperHairZone?(heavyLeaf?0.16:0.30):(heavyLeaf?0.30:0.52);
+          p[i+3]=clampByte(a*(alphaKeep-.14*edgeBlend));
         }else if(!protectedSubject&&a<238){
-          p[i+3]=Math.round(a*(.82-.18*strength));
+          p[i+3]=clampByte(a*(.82-.18*strength));
         }
+      }else if(!protectedSubject&&leafLike){
+        const strength=upperHairZone?Math.min(1,.45+edgeBlend*.45):Math.min(1,.22+edgeBlend*.25);
+        const neutral=Math.round((r+g+b)/3);
+        p[i]=clampByte(r*(1-.40*strength)+neutral*.40*strength);
+        p[i+1]=clampByte(g*(1-.58*strength)+neutral*.58*strength);
+        p[i+2]=clampByte(b*(1-.26*strength)+neutral*.26*strength);
+        p[i+3]=clampByte(a*(upperHairZone ? .26 : .62));
       }else if(!protectedSubject&&a<110&&sat>34){
-        p[i+3]=Math.round(a*.76);
+        p[i+3]=clampByte(a*.76);
       }else if(edge&&a<226){
-        p[i+3]=Math.round(a*.90);
+        p[i+3]=clampByte(a*.90);
       }
     }
     cx.putImageData(data,0,0);
@@ -363,6 +375,26 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
     ctx.drawImage(glow,0,0);
     ctx.restore();
   }
+  function drawCleanEdgeBlend(ctx,layer){
+    if(!layer||S.cutoutEdge<=0)return;
+    const edge=document.createElement('canvas');edge.width=W;edge.height=H;
+    const ex=edge.getContext('2d');
+    ex.filter=`blur(${Math.max(1.5,S.cutoutEdge*1.15)}px)`;
+    ex.drawImage(layer,0,0);
+    ex.filter='none';
+    ex.globalCompositeOperation='source-in';
+    const wash=ex.createLinearGradient(0,120,0,H);
+    wash.addColorStop(0,'rgba(229,239,240,.34)');
+    wash.addColorStop(.46,'rgba(181,205,204,.22)');
+    wash.addColorStop(1,'rgba(10,32,49,.24)');
+    ex.fillStyle=wash;ex.fillRect(0,0,W,H);
+    ex.globalCompositeOperation='destination-out';
+    ex.drawImage(layer,0,0);
+    ctx.save();
+    ctx.globalAlpha=.72;
+    ctx.drawImage(edge,0,0);
+    ctx.restore();
+  }
   function drawPhoto(ctx){
     if(!S.img)return;const g=athleteGeometry();
     if(!S.cutoutMask){ctx.drawImage(S.img,g.x,g.y,g.w,g.h);return;}
@@ -370,9 +402,9 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
     const layer=document.createElement('canvas');layer.width=W;layer.height=H;const lx=layer.getContext('2d');
     lx.drawImage(S.img,g.x,g.y,g.w,g.h);
     lx.globalCompositeOperation='destination-in';
-    if(S.cutoutEdge>0)lx.filter=`blur(${S.cutoutEdge}px)`;
-    lx.drawImage(S.cutoutMask,g.x,g.y,g.w,g.h);lx.filter='none';lx.globalCompositeOperation='source-over';
+    lx.drawImage(S.cutoutMask,g.x,g.y,g.w,g.h);lx.globalCompositeOperation='source-over';
     refineCutoutEdges(layer);
+    drawCleanEdgeBlend(ctx,layer);
     ctx.save();
     if(S.cutoutShadow>0){ctx.shadowColor=`rgba(0,18,32,${Math.min(.35,S.cutoutShadow/100)})`;ctx.shadowBlur=22;ctx.shadowOffsetY=8;}
     ctx.drawImage(layer,0,0);ctx.restore();
