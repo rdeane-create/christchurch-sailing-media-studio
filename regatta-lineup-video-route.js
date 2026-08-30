@@ -71,6 +71,18 @@
     return !action || action.includes('OPEN') || action.includes('CREATE') || action.includes('REGATTA LINEUP');
   }
 
+  function loadTeamIntroductionHelper(){
+    if(window.__CSMS_TEAM_INTRODUCTION__||document.querySelector('script[data-csms-team-introduction]'))return;
+    const script=document.createElement('script');
+    script.src='team-introduction-layout-v1.js?v=20260830-team-introduction-v1';
+    script.async=false;
+    script.dataset.csmsTeamIntroduction='1';
+    script.onload=function(){
+      if(typeof window.CSMSTeamIntroRefresh==='function')window.CSMSTeamIntroRefresh();
+    };
+    document.head.appendChild(script);
+  }
+
   document.addEventListener('click',function(event){
     if(!isLineupLaunch(event.target))return;
     event.preventDefault();
@@ -94,11 +106,13 @@
   }
 
   function init(){
+    loadTeamIntroductionHelper();
     wireKnownButtons();
     pruneDuplicateRegattaTemplates();
     const observer=new MutationObserver(function(){
       wireKnownButtons();
       pruneDuplicateRegattaTemplates();
+      if(typeof window.CSMSTeamIntroRefresh==='function')window.CSMSTeamIntroRefresh();
     });
     observer.observe(document.body,{childList:true,subtree:true});
     window.CSMSRegattaLineupVideo={version:VERSION,open:openRegattaLineup,prune:pruneDuplicateRegattaTemplates};
