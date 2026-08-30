@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const NAME='Athlete Main Headshot — Approved';
-  const VERSION='20260830-clean-athlete-cutout-5';
+  const VERSION='20260830-clean-athlete-cutout-6';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -491,13 +491,14 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
   }
   function drawHeaderReadability(ctx){
     ctx.save();
-    const banner=ctx.createLinearGradient(0,0,0,430);
-    banner.addColorStop(0,'rgba(255,255,255,1)');
-    banner.addColorStop(.44,'rgba(255,255,255,.98)');
-    banner.addColorStop(.72,'rgba(255,255,255,.76)');
-    banner.addColorStop(.90,'rgba(255,255,255,.28)');
+    ctx.fillStyle='rgba(255,255,255,.98)';
+    ctx.fillRect(0,0,W,150);
+    const banner=ctx.createLinearGradient(0,150,0,275);
+    banner.addColorStop(0,'rgba(255,255,255,.96)');
+    banner.addColorStop(.35,'rgba(255,255,255,.58)');
+    banner.addColorStop(.72,'rgba(255,255,255,.18)');
     banner.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle=banner;ctx.fillRect(0,0,W,430);
+    ctx.fillStyle=banner;ctx.fillRect(0,150,W,125);
     ctx.restore();
   }
   function drawPhoto(ctx){
