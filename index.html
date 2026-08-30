@@ -1792,6 +1792,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           <select id="publishType">
             <option value="Weekly Highlights">Weekly Highlights</option>
             <option value="Regatta Lineup">Regatta Lineup</option>
+            <option value="Team Introduction">Team Introduction</option>
             <option value="Hero Athlete">Hero Athlete</option>
             <option value="Results">Results</option>
             <option value="Sponsor">Sponsor</option>
@@ -2339,6 +2340,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           <label for="videoType">Video type</label>
           <select id="videoType">
             <option>Weekly Lineup</option>
+            <option value="team_intro">Team Introduction</option>
             <option disabled>Event Announcement — coming next</option>
             <option disabled>Results — coming next</option>
             <option disabled>Sailor Spotlight — coming next</option>
@@ -2657,7 +2659,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       </div>
       <button id="renderBtn" class="primary" style="margin-top:10px">Render Video</button>
       <progress id="progress" value="0" max="1" hidden></progress>
-      <div id="status" class="status" aria-live="polite">Upload a background, logo, and 1–12 athlete images.</div>
+      <div id="status" class="status" aria-live="polite">Upload a background, logo, and athlete images.</div>
       <a id="downloadLink" style="display:none;margin-top:12px;text-align:center" class="primary" download>Download Video</a>
     </section>
 
@@ -4168,7 +4170,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function currentTemplateLabel(){
-    if(producerCurrentArea==='video')return 'Regatta Lineup Video';
+    if(producerCurrentArea==='video')return localStorage.getItem('csms_video_template_mode')==='team_intro'?'Team Introduction Video':'Regatta Lineup Video';
     if(producerCurrentArea==='weekly')return 'Weekly Highlights';
     if(producerCurrentArea==='storyboard')return 'Race Results';
     return '';
@@ -5495,6 +5497,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const token=`${String(item?.id||'')} ${String(item?.name||'')} ${String(item?.collection||'')}`.toLowerCase();
     if(/hero/.test(token))return 'Hero Cards';
     if(/weekly/.test(token))return 'Weekly Highlights';
+    if(/team|seahorse/.test(token))return 'Team Introduction';
     if(/lineup/.test(token))return 'Regatta Lineup';
     if(/race|results/.test(token))return 'Race Results';
     return String(item?.collection||item?.templateType||'Template').trim()||'Template';
@@ -5505,6 +5508,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(/^christchurch_/.test(String(item?.id||'')))return String(item.id||'');
     if(/hero/.test(token))return 'christchurch_hero_card_template';
     if(/weekly/.test(token))return 'christchurch_weekly_highlights_template';
+    if(/team|seahorse/.test(token))return 'christchurch_team_introduction_template';
     if(/lineup/.test(token))return 'christchurch_regatta_lineup_template';
     if(/race|results/.test(token))return 'christchurch_race_results_template';
     return '';
@@ -5561,6 +5565,18 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         mine:true
       });
     }
+    if(!byId.has('christchurch_team_introduction_template')){
+      byId.set('christchurch_team_introduction_template',{
+        source:'recovered_default',
+        id:'christchurch_team_introduction_template',
+        name:'Christchurch Team Introduction',
+        collection:'Team Introduction',
+        version:1,
+        updatedAt:'',
+        templateType:'video',
+        mine:true
+      });
+    }
     let items=[...byId.values()];
     // Final library visibility filter: hide obsolete historical templates regardless of storage source.
     items=items.filter(item=>{
@@ -5599,13 +5615,21 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       const create=document.createElement('button');create.className='tiny primary';create.textContent='Create From Template';
       const token=`${String(item.id||'')} ${String(item.name||'')} ${String(item.collection||'')}`;
       if(/weekly/i.test(token))create.textContent='Create Weekly Reel';
+      if(/team|seahorse/i.test(token))create.textContent='Create Team Intro';
       if(/lineup/i.test(token))create.textContent='Create Lineup';
       create.addEventListener('click',()=>{
         if(/weekly/i.test(token)){
           activateWorkspace('weekly');
           return;
         }
+        if(/team|seahorse/i.test(token)){
+          localStorage.setItem('csms_video_template_mode','team_intro');
+          activateWorkspace('video');
+          if(typeof window.CSMSTeamIntroRefresh==='function')window.CSMSTeamIntroRefresh();
+          return;
+        }
         if(/lineup/i.test(token)){
+          localStorage.setItem('csms_video_template_mode','regatta_lineup');
           activateWorkspace('video');
           return;
         }
@@ -5622,7 +5646,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       });
       const open=document.createElement('button');open.className='tiny secondary';open.textContent='Open';
       open.addEventListener('click',()=>{
-        if(/lineup/i.test(token))activateWorkspace('video');
+        if(/team|seahorse/i.test(token)){
+          localStorage.setItem('csms_video_template_mode','team_intro');
+          activateWorkspace('video');
+          if(typeof window.CSMSTeamIntroRefresh==='function')window.CSMSTeamIntroRefresh();
+        }
+        else if(/lineup/i.test(token)){localStorage.setItem('csms_video_template_mode','regatta_lineup');activateWorkspace('video');}
         else if(/weekly/i.test(token))activateWorkspace('weekly');
         else if(/race|results/i.test(token))activateWorkspace('storyboard');
         else if(/hero/i.test(token))activateWorkspace('creative');
@@ -10487,11 +10516,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function campaignPlaybooks(){
     const manager=window.CSMSStudioV2?.PlaybookManager;
     if(manager&&typeof manager.list==='function'){
-      try{return manager.list().filter(item=>['race_results','regatta_lineup','weekly_highlights'].includes(String(item?.id||'')));}catch(err){console.warn('Playbook manager unavailable',err);}
+      try{return manager.list().filter(item=>['race_results','regatta_lineup','team_introduction','weekly_highlights'].includes(String(item?.id||'')));}catch(err){console.warn('Playbook manager unavailable',err);}
     }
     return [
       {id:'race_results',label:'Race Results',templateId:'christchurch_race_results_template',projectTypes:['race_results']},
       {id:'regatta_lineup',label:'Regatta Lineup',templateId:'christchurch_regatta_lineup_template',projectTypes:['regatta_lineup']},
+      {id:'team_introduction',label:'Team Introduction',templateId:'christchurch_team_introduction_template',projectTypes:['team_introduction']},
       {id:'weekly_highlights',label:'Weekly Highlights',templateId:'christchurch_weekly_highlights_template',projectTypes:['weekly_highlights']}
     ];
   }
@@ -10506,6 +10536,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const key=String(playbook&&playbook.id||'race_results');
     if(key==='race_results')return ['weekly','post'];
     if(key==='regatta_lineup')return ['story','post'];
+    if(key==='team_introduction')return ['story','post'];
     if(key==='athlete_spotlight')return ['hero','post'];
     if(key==='alumni_event')return ['story','post'];
     if(key==='weekly_highlights')return ['weekly','story'];
@@ -15537,7 +15568,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   updateVideoAthleteSource();
 
   document.getElementById('athleteFiles').addEventListener('change',async e=>{
-    const files=[...e.target.files].slice(0,10);
+    const files=[...e.target.files];
     athletes=[];
     for(const file of files) athletes.push({file,img:await loadImageFile(file)});
     renderAthleteList();
@@ -15946,7 +15977,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function layout(count){
-    count=Math.max(1,Math.min(12,Number(count)||1));
+    count=Math.max(1,Number(count)||1);
     /* CSMS_LINEUP_GRID_1_12_V9: array-backed native row maps; 1 through 12 cards */
     const maps={
       1:[[0]],
@@ -15963,7 +15994,16 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       12:[[0,1,2,3],[4,5,6,7],[8,9,10,11]]
     };
     const zones=safeZones();
-    let rows=maps[count]||maps[4];
+    let rows=maps[count];
+    if(!rows){
+      const cols=activeProfile==='landscape'
+        ? Math.min(12,Math.ceil(Math.sqrt(count*1.9)))
+        : activeProfile==='story'||activeProfile==='reel'
+          ? Math.min(7,Math.ceil(Math.sqrt(count*.75)))
+          : Math.min(8,Math.ceil(Math.sqrt(count*.95)));
+      rows=[];
+      for(let i=0;i<count;i+=cols)rows.push(Array.from({length:Math.min(cols,count-i)},(_,j)=>i+j));
+    }
     let top,bottom,rowGap,side,colGap;
 
     if(activeProfile==='story'||activeProfile==='reel'){
@@ -16124,6 +16164,18 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     return size;
   }
 
+  function isTeamIntroMode(){
+    return localStorage.getItem('csms_video_template_mode')==='team_intro';
+  }
+
+  function videoTitleText(){
+    return isTeamIntroMode()?'TEAM INTRODUCTION':'REGATTA LINEUP';
+  }
+
+  function videoSupportText(event,loc){
+    return isTeamIntroMode()?'INTRODUCING YOUR 2026/2027 SEAHORSES':`${event}  •  ${loc}`;
+  }
+
   function drawOfficialBurgee(x,y,w,h,alpha=1){
     if(!officialBurgee.complete)return;
     ctx.save();ctx.globalAlpha*=alpha;
@@ -16167,7 +16219,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     ctx.textBaseline='top';
 
     const eventLine=event;
-    const support=`${event}  •  ${loc}`;
+    const titleText=videoTitleText();
+    const support=videoSupportText(event,loc);
 
     if(style==='championship'){
       const cy=y+h*.43;
@@ -16186,12 +16239,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       ctx.fillText('C H R I S T C H U R C H   S A I L I N G',x+w/2,brandY+flag);
 
       ctx.globalAlpha=p.main;
-      const s=fitText('REGATTA LINEUP',w-70,compact?66:88,40,z=>`italic 900 ${z}px Arial`);
+      const s=fitText(titleText,w-70,compact?66:88,40,z=>`italic 900 ${z}px Arial`);
       ctx.font=`italic 900 ${s}px Arial`;
       ctx.fillStyle='rgba(0,0,0,.6)';
-      ctx.fillText('REGATTA LINEUP',x+w/2+5,cy+7);
+      ctx.fillText(titleText,x+w/2+5,cy+7);
       ctx.fillStyle='#f8fafc';
-      ctx.fillText('REGATTA LINEUP',x+w/2,cy);
+      ctx.fillText(titleText,x+w/2,cy);
 
       const railW=(w-110)*p.accent;
       const railX=x+w/2-railW/2;
@@ -16225,10 +16278,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       ctx.globalAlpha=p.main;
       ctx.fillStyle='#d6ab59';
       ctx.font=`400 ${compact?27:38}px Georgia`;
-      ctx.fillText('R E G A T T A   L I N E U P',x+42,y+h*.55+(1-p.main)*18);
+      ctx.fillText(titleText.split('').join(' '),x+42,y+h*.55+(1-p.main)*18);
 
       ctx.fillStyle='#d7dde6';ctx.font=`400 ${compact?17:21}px Georgia`;
-      ctx.fillText(`${eventLine} — ${loc}`,x+44,y+h*.78);
+      ctx.fillText(isTeamIntroMode()?support:`${eventLine} — ${loc}`,x+44,y+h*.78);
       lightSweep(x+24,y+14,w-48,h-28,p.sweep,.12);
     }
 
@@ -16249,12 +16302,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       ctx.fillText('CHRISTCHURCH SAILING',x+118,y+30);
 
       ctx.globalAlpha=p.main;
-      const s=fitText('REGATTA LINEUP',w-72,compact?65:90,40,z=>`italic 900 ${z}px Arial`);
+      const s=fitText(titleText,w-72,compact?65:90,40,z=>`italic 900 ${z}px Arial`);
       ctx.fillStyle='#f8fafc';ctx.font=`italic 900 ${s}px Arial`;
-      ctx.fillText('REGATTA LINEUP',x+38,y+h*.46+(1-p.main)*22);
+      ctx.fillText(titleText,x+38,y+h*.46+(1-p.main)*22);
 
       ctx.fillStyle='#ff6f18';ctx.font=`800 ${compact?18:22}px Arial`;
-      ctx.fillText(`${eventLine} / ${loc}`,x+42,y+h*.78);
+      ctx.fillText(isTeamIntroMode()?support:`${eventLine} / ${loc}`,x+42,y+h*.78);
     }
 
     else if(style==='heritage'){
@@ -16273,7 +16326,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
       ctx.globalAlpha=p.main;
       ctx.fillStyle='#f7f2e8';ctx.font=`400 ${compact?27:36}px Georgia`;
-      ctx.fillText('REGATTA LINEUP',x+w/2,y+h*.63+(1-p.main)*14);
+      ctx.fillText(titleText,x+w/2,y+h*.63+(1-p.main)*14);
 
       ctx.fillStyle='#d5dce6';ctx.font=`400 ${compact?16:20}px Georgia`;
       ctx.fillText(support,x+w/2,y+h*.80);
@@ -16295,9 +16348,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       ctx.fillText('CHRISTCHURCH SAILING',x+122,y+28);
 
       ctx.globalAlpha=p.main;
-      const s=fitText('REGATTA LINEUP',w-72,compact?64:88,40,z=>`italic 900 ${z}px Arial`);
+      const s=fitText(titleText,w-72,compact?64:88,40,z=>`italic 900 ${z}px Arial`);
       ctx.fillStyle='#ff6f18';ctx.font=`italic 900 ${s}px Arial`;
-      ctx.fillText('REGATTA LINEUP',x+38,y+h*.46+(1-p.main)*20);
+      ctx.fillText(titleText,x+38,y+h*.46+(1-p.main)*20);
 
       ctx.fillStyle='#f8fafc';ctx.font=`700 ${compact?17:21}px Arial`;
       ctx.fillText(support,x+42,y+h*.79);
@@ -16323,9 +16376,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       ctx.fillText('CHRISTCHURCH SAILING',x+122,y+31);
 
       ctx.globalAlpha=p.main;
-      const s=fitText('REGATTA LINEUP',w-80,compact?63:84,40,z=>`italic 900 ${z}px Arial`);
+      const s=fitText(titleText,w-80,compact?63:84,40,z=>`italic 900 ${z}px Arial`);
       ctx.fillStyle='#b9bec5';ctx.font=`italic 900 ${s}px Arial`;
-      ctx.fillText('REGATTA LINEUP',x+40,y+h*.45+(1-p.main)*18);
+      ctx.fillText(titleText,x+40,y+h*.45+(1-p.main)*18);
 
       ctx.globalAlpha=p.accent;ctx.fillStyle='#ff6f18';
       ctx.fillRect(x+42,y+h*.74,(w-84)*p.accent,6);
@@ -16346,9 +16399,9 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       drawOfficialBurgee(x+w-(compact?98:126),y+24,compact?66:84,compact?66:84,p.brand);
 
       ctx.globalAlpha=p.main;
-      const s=fitText('REGATTA LINEUP',w-90,compact?60:82,38,z=>`italic 900 ${z}px Arial`);
+      const s=fitText(titleText,w-90,compact?60:82,38,z=>`italic 900 ${z}px Arial`);
       ctx.fillStyle='#0b294d';ctx.font=`italic 900 ${s}px Arial`;
-      ctx.fillText('REGATTA LINEUP',x+40,y+h*.25+(1-p.main)*18);
+      ctx.fillText(titleText,x+40,y+h*.25+(1-p.main)*18);
 
       ctx.globalAlpha=p.brand;ctx.fillStyle='#0b294d';ctx.font=`700 ${compact?22:28}px Arial`;
       ctx.fillText('CHRISTCHURCH SAILING',x+42,y+h*.61);
@@ -16370,15 +16423,15 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       ctx.fillText('C H R I S T C H U R C H   S A I L I N G',x+112,y+37);
 
       ctx.globalAlpha=p.main;
-      const s=fitText('REGATTA LINEUP',w-88,compact?58:78,36,z=>`300 ${z}px Arial`);
+      const s=fitText(titleText,w-88,compact?58:78,36,z=>`300 ${z}px Arial`);
       ctx.fillStyle='#f8fafc';ctx.font=`300 ${s}px Arial`;
-      ctx.fillText('REGATTA LINEUP',x+44,y+h*.37+(1-p.main)*16);
+      ctx.fillText(titleText,x+44,y+h*.37+(1-p.main)*16);
 
       ctx.globalAlpha=p.accent;ctx.fillStyle='#ff6f18';
       ctx.fillRect(x+44,y+h*.68,(w-88)*p.accent,4);
 
       ctx.globalAlpha=p.main;ctx.fillStyle='#cbd4df';ctx.font=`400 ${compact?16:20}px Arial`;
-      ctx.fillText(`${eventLine} / ${loc}`,x+45,y+h*.74);
+      ctx.fillText(isTeamIntroMode()?support:`${eventLine} / ${loc}`,x+45,y+h*.74);
     }
 
     ctx.restore();
@@ -16507,7 +16560,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function drawFrame(t,staticOnly=false){
-    const count=Math.max(1,Math.min(12,athletes.length||1)), cfg=motionConfig(), dur=durationFor(count);
+    const count=Math.max(1,athletes.length||1), cfg=motionConfig(), dur=durationFor(count);
     drawBackground(t,dur);drawTitle(t,staticOnly);drawIntroOverlay(t);
     if(!staticOnly && els.beatSync.checked && beatData){
       const phase=((t-cfg.intro)%beatData.beatInterval+beatData.beatInterval)%beatData.beatInterval;
@@ -16571,7 +16624,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   async function preview(){
     animationToken++;const token=animationToken;
-    const count=Math.max(1,Math.min(12,athletes.length||1)),dur=durationFor(count),start=performance.now();
+    const count=Math.max(1,athletes.length||1),dur=durationFor(count),start=performance.now();
     status.textContent='Playing preview…';
     function step(now){
       if(token!==animationToken)return;
@@ -16596,8 +16649,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
 
   async function renderCurrentProfile(profile,autoDownload=false){
-    if(!background||!logo||athletes.length<1||athletes.length>12){
-      status.textContent='Please upload a background, official logo, and 1–12 athlete images.';
+    if(!background||!logo||athletes.length<1){
+      status.textContent='Please upload a background, official logo, and at least one athlete image.';
       return null;
     }
     const previous=activeProfile;
@@ -16676,7 +16729,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     downloadLink.textContent=`Download ${result.label}`;
     downloadLink.style.display='block';
     status.textContent=`${result.label} ready.`;
-    completeActiveProductionWork('Regatta Lineup',`${result.label} render completed and is ready for review`);
+    completeActiveProductionWork(isTeamIntroMode()?'Team Introduction':'Regatta Lineup',`${result.label} render completed and is ready for review`);
   }
 
   async function exportSelected(){
@@ -16695,7 +16748,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       row.append(icon,name,link);box.append(row);
     }
     status.textContent='Selected export package is ready.';
-    completeActiveProductionWork('Regatta Lineup','Selected lineup export package completed');
+    completeActiveProductionWork(isTeamIntroMode()?'Team Introduction':'Regatta Lineup','Selected export package completed');
   }
 
   document.getElementById('exportSelectedBtn').addEventListener('click',exportSelected);
@@ -17452,6 +17505,44 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     };
   }
 
+  function defaultTemplateTeamIntroduction(){
+    const now=new Date().toISOString();
+    return {
+      id:'christchurch_team_introduction_template',
+      name:'Christchurch Team Introduction',
+      presetKey:'ig_feed_portrait',
+      created:now,
+      updated:now,
+      layers:[
+        {id:cId('layer'),type:'shape',name:'Navy background',x:0,y:0,w:1080,h:1350,fill:'#07152f',visible:true,locked:true},
+        {
+          id:cId('layer'),type:'photo',name:'Lead team photo',x:80,y:94,w:628,h:560,
+          sourceAssetId:'',sourceFilename:'',sourceChecksum:'',sourceWidth:0,sourceHeight:0,sourceMime:'',importedAt:'',
+          transform:{scale:1,cropX:0,cropY:0,rotation:0,opacity:1,fitMode:'fill',mask:'rounded'},
+          photoIntegrity:{mode:'original-pixels-only',operations:['crop','proportional-scale','reposition','mask','opacity','rotation','fit-fill']},history:[],visible:true,locked:false,role:'background photo'
+        },
+        {
+          id:cId('layer'),type:'photo',name:'Support team photo',x:736,y:94,w:264,h:560,
+          sourceAssetId:'',sourceFilename:'',sourceChecksum:'',sourceWidth:0,sourceHeight:0,sourceMime:'',importedAt:'',
+          transform:{scale:1,cropX:0,cropY:0,rotation:0,opacity:1,fitMode:'fill',mask:'rounded'},
+          photoIntegrity:{mode:'original-pixels-only',operations:['crop','proportional-scale','reposition','mask','opacity','rotation','fit-fill']},history:[],visible:true,locked:false,role:'supporting photo'
+        },
+        {id:cId('layer'),type:'shape',name:'Bottom panel',x:0,y:690,w:1080,h:660,fill:'rgba(7,21,47,0.94)',visible:true,locked:true},
+        {id:cId('layer'),type:'banner',name:'Orange accent banner',x:80,y:772,w:920,h:10,fill:'#ff6f18',visible:true,locked:false},
+        {id:cId('layer'),type:'text',name:'Headline',textKey:'headline',text:'Team Introduction',x:84,y:806,w:912,h:70,fontSize:64,align:'left',color:'#ffffff',weight:'800',visible:true,locked:false},
+        {id:cId('layer'),type:'text',name:'Event',textKey:'event',text:'Christchurch Sailing',x:84,y:878,w:720,h:44,fontSize:38,align:'left',color:'#ff6f18',weight:'700',visible:true,locked:false},
+        {id:cId('layer'),type:'text',name:'Date',textKey:'date',text:'2026/2027',x:84,y:932,w:300,h:34,fontSize:28,align:'left',color:'#ffffff',weight:'700',visible:true,locked:false},
+        {id:cId('layer'),type:'text',name:'Team',textKey:'location',text:'SEAHORSES',x:410,y:932,w:360,h:34,fontSize:28,align:'left',color:'#d9e3ee',weight:'600',visible:true,locked:false},
+        {id:cId('layer'),type:'text',name:'Support',textKey:'support',text:'A full-team introduction built for large rosters and athlete-card reveals.',x:84,y:980,w:912,h:50,fontSize:28,align:'left',color:'#ffffff',weight:'500',visible:true,locked:false},
+        {id:cId('layer'),type:'text',name:'Roster Note',textKey:'details',text:'Varsity • JV • Development\nCaptains • Coaches • Full roster',x:84,y:1042,w:592,h:172,fontSize:30,align:'left',color:'#ffffff',weight:'700',visible:true,locked:false,lineHeight:1.24},
+        {id:cId('layer'),type:'text',name:'Team Introduction Line',textKey:'dinner',text:'Introducing your 2026/2027 Seahorses',x:84,y:1222,w:820,h:38,fontSize:30,align:'left',color:'#d9e3ee',weight:'800',visible:true,locked:false},
+        {id:cId('layer'),type:'text',name:'CTA 1',textKey:'cta1',text:'Meet the team',x:84,y:1270,w:420,h:30,fontSize:26,align:'left',color:'#ff6f18',weight:'800',visible:true,locked:false},
+        {id:cId('layer'),type:'text',name:'CTA 2',textKey:'cta2',text:'Go Seahorses',x:84,y:1304,w:420,h:28,fontSize:24,align:'left',color:'#ffffff',weight:'700',visible:true,locked:false},
+        {id:cId('layer'),type:'logo',name:'Official Pursue Excellence circle logo',source:'official-badge',x:824,y:1118,w:176,h:176,visible:true,locked:false}
+      ]
+    };
+  }
+
   function defaultTemplateWeeklyHighlights(){
     return defaultProductionTemplate({
       id:'christchurch_weekly_highlights_template',
@@ -17724,6 +17815,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     else normalized.unshift(approvedHeroTemplate);
     if(!normalized.some(item=>item.id==='christchurch_alumni_invitation'))normalized.unshift(normalizeTemplate(defaultTemplateAlumni()));
     if(!normalized.some(item=>item.id==='christchurch_weekly_highlights_template'))normalized.unshift(normalizeTemplate(defaultTemplateWeeklyHighlights()));
+    if(!normalized.some(item=>item.id==='christchurch_team_introduction_template'))normalized.unshift(normalizeTemplate(defaultTemplateTeamIntroduction()));
     if(!normalized.some(item=>item.id==='christchurch_regatta_lineup_template'))normalized.unshift(normalizeTemplate(defaultTemplateRegattaLineup()));
     if(!normalized.some(item=>item.id==='christchurch_race_results_template'))normalized.unshift(normalizeTemplate(defaultTemplateRaceResults()));
     state.templates=normalized;
@@ -17787,6 +17879,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function inferPlaybookIdFromDesign(design=activeDesign()){
     const templateId=String(design?.templateId||'').toLowerCase();
     if(templateId.includes('race_results'))return 'race_results';
+    if(templateId.includes('team_introduction'))return 'team_introduction';
     if(templateId.includes('regatta_lineup'))return 'regatta_lineup';
     if(templateId.includes('weekly_highlights'))return 'weekly_highlights';
     return 'race_results';
@@ -17795,6 +17888,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function hasTemplatePlaybook(design,playbook){
     const templateId=String(design?.templateId||'').toLowerCase();
     if(playbook==='race_results')return templateId.includes('race_results');
+    if(playbook==='team_introduction')return templateId.includes('team_introduction');
     if(playbook==='regatta_lineup')return templateId.includes('regatta_lineup');
     if(playbook==='weekly_highlights')return templateId.includes('weekly_highlights');
     return false;
@@ -24361,6 +24455,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="regatta-lineup-video-route.js?v=20260814-2"></script>
 <script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
 <script src="regatta-lineup-layout-v2.js?v=20260814-save-library-v11"></script>
+<script src="team-introduction-layout-v1.js?v=20260830-team-introduction-v1"></script>
 <script src="college-acceptance.js?v=20260815-college-acceptance-v1"></script>
 <script src="regatta-results-story.js?v=20260816-v59-template-gallery-card"></script>
 </body>
