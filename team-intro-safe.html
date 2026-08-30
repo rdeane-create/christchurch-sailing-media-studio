@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Team Introduction Launcher</title>
+<style>
+  :root{--navy:#07152f;--orange:#ff6f18;--white:#f8fafc;--muted:#cbd5e1}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07152f;color:var(--white);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;padding:24px}
+  main{width:min(520px,100%);display:grid;gap:14px}
+  h1{font-size:32px;line-height:1.1;margin:0}
+  p{margin:0;color:var(--muted);line-height:1.45}
+  button,a{width:100%;border:0;border-radius:10px;padding:14px 16px;font-size:16px;font-weight:800;text-align:center;text-decoration:none;cursor:pointer}
+  button{background:var(--orange);color:white}
+  a{display:block;background:rgba(255,255,255,.1);color:white;border:1px solid rgba(255,255,255,.18)}
+  .note{font-size:13px;color:#9fb0c5}
+</style>
+</head>
+<body>
+<main>
+  <h1>Team Introduction</h1>
+  <p>This page does not embed or load the Studio. It only sets Team Introduction mode, then opens the normal Studio page.</p>
+  <button id="openBtn" type="button">Open Team Introduction</button>
+  <a href="./?cache=20260830-safe-manual">Open Studio Without Team Mode</a>
+  <p id="status" class="note">Ready.</p>
+</main>
+<script>
+(function(){
+  'use strict';
+  const status=document.getElementById('status');
+  document.getElementById('openBtn').addEventListener('click',function(){
+    try{
+      localStorage.setItem('csms_video_template_mode','team_intro');
+      status.textContent='Opening...';
+    }catch(_){
+      status.textContent='Opening without saved mode...';
+    }
+    location.href='./?cache=20260830-safe-team-intro';
+  });
+})();
+</script>
+</body>
+</html>
