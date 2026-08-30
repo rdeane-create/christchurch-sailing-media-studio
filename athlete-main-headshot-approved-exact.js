@@ -1,13 +1,13 @@
 (function(){
   'use strict';
   const NAME='Athlete Main Headshot — Approved';
-  const VERSION='20260827-dock-cutout-polish-5';
+  const VERSION='20260830-clean-athlete-cutout-1';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
   const DOCK_BG_SRC='assets/Backgrounds/athlete-main-dock-water-bg.jpg';
   const GLYPHS={"large:A":{"x":8,"y":8,"w":65,"h":121},"large:B":{"x":112,"y":8,"w":70,"h":120},"large:C":{"x":216,"y":8,"w":67,"h":121},"large:D":{"x":320,"y":8,"w":70,"h":120},"large:E":{"x":424,"y":8,"w":64,"h":119},"large:F":{"x":528,"y":8,"w":63,"h":120},"large:G":{"x":632,"y":8,"w":64,"h":123},"large:H":{"x":736,"y":8,"w":72,"h":121},"large:I":{"x":840,"y":8,"w":45,"h":120},"large:J":{"x":944,"y":8,"w":56,"h":120},"large:K":{"x":1048,"y":8,"w":71,"h":121},"large:L":{"x":1152,"y":8,"w":46,"h":121},"large:M":{"x":8,"y":149,"w":88,"h":121},"large:N":{"x":112,"y":149,"w":71,"h":119},"large:O":{"x":216,"y":149,"w":66,"h":120},"large:P":{"x":320,"y":149,"w":67,"h":119},"large:Q":{"x":424,"y":149,"w":66,"h":125},"large:R":{"x":528,"y":149,"w":67,"h":119},"large:S":{"x":632,"y":149,"w":62,"h":120},"large:T":{"x":736,"y":149,"w":56,"h":119},"large:U":{"x":840,"y":149,"w":67,"h":119},"large:V":{"x":944,"y":149,"w":59,"h":119},"large:W":{"x":1048,"y":149,"w":83,"h":119},"large:X":{"x":1152,"y":149,"w":71,"h":119},"large:Y":{"x":8,"y":290,"w":57,"h":119},"large:Z":{"x":112,"y":290,"w":62,"h":119},"large:0":{"x":216,"y":290,"w":57,"h":76},"large:1":{"x":320,"y":290,"w":36,"h":76},"large:2":{"x":424,"y":290,"w":55,"h":85},"large:3":{"x":528,"y":290,"w":54,"h":76},"large:4":{"x":632,"y":290,"w":56,"h":76},"large:5":{"x":736,"y":290,"w":55,"h":76},"large:6":{"x":840,"y":290,"w":54,"h":76},"large:7":{"x":944,"y":290,"w":47,"h":76},"large:8":{"x":1048,"y":290,"w":54,"h":76},"large:9":{"x":1152,"y":290,"w":53,"h":76},"small:A":{"x":8,"y":431,"w":38,"h":46},"small:B":{"x":112,"y":431,"w":41,"h":47},"small:C":{"x":216,"y":431,"w":39,"h":49},"small:D":{"x":320,"y":431,"w":42,"h":46},"small:E":{"x":424,"y":431,"w":38,"h":46},"small:F":{"x":528,"y":431,"w":39,"h":48},"small:G":{"x":632,"y":431,"w":38,"h":50},"small:H":{"x":736,"y":431,"w":44,"h":47},"small:I":{"x":840,"y":431,"w":25,"h":47},"small:J":{"x":944,"y":431,"w":32,"h":46},"small:K":{"x":1048,"y":431,"w":43,"h":47},"small:L":{"x":1152,"y":431,"w":30,"h":47},"small:M":{"x":8,"y":572,"w":52,"h":48},"small:N":{"x":112,"y":572,"w":44,"h":48},"small:O":{"x":216,"y":572,"w":39,"h":49},"small:P":{"x":320,"y":572,"w":40,"h":47},"small:Q":{"x":424,"y":572,"w":40,"h":54},"small:R":{"x":528,"y":572,"w":41,"h":47},"small:S":{"x":632,"y":572,"w":38,"h":49},"small:T":{"x":736,"y":572,"w":34,"h":48},"small:U":{"x":840,"y":572,"w":40,"h":47},"small:V":{"x":944,"y":572,"w":37,"h":67},"small:W":{"x":1048,"y":572,"w":50,"h":67},"small:X":{"x":1152,"y":572,"w":45,"h":47},"small:Y":{"x":8,"y":713,"w":36,"h":47},"small:Z":{"x":112,"y":713,"w":40,"h":47},"small:0":{"x":216,"y":713,"w":34,"h":60},"small:1":{"x":320,"y":713,"w":23,"h":40},"small:2":{"x":424,"y":713,"w":34,"h":40},"small:3":{"x":528,"y":713,"w":31,"h":40},"small:4":{"x":632,"y":713,"w":31,"h":40},"small:5":{"x":736,"y":713,"w":31,"h":40},"small:6":{"x":840,"y":713,"w":30,"h":40},"small:7":{"x":944,"y":713,"w":29,"h":40},"small:8":{"x":1048,"y":713,"w":30,"h":40},"small:9":{"x":1152,"y":713,"w":32,"h":40},"orange:A":{"x":8,"y":854,"w":34,"h":41},"orange:B":{"x":112,"y":854,"w":37,"h":41},"orange:C":{"x":216,"y":854,"w":35,"h":42},"orange:D":{"x":320,"y":854,"w":36,"h":40},"orange:E":{"x":424,"y":854,"w":34,"h":41},"orange:F":{"x":528,"y":854,"w":35,"h":41},"orange:G":{"x":632,"y":854,"w":34,"h":42},"orange:H":{"x":736,"y":854,"w":38,"h":42},"orange:I":{"x":840,"y":854,"w":22,"h":42},"orange:J":{"x":944,"y":854,"w":29,"h":42},"orange:K":{"x":1048,"y":854,"w":39,"h":42},"orange:L":{"x":1152,"y":854,"w":26,"h":41},"orange:M":{"x":8,"y":995,"w":46,"h":42},"orange:N":{"x":112,"y":995,"w":39,"h":41},"orange:O":{"x":216,"y":995,"w":36,"h":42},"orange:P":{"x":320,"y":995,"w":36,"h":41},"orange:Q":{"x":424,"y":995,"w":36,"h":47},"orange:R":{"x":528,"y":995,"w":36,"h":42},"orange:S":{"x":632,"y":995,"w":33,"h":42},"orange:T":{"x":736,"y":995,"w":30,"h":41},"orange:U":{"x":840,"y":995,"w":35,"h":41},"orange:V":{"x":944,"y":995,"w":31,"h":41},"orange:W":{"x":1048,"y":995,"w":45,"h":41},"orange:X":{"x":1152,"y":995,"w":39,"h":41},"orange:Y":{"x":8,"y":1136,"w":31,"h":41},"orange:Z":{"x":112,"y":1136,"w":36,"h":41},"orange:0":{"x":216,"y":1136,"w":31,"h":40},"orange:1":{"x":320,"y":1136,"w":21,"h":39},"orange:2":{"x":424,"y":1136,"w":32,"h":39},"orange:3":{"x":528,"y":1136,"w":30,"h":39},"orange:4":{"x":632,"y":1136,"w":30,"h":39},"orange:5":{"x":736,"y":1136,"w":31,"h":39},"orange:6":{"x":840,"y":1136,"w":30,"h":39},"orange:7":{"x":944,"y":1136,"w":29,"h":39},"orange:8":{"x":1048,"y":1136,"w":30,"h":40},"orange:9":{"x":1152,"y":1136,"w":30,"h":39}};
-  const S={img:null,athleteFile:null,cutoutMask:null,cutoutLayer:null,cutoutBusy:false,cutoutEdge:2.5,cutoutShadow:20,scale:1,x:0,y:0,drag:false,sx:0,sy:0,ix:0,iy:0,first:'WYLDER',last:'SMITH',classLine:'CLASS OF 2027',cardNameDirty:false,overlay:null,atlas:null,dockBg:null,ready:false};
+  const S={img:null,athleteFile:null,cutoutMask:null,cutoutLayer:null,cutoutBusy:false,cutoutEdge:3.5,cutoutShadow:20,scale:1,x:0,y:0,drag:false,sx:0,sy:0,ix:0,iy:0,first:'WYLDER',last:'SMITH',classLine:'CLASS OF 2027',cardNameDirty:false,overlay:null,atlas:null,dockBg:null,ready:false};
   const q=id=>document.getElementById(id);
   function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Exact approved local asset unavailable: '+src));i.src=src+'?v='+encodeURIComponent(VERSION);});}
   let removeBgModulePromise=null;
@@ -46,7 +46,7 @@
       const removeBackground=await loadBackgroundRemoval();
       const blob=await removeBackground(S.athleteFile,{model:'isnet_quint8',output:{format:'image/png',quality:1},progress:(key,current,total)=>{if(total)setCutoutStatus(`Removing background... ${Math.min(100,Math.round(current/total*100))}%`);}});
       S.cutoutMask=await maskFromRemovalBlob(blob);
-      setCutoutStatus('Background removed. Edge blend and shadow keep the athlete from looking pasted in.');
+      setCutoutStatus('Clean cutout ready. Tree/leaf color is suppressed around hair and the edge is softened into the dock scene.');
       draw();
     }catch(err){console.error('Athlete background removal failed',err);setCutoutStatus('Background removal could not complete. The original photo is still available.');}
     finally{S.cutoutBusy=false;if(btn){btn.disabled=false;btn.textContent=old;}}
@@ -294,10 +294,10 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
     const data=cx.getImageData(0,0,canvas.width,canvas.height);
     const p=data.data,w=canvas.width,h=canvas.height;
     const alphaAt=(x,y)=>p[(y*w+x)*4+3];
-    const nearTransparent=(x,y)=>{
-      for(let yy=Math.max(0,y-2);yy<=Math.min(h-1,y+2);yy++){
-        for(let xx=Math.max(0,x-2);xx<=Math.min(w-1,x+2);xx++){
-          if(alphaAt(xx,yy)<220)return true;
+    const nearTransparent=(x,y,r=3,limit=236)=>{
+      for(let yy=Math.max(0,y-r);yy<=Math.min(h-1,y+r);yy++){
+        for(let xx=Math.max(0,x-r);xx<=Math.min(w-1,x+r);xx++){
+          if(alphaAt(xx,yy)<limit)return true;
         }
       }
       return false;
@@ -308,33 +308,65 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
       const r=p[i],g=p[i+1],b=p[i+2];
       const max=Math.max(r,g,b),min=Math.min(r,g,b),sat=max-min;
       const greenLead=g-Math.max(r,b);
-      let edge=a<246||nearTransparent(x,y);
+      let edge=a<250||nearTransparent(x,y,4,244);
       if(!edge&&x>0&&x<w-1&&y>0&&y<h-1){
-        edge=alphaAt(x-1,y)<235||alphaAt(x+1,y)<235||alphaAt(x,y-1)<235||alphaAt(x,y+1)<235;
+        edge=alphaAt(x-1,y)<244||alphaAt(x+1,y)<244||alphaAt(x,y-1)<244||alphaAt(x,y+1)<244;
       }
       const skinLike=(r>118&&g>74&&b>48&&r>=g*.96&&r>b+18&&g>b+8)||(r>150&&g>108&&b>78&&r>b+22);
       const blondHairLike=r>126&&g>104&&b>52&&r>=g-22&&g>b+22&&r>b+42;
+      const brownHairLike=r>48&&g>34&&b>22&&r>=g-4&&g>=b-2&&max<145&&sat<70;
+      const darkHairLike=max<82&&sat<46;
       const whiteJacketLike=r>150&&g>155&&b>150&&sat<55;
-      const protectedSubject=skinLike||blondHairLike||whiteJacketLike;
-      const greenSpill=(g>r*1.04&&g>b*1.08&&greenLead>7)||(g>86&&r>64&&b<128&&g>b+14&&sat>18);
-      if(!edge&&!(y<h*.58&&greenSpill&&!skinLike&&!whiteJacketLike))continue;
+      const navyGearLike=b>r+10&&b>=g-8&&max<128&&sat>18;
+      const protectedSubject=skinLike||blondHairLike||brownHairLike||darkHairLike||whiteJacketLike||navyGearLike;
+      const greenSpill=(g>r*1.035&&g>b*1.075&&greenLead>6)||(g>82&&r>48&&b<138&&g>b+13&&sat>16);
+      const leafLike=greenSpill&&g>68&&greenLead>8&&sat>20&&r<188&&y<h*.74;
+      const heavyLeaf=leafLike&&((g>r*1.15&&g>b*1.18)||(greenLead>28&&sat>48));
+      const edgeBlend=Math.min(1,Math.max(0,(252-a)/76)+(edge?0.55:0));
+      if(!edge&&!leafLike)continue;
       if(greenSpill){
-        const strength=Math.min(1,Math.max(.18,(greenLead+sat-12)/90));
+        const strength=Math.min(1,Math.max(.18,(greenLead+sat-12)/82)+(edge?0.18:0));
         const targetG=Math.min(g,Math.round((r+b)/2+14));
-        p[i+1]=Math.round(g*(1-.72*strength)+targetG*.72*strength);
+        p[i+1]=Math.round(g*(1-.82*strength)+targetG*.82*strength);
+        p[i]=Math.min(255,Math.round(r+4*strength*edgeBlend));
+        p[i+2]=Math.min(255,Math.round(b+3*strength*edgeBlend));
         if(blondHairLike)p[i]=Math.min(255,Math.round(r+5*strength));
-        if(!protectedSubject&&a<235){
-          p[i+3]=Math.round(a*(.88-.16*strength));
+        if(!protectedSubject&&leafLike){
+          const alphaKeep=heavyLeaf?0.30:0.52;
+          p[i+3]=Math.round(a*(alphaKeep-.14*edgeBlend));
+        }else if(!protectedSubject&&a<238){
+          p[i+3]=Math.round(a*(.82-.18*strength));
         }
       }else if(!protectedSubject&&a<110&&sat>34){
         p[i+3]=Math.round(a*.76);
+      }else if(edge&&a<226){
+        p[i+3]=Math.round(a*.90);
       }
     }
     cx.putImageData(data,0,0);
   }
+  function drawCutoutAtmosphere(ctx,mask,g){
+    if(!mask)return;
+    const glow=document.createElement('canvas');glow.width=W;glow.height=H;
+    const gx=glow.getContext('2d');
+    gx.filter='blur(12px)';
+    gx.drawImage(mask,g.x-3,g.y-3,g.w+6,g.h+6);
+    gx.filter='none';
+    gx.globalCompositeOperation='source-in';
+    const wash=gx.createLinearGradient(0,Math.max(0,g.y),0,Math.min(H,g.y+g.h));
+    wash.addColorStop(0,'rgba(226,237,239,.16)');
+    wash.addColorStop(.48,'rgba(191,211,210,.11)');
+    wash.addColorStop(1,'rgba(7,30,48,.18)');
+    gx.fillStyle=wash;gx.fillRect(0,0,W,H);
+    ctx.save();
+    ctx.globalCompositeOperation='soft-light';
+    ctx.drawImage(glow,0,0);
+    ctx.restore();
+  }
   function drawPhoto(ctx){
     if(!S.img)return;const g=athleteGeometry();
     if(!S.cutoutMask){ctx.drawImage(S.img,g.x,g.y,g.w,g.h);return;}
+    drawCutoutAtmosphere(ctx,S.cutoutMask,g);
     const layer=document.createElement('canvas');layer.width=W;layer.height=H;const lx=layer.getContext('2d');
     lx.drawImage(S.img,g.x,g.y,g.w,g.h);
     lx.globalCompositeOperation='destination-in';
