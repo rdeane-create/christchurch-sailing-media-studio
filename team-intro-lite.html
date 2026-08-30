@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Christchurch Team Introduction Builder</title>
+<style>
+  :root{--navy:#07152f;--ink:#10213c;--orange:#ff6f18;--line:#dbe3ee;--soft:#f4f7fb}
+  *{box-sizing:border-box}
+  body{margin:0;background:#eef2f7;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+  .app{max-width:1280px;margin:0 auto;padding:18px;display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px}
+  .panel{background:white;border:1px solid var(--line);border-radius:14px;padding:16px}
+  h1{font-size:22px;margin:0 0 4px;color:#07152f} h2{font-size:16px;margin:0 0 12px;color:#07152f}
+  p{margin:0 0 12px;color:#607086;line-height:1.4}.hint{font-size:12px;color:#66758a;margin-top:6px}
+  label{display:block;font-size:13px;font-weight:750;margin:12px 0 6px}
+  input,select,button{font:inherit} input[type=text],input[type=color],select{width:100%;padding:10px;border:1px solid #cbd6e4;border-radius:10px;background:white}
+  input[type=file]{width:100%;font-size:13px}
+  button{border:0;border-radius:10px;padding:11px 13px;font-weight:800;cursor:pointer;background:#e9eef6;color:#163052}
+  .primary{background:var(--orange);color:white;width:100%}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.actions{display:grid;gap:8px;margin-top:12px}
+  .stage{min-height:calc(100vh - 36px);display:grid;place-items:center;background:#08152e;border-radius:18px;padding:16px}
+  canvas{width:min(100%,540px);height:auto;aspect-ratio:4/5;background:#07152f;border-radius:10px;box-shadow:0 18px 45px rgba(0,0,0,.35)}
+  .list{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;max-height:220px;overflow:auto}.thumb{aspect-ratio:4/5;border-radius:7px;background:#e7edf5;object-fit:cover;width:100%}
+  @media(max-width:860px){.app{grid-template-columns:1fr}.stage{min-height:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="panel">
+    <h1>Team Introduction</h1>
+    <p>Lightweight builder for large rosters. It does not load the full Studio.</p>
+    <label for="photos">Team headshots</label>
+    <input id="photos" type="file" accept="image/*" multiple>
+    <div class="hint">Select all team headshots at once. Everything stays local in your browser.</div>
+    <label for="title">Bottom line</label>
+    <input id="title" type="text" value="Introducing your 2026/2027 Seahorses">
+    <div class="row">
+      <div><label for="columns">Columns</label><select id="columns"><option>6</option><option selected>7</option><option>8</option><option>9</option><option>10</option></select></div>
+      <div><label for="fit">Image fit</label><select id="fit"><option value="cover" selected>Fill tile</option><option value="contain">Fit full photo</option></select></div>
+    </div>
+    <div class="row">
+      <div><label for="bg">Background</label><input id="bg" type="color" value="#07152f"></div>
+      <div><label for="accent">Accent</label><input id="accent" type="color" value="#ff6f18"></div>
+    </div>
+    <div class="actions">
+      <button id="download" class="primary" type="button">Download PNG</button>
+      <button id="clear" type="button">Clear Photos</button>
+    </div>
+    <div id="status" class="hint">No photos loaded.</div>
+    <div id="thumbs" class="list"></div>
+  </section>
+  <section class="stage"><canvas id="canvas" width="1080" height="1350"></canvas></section>
+</div>
+<script>
+(function(){
+  'use strict';
+  const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
+  const photos=document.getElementById('photos'),title=document.getElementById('title'),columns=document.getElementById('columns'),fit=document.getElementById('fit'),bg=document.getElementById('bg'),accent=document.getElementById('accent'),status=document.getElementById('status'),thumbs=document.getElementById('thumbs');
+  let images=[];
+  function roundedRect(x,y,w,h,r){
+    const rr=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+rr,y);ctx.arcTo(x+w,y,x+w,y+h,rr);ctx.arcTo(x+w,y+h,x,y+h,rr);ctx.arcTo(x,y+h,x,y,rr);ctx.arcTo(x,y,x+w,y,rr);ctx.closePath();
+  }
+  function drawImageFit(img,x,y,w,h,mode){
+    const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height,ir=iw/ih,or=w/h;
+    let sx=0,sy=0,sw=iw,sh=ih,dx=x,dy=y,dw=w,dh=h;
+    if(mode==='cover'){
+      if(ir>or){sh=ih;sw=ih*or;sx=(iw-sw)/2}else{sw=iw;sh=iw/or;sy=(ih-sh)/2}
+    }else{
+      if(ir>or){dh=w/ir;dy=y+(h-dh)/2}else{dw=h*ir;dx=x+(w-dw)/2}
+    }
+    ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);
+  }
+  function draw(){
+    const W=1080,H=1350;ctx.clearRect(0,0,W,H);ctx.fillStyle=bg.value;ctx.fillRect(0,0,W,H);
+    const grad=ctx.createLinearGradient(0,0,0,H);grad.addColorStop(0,'rgba(255,255,255,.10)');grad.addColorStop(.34,'rgba(255,255,255,.02)');grad.addColorStop(1,'rgba(0,0,0,.20)');ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(255,255,255,.96)';ctx.font='900 54px Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('CHRISTCHURCH SAILING',W/2,72);
+    ctx.fillStyle=accent.value;ctx.fillRect(210,104,660,8);
+    const footerH=170,margin=54,gap=8,cols=Number(columns.value)||7,count=images.length;
+    const rows=Math.max(1,Math.ceil(Math.max(count,1)/cols));
+    const areaY=136,areaH=H-footerH-areaY-36,tileW=(W-margin*2-gap*(cols-1))/cols,tileH=(areaH-gap*(rows-1))/rows;
+    if(!images.length){
+      ctx.fillStyle='rgba(255,255,255,.16)';roundedRect(margin,areaY,W-margin*2,areaH,18);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.82)';ctx.font='700 36px Arial,sans-serif';ctx.fillText('Load team headshots',W/2,areaY+areaH/2);
+    }
+    images.forEach((img,i)=>{const col=i%cols,row=Math.floor(i/cols),x=margin+col*(tileW+gap),y=areaY+row*(tileH+gap);ctx.save();roundedRect(x,y,tileW,tileH,10);ctx.clip();ctx.fillStyle='#dce4ee';ctx.fillRect(x,y,tileW,tileH);drawImageFit(img,x,y,tileW,tileH,fit.value);ctx.restore();ctx.strokeStyle='rgba(255,255,255,.28)';ctx.lineWidth=2;ctx.strokeRect(x,y,tileW,tileH);});
+    const fy=H-footerH;const fg=ctx.createLinearGradient(0,fy-70,0,H);fg.addColorStop(0,'rgba(7,21,47,0)');fg.addColorStop(.35,'rgba(7,21,47,.92)');fg.addColorStop(1,'rgba(7,21,47,1)');ctx.fillStyle=fg;ctx.fillRect(0,fy-70,W,footerH+70);
+    ctx.fillStyle=accent.value;ctx.fillRect(90,H-116,900,7);ctx.fillStyle='#fff';ctx.font='800 46px Arial,sans-serif';ctx.textAlign='center';ctx.fillText(title.value||'Introducing your 2026/2027 Seahorses',W/2,H-54);
+    status.textContent=images.length?`${images.length} photos loaded.`:'No photos loaded.';
+  }
+  photos.addEventListener('change',async e=>{images=[];thumbs.innerHTML='';const files=[...e.target.files];for(const file of files){const url=URL.createObjectURL(file);const img=new Image();await new Promise(resolve=>{img.onload=resolve;img.onerror=resolve;img.src=url});if(img.width){images.push(img);const t=document.createElement('img');t.className='thumb';t.src=url;thumbs.appendChild(t);}}draw();});
+  [title,columns,fit,bg,accent].forEach(el=>el.addEventListener('input',draw));
+  document.getElementById('clear').addEventListener('click',()=>{images=[];photos.value='';thumbs.innerHTML='';draw();});
+  document.getElementById('download').addEventListener('click',()=>{draw();const a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='christchurch-team-introduction.png';a.click();});
+  draw();
+})();
+</script>
+</body>
+</html>
