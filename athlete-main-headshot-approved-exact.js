@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const NAME='Athlete Main Headshot — Approved';
-  const VERSION='20260830-clean-athlete-cutout-2';
+  const VERSION='20260830-clean-athlete-cutout-3';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -18,6 +18,40 @@
     }
     return removeBgModulePromise;
   }
+  function removeDetachedMaskSpecks(data,w,h){
+    const p=data.data,n=w*h,visited=new Uint8Array(n);
+    let bestSeed=-1,bestArea=0;
+    const stack=[];
+    const alphaAt=idx=>p[idx*4+3];
+    for(let seed=0;seed<n;seed++){
+      if(visited[seed]||alphaAt(seed)<32)continue;
+      let area=0;visited[seed]=1;stack.push(seed);
+      while(stack.length){
+        const idx=stack.pop();area++;
+        const x=idx%w,y=(idx-x)/w;
+        const left=idx-1,right=idx+1,up=idx-w,down=idx+w;
+        if(x>0&&!visited[left]&&alphaAt(left)>=32){visited[left]=1;stack.push(left);}
+        if(x<w-1&&!visited[right]&&alphaAt(right)>=32){visited[right]=1;stack.push(right);}
+        if(y>0&&!visited[up]&&alphaAt(up)>=32){visited[up]=1;stack.push(up);}
+        if(y<h-1&&!visited[down]&&alphaAt(down)>=32){visited[down]=1;stack.push(down);}
+      }
+      if(area>bestArea){bestArea=area;bestSeed=seed;}
+    }
+    if(bestSeed<0)return;
+    const keep=new Uint8Array(n);stack.push(bestSeed);keep[bestSeed]=1;
+    while(stack.length){
+      const idx=stack.pop();
+      const x=idx%w,y=(idx-x)/w;
+      const left=idx-1,right=idx+1,up=idx-w,down=idx+w;
+      if(x>0&&!keep[left]&&alphaAt(left)>=10){keep[left]=1;stack.push(left);}
+      if(x<w-1&&!keep[right]&&alphaAt(right)>=10){keep[right]=1;stack.push(right);}
+      if(y>0&&!keep[up]&&alphaAt(up)>=10){keep[up]=1;stack.push(up);}
+      if(y<h-1&&!keep[down]&&alphaAt(down)>=10){keep[down]=1;stack.push(down);}
+    }
+    for(let idx=0;idx<n;idx++){
+      if(!keep[idx])p[idx*4+3]=0;
+    }
+  }
   async function maskFromRemovalBlob(blob){
     const url=URL.createObjectURL(blob);
     try{
@@ -26,6 +60,7 @@
       const cx=c.getContext('2d',{willReadFrequently:true});cx.clearRect(0,0,c.width,c.height);cx.drawImage(im,0,0,c.width,c.height);
       const data=cx.getImageData(0,0,c.width,c.height);const p=data.data;
       for(let i=0;i<p.length;i+=4){const a=p[i+3];p[i]=255;p[i+1]=255;p[i+2]=255;p[i+3]=a;}
+      removeDetachedMaskSpecks(data,c.width,c.height);
       cx.putImageData(data,0,0);return c;
     }finally{URL.revokeObjectURL(url)}
   }
