@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const NAME='Lineup Headshot';
-  const VERSION='20260814-lineup-headshot-v7-heic-support';
+  const VERSION='20260830-lineup-headshot-saved-folder-1';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -145,6 +145,10 @@
     return result;
   }
   function ensureSavedCardsPanel(){
+    if(typeof window.CSMSRenderSavedHeadshotCards==='function'){
+      window.CSMSRenderSavedHeadshotCards(window.__CSMS_SAVED_HEADSHOT_CARDS||null);
+      return null;
+    }
     let panel=q('lhSavedCardsPanel');
     const workspace=q('workspace-media');
     if(!workspace)return panel||null;
@@ -191,7 +195,8 @@
       await putSavedCard({id,name,type:'ATHLETE LINEUP HEADSHOT CARD',first:S.first,last:S.last,classLine:S.classLine,createdAt:Date.now(),blob});
       S.cardNameDirty=false;syncCardName(true);
       if(btn)btn.textContent='Saved to Drive ✓';
-      await renderSavedCards();
+      if(typeof window.CSMSRenderSavedHeadshotCards==='function')await window.CSMSRenderSavedHeadshotCards();
+      else await renderSavedCards();
       setTimeout(()=>{if(btn){btn.disabled=false;btn.textContent=oldText;}},1600);
     }catch(err){
       console.error('Save Card to Drive failed',err);

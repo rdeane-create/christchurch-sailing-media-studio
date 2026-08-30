@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const NAME='Athlete Main Headshot — Approved';
-  const VERSION='20260830-clean-athlete-cutout-6';
+  const VERSION='20260830-clean-athlete-cutout-7';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -154,6 +154,21 @@
     if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive could not delete the saved card');
     return result;
   }
+  const SAVED_HEADSHOT_FOLDER_URL='https://drive.google.com/drive/folders/1e6PbJSIXQKlbgiZCmY5vruYEycUYjaB2';
+  function savedCardKind(card){
+    const type=String(card.cardType||card.type||'').toUpperCase();
+    const name=String(card.name||'').toUpperCase();
+    if(type.includes('LINEUP')||name.includes('LINEUP'))return 'Lineup Headshot';
+    return 'Main Headshot';
+  }
+  function savedCardTime(card){
+    return new Date(card.created||card.createdAt||card.modifiedTime||card.modified_time||0);
+  }
+  function isSavedHeadshotCard(card){
+    const type=String(card.cardType||card.type||'').toUpperCase();
+    const name=String(card.name||'').toUpperCase();
+    return (type.includes('ATHLETE')&&type.includes('HEADSHOT'))||name.includes('ATHLETE HEADSHOT CARD');
+  }
   function ensureSavedCardsPanel(){
     let panel=q('amhSavedCardsPanel');
     const workspace=q('workspace-media');
@@ -163,30 +178,63 @@
       panel.id='amhSavedCardsPanel';
       panel.className='panel';
       panel.style.marginTop='14px';
-      panel.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px"><h2 style="margin:0">Saved Cards</h2><span class="hint">Finished Studio cards • Google Drive</span></div><div id="amhSavedCardsList" style="display:grid;gap:10px"></div>';
+      panel.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap"><div><h2 style="margin:0">Saved Headshot Cards</h2><div class="hint">Finished Main and Lineup headshots saved in Google Drive</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="secondary tiny" style="text-decoration:none;display:inline-block;padding:9px 12px" target="_blank" rel="noopener" href="'+SAVED_HEADSHOT_FOLDER_URL+'">Open Drive Folder</a><button id="amhSavedCardsRefresh" class="secondary tiny" type="button">Refresh</button></div></div><div style="display:grid;grid-template-columns:minmax(160px,1fr) 150px;gap:8px;margin-bottom:10px"><input id="amhSavedCardsSearch" type="search" placeholder="Search saved headshots"><select id="amhSavedCardsFilter"><option value="all">All Headshots</option><option value="main">Main Headshots</option><option value="lineup">Lineup Headshots</option></select></div><div id="amhSavedCardsStatus" class="hint" style="margin-bottom:10px">Loading saved headshots...</div><div id="amhSavedCardsList" style="display:grid;gap:10px"></div>';
+      panel.querySelector('#amhSavedCardsRefresh').onclick=()=>renderSavedCards();
+      panel.querySelector('#amhSavedCardsSearch').oninput=()=>renderSavedCards(window.__CSMS_SAVED_HEADSHOT_CARDS||null);
+      panel.querySelector('#amhSavedCardsFilter').onchange=()=>renderSavedCards(window.__CSMS_SAVED_HEADSHOT_CARDS||null);
     }
     if(panel.parentElement!==workspace)workspace.appendChild(panel);
     return panel;
   }
   function escapeSavedName(v){return String(v||'Saved Card').replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]))}
-  async function renderSavedCards(){
+  async function renderSavedCards(existingCards){
     const panel=ensureSavedCardsPanel();if(!panel)return;
     const list=q('amhSavedCardsList');if(!list)return;
-    list.innerHTML='<div class="hint">Loading saved cards from Google Drive…</div>';
-    let cards=[];
-    try{cards=await getSavedCards()}catch(err){console.error('Drive Saved Cards library unavailable',err);list.innerHTML='<div class="hint">Connect Google Drive to load Saved Cards.</div>';return}
-    cards.sort((a,b)=>new Date(b.created||0)-new Date(a.created||0));list.innerHTML='';
-    if(!cards.length){list.innerHTML='<div class="hint">No finished cards saved in Drive yet.</div>';return}
-    for(const card of cards){
+    const status=q('amhSavedCardsStatus'),refresh=q('amhSavedCardsRefresh');
+    if(refresh)refresh.disabled=true;
+    if(status)status.textContent='Loading saved headshots from Google Drive...';
+    list.innerHTML='<div class="hint">Loading saved headshots...</div>';
+    let cards=Array.isArray(existingCards)?existingCards:null;
+    if(!cards){
+      try{cards=await getSavedCards();window.__CSMS_SAVED_HEADSHOT_CARDS=cards}catch(err){console.error('Drive Saved Cards library unavailable',err);if(status)status.textContent='Connect Google Drive to load Saved Headshot Cards.';list.innerHTML='<div class="hint">Could not load saved headshots from Google Drive.</div>';if(refresh)refresh.disabled=false;return}
+    }
+    const search=String(q('amhSavedCardsSearch')?.value||'').trim().toLowerCase();
+    const filter=String(q('amhSavedCardsFilter')?.value||'all');
+    const all=cards.filter(isSavedHeadshotCard).sort((a,b)=>savedCardTime(b)-savedCardTime(a));
+    let shown=all.filter(card=>{
+      const kind=savedCardKind(card);
+      if(filter==='main'&&kind!=='Main Headshot')return false;
+      if(filter==='lineup'&&kind!=='Lineup Headshot')return false;
+      if(!search)return true;
+      return `${card.name||''} ${card.first||''} ${card.last||''} ${card.classLine||''}`.toLowerCase().includes(search);
+    });
+    list.innerHTML='';
+    if(status)status.textContent=`${shown.length} of ${all.length} saved headshot card${all.length===1?'':'s'} in Google Drive.`;
+    if(!shown.length){list.innerHTML='<div class="hint">No saved headshots match this search.</div>';if(refresh)refresh.disabled=false;return}
+    const io='IntersectionObserver' in window?new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          const img=entry.target;
+          io.unobserve(img);
+          if(typeof img._loadSavedThumb==='function')img._loadSavedThumb();
+        }
+      });
+    },{rootMargin:'240px'}):null;
+    for(const card of shown){
       const row=document.createElement('div');row.className='athleteItem';row.style.gridTemplateColumns='72px 1fr auto';row.style.padding='10px';
-      row.innerHTML=`<img alt="" style="width:58px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #d8e2ed;background:#eef2f7"><div><div style="font-weight:800;font-size:14px">${escapeSavedName(String(card.name||'Saved Card').replace(/\.png$/i,''))}</div><div class="hint" style="margin-top:3px">Athlete Headshot Card • Google Drive</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="tiny primary" data-action="download">Download</button><button type="button" class="tiny secondary" data-action="delete">Delete</button></div>`;
+      const created=savedCardTime(card);
+      const when=isNaN(created)?'Saved in Drive':created.toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+      row.innerHTML=`<img alt="" loading="lazy" style="width:58px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #d8e2ed;background:#eef2f7"><div><div style="font-weight:800;font-size:14px">${escapeSavedName(String(card.name||'Saved Card').replace(/\.png$/i,''))}</div><div class="hint" style="margin-top:3px">${savedCardKind(card)} • ${when}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><a class="tiny secondary" data-action="open" target="_blank" rel="noopener" style="text-decoration:none;padding:7px 10px" href="${card.url||SAVED_HEADSHOT_FOLDER_URL}">Open/Edit</a><button type="button" class="tiny primary" data-action="download">Download</button><button type="button" class="tiny secondary" data-action="delete">Delete</button></div>`;
       const img=row.querySelector('img');
-      getSavedCardBlob(card.fileId).then(blob=>{const url=URL.createObjectURL(blob);img.src=url;img.onload=()=>URL.revokeObjectURL(url)}).catch(err=>console.warn('Saved card thumbnail unavailable',err));
+      img._loadSavedThumb=()=>getSavedCardBlob(card.fileId).then(blob=>{const url=URL.createObjectURL(blob);img.src=url;img.onload=()=>URL.revokeObjectURL(url)}).catch(err=>console.warn('Saved card thumbnail unavailable',err));
+      if(io)io.observe(img);else img._loadSavedThumb();
       row.querySelector('[data-action="download"]').onclick=async()=>{try{const blob=await getSavedCardBlob(card.fileId);const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=card.name||'athlete-headshot-card.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}catch(err){console.error(err);alert('The saved card could not be downloaded from Google Drive.')}};
-      row.querySelector('[data-action="delete"]').onclick=async()=>{if(!confirm(`Delete ${String(card.name||'this saved card').replace(/\.png$/i,'')} from Google Drive?`))return;try{await deleteSavedCard(card.fileId);await renderSavedCards()}catch(err){console.error(err);alert('The saved card could not be deleted from Google Drive.')}};
+      row.querySelector('[data-action="delete"]').onclick=async()=>{if(!confirm(`Delete ${String(card.name||'this saved card').replace(/\.png$/i,'')} from Google Drive?`))return;try{await deleteSavedCard(card.fileId);window.__CSMS_SAVED_HEADSHOT_CARDS=null;await renderSavedCards()}catch(err){console.error(err);alert('The saved card could not be deleted from Google Drive.')}};
       list.appendChild(row);
     }
+    if(refresh)refresh.disabled=false;
   }
+  window.CSMSRenderSavedHeadshotCards=renderSavedCards;
   function canvasBlob(canvas){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('PNG save failed')),'image/png'))}
   async function saveFinishedCard(){
     const c=q('aCanvas');if(!c)return;
