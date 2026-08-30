@@ -1,13 +1,13 @@
 (function(){
   'use strict';
   const NAME='Athlete Main Headshot — Approved';
-  const VERSION='20260830-clean-athlete-cutout-3';
+  const VERSION='20260830-clean-athlete-cutout-4';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
   const DOCK_BG_SRC='assets/Backgrounds/athlete-main-dock-water-bg.jpg';
   const GLYPHS={"large:A":{"x":8,"y":8,"w":65,"h":121},"large:B":{"x":112,"y":8,"w":70,"h":120},"large:C":{"x":216,"y":8,"w":67,"h":121},"large:D":{"x":320,"y":8,"w":70,"h":120},"large:E":{"x":424,"y":8,"w":64,"h":119},"large:F":{"x":528,"y":8,"w":63,"h":120},"large:G":{"x":632,"y":8,"w":64,"h":123},"large:H":{"x":736,"y":8,"w":72,"h":121},"large:I":{"x":840,"y":8,"w":45,"h":120},"large:J":{"x":944,"y":8,"w":56,"h":120},"large:K":{"x":1048,"y":8,"w":71,"h":121},"large:L":{"x":1152,"y":8,"w":46,"h":121},"large:M":{"x":8,"y":149,"w":88,"h":121},"large:N":{"x":112,"y":149,"w":71,"h":119},"large:O":{"x":216,"y":149,"w":66,"h":120},"large:P":{"x":320,"y":149,"w":67,"h":119},"large:Q":{"x":424,"y":149,"w":66,"h":125},"large:R":{"x":528,"y":149,"w":67,"h":119},"large:S":{"x":632,"y":149,"w":62,"h":120},"large:T":{"x":736,"y":149,"w":56,"h":119},"large:U":{"x":840,"y":149,"w":67,"h":119},"large:V":{"x":944,"y":149,"w":59,"h":119},"large:W":{"x":1048,"y":149,"w":83,"h":119},"large:X":{"x":1152,"y":149,"w":71,"h":119},"large:Y":{"x":8,"y":290,"w":57,"h":119},"large:Z":{"x":112,"y":290,"w":62,"h":119},"large:0":{"x":216,"y":290,"w":57,"h":76},"large:1":{"x":320,"y":290,"w":36,"h":76},"large:2":{"x":424,"y":290,"w":55,"h":85},"large:3":{"x":528,"y":290,"w":54,"h":76},"large:4":{"x":632,"y":290,"w":56,"h":76},"large:5":{"x":736,"y":290,"w":55,"h":76},"large:6":{"x":840,"y":290,"w":54,"h":76},"large:7":{"x":944,"y":290,"w":47,"h":76},"large:8":{"x":1048,"y":290,"w":54,"h":76},"large:9":{"x":1152,"y":290,"w":53,"h":76},"small:A":{"x":8,"y":431,"w":38,"h":46},"small:B":{"x":112,"y":431,"w":41,"h":47},"small:C":{"x":216,"y":431,"w":39,"h":49},"small:D":{"x":320,"y":431,"w":42,"h":46},"small:E":{"x":424,"y":431,"w":38,"h":46},"small:F":{"x":528,"y":431,"w":39,"h":48},"small:G":{"x":632,"y":431,"w":38,"h":50},"small:H":{"x":736,"y":431,"w":44,"h":47},"small:I":{"x":840,"y":431,"w":25,"h":47},"small:J":{"x":944,"y":431,"w":32,"h":46},"small:K":{"x":1048,"y":431,"w":43,"h":47},"small:L":{"x":1152,"y":431,"w":30,"h":47},"small:M":{"x":8,"y":572,"w":52,"h":48},"small:N":{"x":112,"y":572,"w":44,"h":48},"small:O":{"x":216,"y":572,"w":39,"h":49},"small:P":{"x":320,"y":572,"w":40,"h":47},"small:Q":{"x":424,"y":572,"w":40,"h":54},"small:R":{"x":528,"y":572,"w":41,"h":47},"small:S":{"x":632,"y":572,"w":38,"h":49},"small:T":{"x":736,"y":572,"w":34,"h":48},"small:U":{"x":840,"y":572,"w":40,"h":47},"small:V":{"x":944,"y":572,"w":37,"h":67},"small:W":{"x":1048,"y":572,"w":50,"h":67},"small:X":{"x":1152,"y":572,"w":45,"h":47},"small:Y":{"x":8,"y":713,"w":36,"h":47},"small:Z":{"x":112,"y":713,"w":40,"h":47},"small:0":{"x":216,"y":713,"w":34,"h":60},"small:1":{"x":320,"y":713,"w":23,"h":40},"small:2":{"x":424,"y":713,"w":34,"h":40},"small:3":{"x":528,"y":713,"w":31,"h":40},"small:4":{"x":632,"y":713,"w":31,"h":40},"small:5":{"x":736,"y":713,"w":31,"h":40},"small:6":{"x":840,"y":713,"w":30,"h":40},"small:7":{"x":944,"y":713,"w":29,"h":40},"small:8":{"x":1048,"y":713,"w":30,"h":40},"small:9":{"x":1152,"y":713,"w":32,"h":40},"orange:A":{"x":8,"y":854,"w":34,"h":41},"orange:B":{"x":112,"y":854,"w":37,"h":41},"orange:C":{"x":216,"y":854,"w":35,"h":42},"orange:D":{"x":320,"y":854,"w":36,"h":40},"orange:E":{"x":424,"y":854,"w":34,"h":41},"orange:F":{"x":528,"y":854,"w":35,"h":41},"orange:G":{"x":632,"y":854,"w":34,"h":42},"orange:H":{"x":736,"y":854,"w":38,"h":42},"orange:I":{"x":840,"y":854,"w":22,"h":42},"orange:J":{"x":944,"y":854,"w":29,"h":42},"orange:K":{"x":1048,"y":854,"w":39,"h":42},"orange:L":{"x":1152,"y":854,"w":26,"h":41},"orange:M":{"x":8,"y":995,"w":46,"h":42},"orange:N":{"x":112,"y":995,"w":39,"h":41},"orange:O":{"x":216,"y":995,"w":36,"h":42},"orange:P":{"x":320,"y":995,"w":36,"h":41},"orange:Q":{"x":424,"y":995,"w":36,"h":47},"orange:R":{"x":528,"y":995,"w":36,"h":42},"orange:S":{"x":632,"y":995,"w":33,"h":42},"orange:T":{"x":736,"y":995,"w":30,"h":41},"orange:U":{"x":840,"y":995,"w":35,"h":41},"orange:V":{"x":944,"y":995,"w":31,"h":41},"orange:W":{"x":1048,"y":995,"w":45,"h":41},"orange:X":{"x":1152,"y":995,"w":39,"h":41},"orange:Y":{"x":8,"y":1136,"w":31,"h":41},"orange:Z":{"x":112,"y":1136,"w":36,"h":41},"orange:0":{"x":216,"y":1136,"w":31,"h":40},"orange:1":{"x":320,"y":1136,"w":21,"h":39},"orange:2":{"x":424,"y":1136,"w":32,"h":39},"orange:3":{"x":528,"y":1136,"w":30,"h":39},"orange:4":{"x":632,"y":1136,"w":30,"h":39},"orange:5":{"x":736,"y":1136,"w":31,"h":39},"orange:6":{"x":840,"y":1136,"w":30,"h":39},"orange:7":{"x":944,"y":1136,"w":29,"h":39},"orange:8":{"x":1048,"y":1136,"w":30,"h":40},"orange:9":{"x":1152,"y":1136,"w":30,"h":39}};
-  const S={img:null,athleteFile:null,cutoutMask:null,cutoutLayer:null,cutoutBusy:false,cutoutEdge:3.5,cutoutShadow:20,scale:1,x:0,y:0,drag:false,sx:0,sy:0,ix:0,iy:0,first:'WYLDER',last:'SMITH',classLine:'CLASS OF 2027',cardNameDirty:false,overlay:null,atlas:null,dockBg:null,ready:false};
+  const S={img:null,athleteFile:null,cutoutMask:null,cutoutErase:null,eraseHistory:[],cleanupMode:false,brush:26,erasing:false,cutoutLayer:null,cutoutBusy:false,cutoutEdge:3.5,cutoutShadow:20,scale:1,x:0,y:0,drag:false,sx:0,sy:0,ix:0,iy:0,first:'WYLDER',last:'SMITH',classLine:'CLASS OF 2027',cardNameDirty:false,overlay:null,atlas:null,dockBg:null,ready:false};
   const q=id=>document.getElementById(id);
   function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Exact approved local asset unavailable: '+src));i.src=src+'?v='+encodeURIComponent(VERSION);});}
   let removeBgModulePromise=null;
@@ -65,7 +65,7 @@
     }finally{URL.revokeObjectURL(url)}
   }
   function loadAthleteFile(file,p){
-    S.cutoutMask=null;S.athleteFile=file;setCutoutStatus('Loading athlete photo...');
+    S.cutoutMask=null;S.cutoutErase=null;S.eraseHistory=[];S.cleanupMode=false;S.athleteFile=file;setCutoutStatus('Loading athlete photo...');
     const im=new Image();const url=URL.createObjectURL(file);
     im.onload=()=>{S.img=im;S.scale=1;S.x=S.y=0;sync(p);draw();URL.revokeObjectURL(url);setCutoutStatus('Athlete loaded. Use Remove Background to place them on the dock/water scene.');};
     im.onerror=()=>{URL.revokeObjectURL(url);S.img=null;S.athleteFile=null;setCutoutStatus('This athlete image could not be opened. Try JPEG or PNG.');draw();};
@@ -81,12 +81,13 @@
       const removeBackground=await loadBackgroundRemoval();
       const blob=await removeBackground(S.athleteFile,{model:'isnet_quint8',output:{format:'image/png',quality:1},progress:(key,current,total)=>{if(total)setCutoutStatus(`Removing background... ${Math.min(100,Math.round(current/total*100))}%`);}});
       S.cutoutMask=await maskFromRemovalBlob(blob);
-      setCutoutStatus('Clean cutout ready. Tree/leaf color is suppressed around hair and the edge is softened into the dock scene.');
+      resetCutoutErase();
+      setCutoutStatus('Clean cutout ready. Use Cleanup Brush to remove any remaining dots.');
       draw();
     }catch(err){console.error('Athlete background removal failed',err);setCutoutStatus('Background removal could not complete. The original photo is still available.');}
     finally{S.cutoutBusy=false;if(btn){btn.disabled=false;btn.textContent=old;}}
   }
-  function restoreAthleteBackground(){S.cutoutMask=null;setCutoutStatus('Original athlete photo restored.');draw();}
+  function restoreAthleteBackground(){S.cutoutMask=null;S.cutoutErase=null;S.eraseHistory=[];S.cleanupMode=false;syncCleanupControls();setCutoutStatus('Original athlete photo restored.');draw();}
   function suggestedCardName(){
     const last=String(S.last||'').trim()||'LAST NAME';
     const first=String(S.first||'').trim()||'FIRST NAME';
@@ -210,11 +211,69 @@
     }
   }
   function buildCard(){if(q('amhApprovedCard'))return;const list=q('templateLibraryList');if(!list)return;const r=document.createElement('div');r.id='amhApprovedCard';r.className='athleteItem';r.style.gridTemplateColumns='88px 1fr auto';r.style.padding='10px';r.innerHTML='<div style="width:72px;height:90px;border:1px solid #d8e2ed;border-radius:8px;background:linear-gradient(#dfe4ea,#fff 45%,#7f8e9b 72%,#03182a)"></div><span style="font-weight:800;font-size:14px">'+NAME+'</span><button type="button" class="tiny primary" style="width:auto">Open</button>';r.querySelector('button').onclick=openTemplate;list.prepend(r)}
-  function openTemplate(){let p=q('amhApprovedWorkspace');if(!p){p=document.createElement('section');p.id='amhApprovedWorkspace';p.className='panel';p.style.marginTop='14px';p.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><h2 style="margin:0">${NAME}</h2><button id="aClose" class="secondary tiny" type="button">Close</button></div><div style="display:grid;grid-template-columns:minmax(270px,350px) 1fr;gap:18px;align-items:start"><div><div class="control"><label>Upload athlete image</label><input id="aUpload" type="file" accept="image/*"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><button id="aRemoveBg" class="primary" type="button">Remove Background</button><button id="aRestoreBg" class="secondary" type="button">Restore Original</button></div><div class="control"><label>Edge blend <span id="aCutoutEdgeVal" class="value">3.5px</span></label><input id="aCutoutEdge" type="range" min="0" max="7" step="0.5" value="3.5"></div><div class="control"><label>Natural shadow <span id="aCutoutShadowVal" class="value">20%</span></label><input id="aCutoutShadow" type="range" min="0" max="35" value="20"></div><div id="aCutoutStatus" class="hint" style="margin:-2px 0 12px">Default dock/water background is active. Upload a photo, then remove the background.</div><div class="control"><label>Size <span id="aScaleVal" class="value">100%</span></label><input id="aScale" type="range" min="25" max="300" value="100"></div><div class="control"><label>Left / Right <span id="aXVal" class="value">0</span></label><input id="aX" type="range" min="-500" max="500" value="0"></div><div class="control"><label>Up / Down <span id="aYVal" class="value">0</span></label><input id="aY" type="range" min="-500" max="500" value="0"></div><div class="control"><label>First name</label><input id="aFirst" value="WYLDER"></div><div class="control"><label>Last name</label><input id="aLast" value="SMITH"></div><div class="control"><label>Class line</label><input id="aClass" value="CLASS OF 2027"></div><div class="control"><label>Card name</label><input id="aCardName" value="SMITH, WYLDER, ATHLETE HEADSHOT CARD"></div><button id="aReset" class="secondary" type="button" style="width:100%">Reset image</button><button id="aSave" class="primary" type="button" style="width:100%;margin-top:8px">Save Card</button><button id="aDownload" class="secondary" type="button" style="width:100%;margin-top:8px">Download PNG</button><div class="hint" style="margin-top:10px">Locked approved artwork. The card uses the shared dock/water scene behind the athlete.</div></div><div style="background:#08152e;border-radius:18px;padding:18px;display:flex;justify-content:center;align-items:center;min-height:720px"><canvas id="aCanvas" width="1080" height="1350" style="width:min(100%,500px);aspect-ratio:4/5;background:#fff;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.35);cursor:grab;touch-action:none"></canvas></div></div>`;(q('templateLibraryList')?.parentElement||document.body).appendChild(p);wire(p);syncCardName(true);renderSavedCards()}p.hidden=false;ensureAssets().then(draw);p.scrollIntoView({behavior:'smooth',block:'start'})}
+  function openTemplate(){let p=q('amhApprovedWorkspace');if(!p){p=document.createElement('section');p.id='amhApprovedWorkspace';p.className='panel';p.style.marginTop='14px';p.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><h2 style="margin:0">${NAME}</h2><button id="aClose" class="secondary tiny" type="button">Close</button></div><div style="display:grid;grid-template-columns:minmax(270px,350px) 1fr;gap:18px;align-items:start"><div><div class="control"><label>Upload athlete image</label><input id="aUpload" type="file" accept="image/*"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><button id="aRemoveBg" class="primary" type="button">Remove Background</button><button id="aRestoreBg" class="secondary" type="button">Restore Original</button></div><div class="control"><label>Edge blend <span id="aCutoutEdgeVal" class="value">3.5px</span></label><input id="aCutoutEdge" type="range" min="0" max="7" step="0.5" value="3.5"></div><div class="control"><label>Natural shadow <span id="aCutoutShadowVal" class="value">20%</span></label><input id="aCutoutShadow" type="range" min="0" max="35" value="20"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><button id="aCleanupMode" class="secondary" type="button">Cleanup Brush</button><button id="aUndoErase" class="secondary" type="button">Undo Cleanup</button></div><div class="control"><label>Brush size <span id="aBrushVal" class="value">26px</span></label><input id="aBrush" type="range" min="8" max="72" value="26"></div><button id="aResetErase" class="secondary" type="button" style="width:100%;margin-bottom:10px">Reset Cleanup Brush</button><div id="aCutoutStatus" class="hint" style="margin:-2px 0 12px">Default dock/water background is active. Upload a photo, then remove the background.</div><div class="control"><label>Size <span id="aScaleVal" class="value">100%</span></label><input id="aScale" type="range" min="25" max="300" value="100"></div><div class="control"><label>Left / Right <span id="aXVal" class="value">0</span></label><input id="aX" type="range" min="-500" max="500" value="0"></div><div class="control"><label>Up / Down <span id="aYVal" class="value">0</span></label><input id="aY" type="range" min="-500" max="500" value="0"></div><div class="control"><label>First name</label><input id="aFirst" value="WYLDER"></div><div class="control"><label>Last name</label><input id="aLast" value="SMITH"></div><div class="control"><label>Class line</label><input id="aClass" value="CLASS OF 2027"></div><div class="control"><label>Card name</label><input id="aCardName" value="SMITH, WYLDER, ATHLETE HEADSHOT CARD"></div><button id="aReset" class="secondary" type="button" style="width:100%">Reset image</button><button id="aSave" class="primary" type="button" style="width:100%;margin-top:8px">Save Card</button><button id="aDownload" class="secondary" type="button" style="width:100%;margin-top:8px">Download PNG</button><div class="hint" style="margin-top:10px">Locked approved artwork. The card uses the shared dock/water scene behind the athlete.</div></div><div style="background:#08152e;border-radius:18px;padding:18px;display:flex;justify-content:center;align-items:center;min-height:720px"><canvas id="aCanvas" width="1080" height="1350" style="width:min(100%,500px);aspect-ratio:4/5;background:#fff;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.35);cursor:grab;touch-action:none"></canvas></div></div>`;(q('templateLibraryList')?.parentElement||document.body).appendChild(p);wire(p);syncCardName(true);renderSavedCards()}p.hidden=false;ensureAssets().then(draw);p.scrollIntoView({behavior:'smooth',block:'start'})}
   async function ensureAssets(){if(S.ready)return;try{[S.overlay,S.atlas,S.dockBg]=await Promise.all([loadImage(OVERLAY_SRC),loadImage(ATLAS_SRC),loadImage(DOCK_BG_SRC)]);S.ready=true;draw()}catch(err){console.error('Approved template assets failed to load',err)}}
-  function wire(p){const c=q('aCanvas');q('aClose').onclick=()=>p.hidden=true;q('aUpload').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;loadAthleteFile(f,p)};q('aRemoveBg').onclick=removeAthleteBackground;q('aRestoreBg').onclick=restoreAthleteBackground;q('aCutoutEdge').oninput=e=>{S.cutoutEdge=+e.target.value;q('aCutoutEdgeVal').textContent=S.cutoutEdge+'px';draw()};q('aCutoutShadow').oninput=e=>{S.cutoutShadow=+e.target.value;q('aCutoutShadowVal').textContent=Math.round(S.cutoutShadow)+'%';draw()};q('aScale').oninput=e=>{S.scale=+e.target.value/100;labels(p);draw()};q('aX').oninput=e=>{S.x=+e.target.value;labels(p);draw()};q('aY').oninput=e=>{S.y=+e.target.value;labels(p);draw()};q('aFirst').oninput=e=>{S.first=e.target.value.toUpperCase();syncCardName(false);draw()};q('aLast').oninput=e=>{S.last=e.target.value.toUpperCase();syncCardName(false);draw()};q('aClass').oninput=e=>{S.classLine=e.target.value.toUpperCase();draw()};q('aCardName').oninput=()=>{S.cardNameDirty=true};q('aSave').onclick=saveFinishedCard;q('aReset').onclick=()=>{S.scale=1;S.x=S.y=0;sync(p);draw()};q('aDownload').onclick=()=>{draw();const a=document.createElement('a');a.download='athlete-main-headshot-approved.png';a.href=c.toDataURL('image/png');a.click()};const pt=e=>{const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)*c.width/r.width,y:(e.clientY-r.top)*c.height/r.height}};c.onpointerdown=e=>{if(!S.img)return;c.setPointerCapture(e.pointerId);const z=pt(e);S.drag=true;S.sx=z.x;S.sy=z.y;S.ix=S.x;S.iy=S.y;c.style.cursor='grabbing'};c.onpointermove=e=>{if(!S.drag)return;const z=pt(e);S.x=Math.max(-500,Math.min(500,S.ix+z.x-S.sx));S.y=Math.max(-500,Math.min(500,S.iy+z.y-S.sy));sync(p);draw()};c.onpointerup=c.onpointercancel=()=>{S.drag=false;c.style.cursor='grab'}}
+  function wire(p){const c=q('aCanvas');q('aClose').onclick=()=>p.hidden=true;q('aUpload').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;loadAthleteFile(f,p)};q('aRemoveBg').onclick=removeAthleteBackground;q('aRestoreBg').onclick=restoreAthleteBackground;q('aCutoutEdge').oninput=e=>{S.cutoutEdge=+e.target.value;q('aCutoutEdgeVal').textContent=S.cutoutEdge+'px';draw()};q('aCutoutShadow').oninput=e=>{S.cutoutShadow=+e.target.value;q('aCutoutShadowVal').textContent=Math.round(S.cutoutShadow)+'%';draw()};q('aCleanupMode').onclick=()=>{S.cleanupMode=!S.cleanupMode;syncCleanupControls();setCutoutStatus(S.cleanupMode?'Cleanup Brush is on. Paint over leftover background dots on the card.':'Cleanup Brush is off. Drag the athlete to position them.');draw()};q('aUndoErase').onclick=undoCutoutErase;q('aResetErase').onclick=()=>{resetCutoutErase();setCutoutStatus('Cleanup Brush reset.');draw()};q('aBrush').oninput=e=>{S.brush=+e.target.value;q('aBrushVal').textContent=Math.round(S.brush)+'px';draw()};q('aScale').oninput=e=>{S.scale=+e.target.value/100;labels(p);draw()};q('aX').oninput=e=>{S.x=+e.target.value;labels(p);draw()};q('aY').oninput=e=>{S.y=+e.target.value;labels(p);draw()};q('aFirst').oninput=e=>{S.first=e.target.value.toUpperCase();syncCardName(false);draw()};q('aLast').oninput=e=>{S.last=e.target.value.toUpperCase();syncCardName(false);draw()};q('aClass').oninput=e=>{S.classLine=e.target.value.toUpperCase();draw()};q('aCardName').oninput=()=>{S.cardNameDirty=true};q('aSave').onclick=saveFinishedCard;q('aReset').onclick=()=>{S.scale=1;S.x=S.y=0;sync(p);draw()};q('aDownload').onclick=()=>{draw();const a=document.createElement('a');a.download='athlete-main-headshot-approved.png';a.href=c.toDataURL('image/png');a.click()};const pt=e=>{const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)*c.width/r.width,y:(e.clientY-r.top)*c.height/r.height}};const finish=()=>{S.drag=false;S.erasing=false;c.style.cursor=S.cleanupMode?'crosshair':'grab'};c.onpointerdown=e=>{if(!S.img)return;c.setPointerCapture(e.pointerId);const z=pt(e);if(S.cleanupMode&&S.cutoutMask){beginCutoutErase(z);c.style.cursor='crosshair';return}S.drag=true;S.sx=z.x;S.sy=z.y;S.ix=S.x;S.iy=S.y;c.style.cursor='grabbing'};c.onpointermove=e=>{const z=pt(e);if(S.erasing){paintCutoutErase(z);return}if(!S.drag)return;S.x=Math.max(-500,Math.min(500,S.ix+z.x-S.sx));S.y=Math.max(-500,Math.min(500,S.iy+z.y-S.sy));sync(p);draw()};c.onpointerup=c.onpointercancel=finish;syncCleanupControls()}
   function labels(p){q('aScaleVal').textContent=Math.round(S.scale*100)+'%';q('aXVal').textContent=Math.round(S.x);q('aYVal').textContent=Math.round(S.y)}
   function sync(p){q('aScale').value=Math.round(S.scale*100);q('aX').value=Math.round(S.x);q('aY').value=Math.round(S.y);labels(p)}
+  function syncCleanupControls(){
+    const mode=q('aCleanupMode'),undo=q('aUndoErase'),reset=q('aResetErase');
+    if(mode){mode.textContent=S.cleanupMode?'Brush On':'Cleanup Brush';mode.className=S.cleanupMode?'primary':'secondary';}
+    if(undo)undo.disabled=!S.eraseHistory.length;
+    if(reset)reset.disabled=!S.cutoutErase;
+    const c=q('aCanvas');if(c)c.style.cursor=S.cleanupMode?'crosshair':'grab';
+  }
+  function resetCutoutErase(){
+    S.cutoutErase=null;S.eraseHistory=[];syncCleanupControls();
+  }
+  function ensureCutoutErase(){
+    if(!S.cutoutMask)return null;
+    if(!S.cutoutErase||S.cutoutErase.width!==S.cutoutMask.width||S.cutoutErase.height!==S.cutoutMask.height){
+      S.cutoutErase=document.createElement('canvas');S.cutoutErase.width=S.cutoutMask.width;S.cutoutErase.height=S.cutoutMask.height;
+      S.eraseHistory=[];
+    }
+    return S.cutoutErase;
+  }
+  function activeCutoutMask(){
+    if(!S.cutoutMask||!S.cutoutErase)return S.cutoutMask;
+    const mask=document.createElement('canvas');mask.width=S.cutoutMask.width;mask.height=S.cutoutMask.height;
+    const mx=mask.getContext('2d');
+    mx.drawImage(S.cutoutMask,0,0);
+    mx.globalCompositeOperation='destination-out';
+    mx.drawImage(S.cutoutErase,0,0);
+    return mask;
+  }
+  function cardToMaskPoint(z){
+    const g=athleteGeometry();if(!g||!S.cutoutMask)return null;
+    return{x:(z.x-g.x)/g.w*S.cutoutMask.width,y:(z.y-g.y)/g.h*S.cutoutMask.height,r:S.brush/g.w*S.cutoutMask.width};
+  }
+  function pushEraseHistory(){
+    const erase=ensureCutoutErase();if(!erase)return;
+    const ex=erase.getContext('2d');
+    S.eraseHistory.push(ex.getImageData(0,0,erase.width,erase.height));
+    if(S.eraseHistory.length>12)S.eraseHistory.shift();
+    syncCleanupControls();
+  }
+  function paintCutoutErase(z){
+    const pt=cardToMaskPoint(z),erase=ensureCutoutErase();if(!pt||!erase)return;
+    const ex=erase.getContext('2d');
+    ex.save();
+    ex.globalCompositeOperation='source-over';
+    ex.fillStyle='rgba(255,255,255,1)';
+    ex.beginPath();ex.arc(pt.x,pt.y,Math.max(2,pt.r),0,Math.PI*2);ex.fill();
+    ex.restore();
+    draw();
+  }
+  function beginCutoutErase(z){
+    if(!S.cutoutMask)return;
+    S.erasing=true;pushEraseHistory();paintCutoutErase(z);
+    setCutoutStatus('Cleanup Brush is removing the painted area. Use Undo Cleanup if needed.');
+  }
+  function undoCutoutErase(){
+    const erase=ensureCutoutErase(),last=S.eraseHistory.pop();if(!erase||!last)return;
+    erase.getContext('2d').putImageData(last,0,0);
+    syncCleanupControls();setCutoutStatus('Last cleanup brush stroke undone.');draw();
+  }
 const GLYPH_METRICS={};
 function glyphMetrics(style,ch){
   const key=style+':'+ch;
@@ -430,14 +489,25 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
     ctx.drawImage(edge,0,0);
     ctx.restore();
   }
+  function drawHeaderReadability(ctx){
+    ctx.save();
+    const banner=ctx.createLinearGradient(0,0,0,330);
+    banner.addColorStop(0,'rgba(255,255,255,.98)');
+    banner.addColorStop(.36,'rgba(255,255,255,.94)');
+    banner.addColorStop(.70,'rgba(255,255,255,.62)');
+    banner.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=banner;ctx.fillRect(0,0,W,330);
+    ctx.restore();
+  }
   function drawPhoto(ctx){
     if(!S.img)return;const g=athleteGeometry();
     if(!S.cutoutMask){ctx.drawImage(S.img,g.x,g.y,g.w,g.h);return;}
-    drawCutoutAtmosphere(ctx,S.cutoutMask,g);
+    const mask=activeCutoutMask();
+    drawCutoutAtmosphere(ctx,mask,g);
     const layer=document.createElement('canvas');layer.width=W;layer.height=H;const lx=layer.getContext('2d');
     lx.drawImage(S.img,g.x,g.y,g.w,g.h);
     lx.globalCompositeOperation='destination-in';
-    lx.drawImage(S.cutoutMask,g.x,g.y,g.w,g.h);lx.globalCompositeOperation='source-over';
+    lx.drawImage(mask,g.x,g.y,g.w,g.h);lx.globalCompositeOperation='source-over';
     refineCutoutEdges(layer);
     drawCleanEdgeBlend(ctx,layer);
     ctx.save();
@@ -447,7 +517,7 @@ function drawRasterText(ctx,text,style,x,y,height,tracking,maxWidth){
     foot.addColorStop(0,'rgba(255,255,255,0)');foot.addColorStop(.65,'rgba(7,30,48,.08)');foot.addColorStop(1,'rgba(7,30,48,.16)');
     ctx.fillStyle=foot;ctx.fillRect(0,760,W,H-760);
   }
-  function draw(){const c=q('aCanvas');if(!c)return;const ctx=c.getContext('2d');ctx.clearRect(0,0,W,H);drawDockBackground(ctx);drawPhoto(ctx);if(S.overlay)ctx.drawImage(S.overlay,0,0,W,H);if(!S.atlas)return;drawRasterText(ctx,S.first,'small',82,897,58,0,710);drawRasterText(ctx,S.last,'large',48,967,205,0,960);ctx.save();ctx.fillStyle='#f24a18';ctx.shadowColor='rgba(0,0,0,.32)';ctx.shadowBlur=5;ctx.fillRect(56,1194,575,7);ctx.restore();drawRasterText(ctx,S.classLine,'orange',58,1216,52,13,760)}
+  function draw(){const c=q('aCanvas');if(!c)return;const ctx=c.getContext('2d');ctx.clearRect(0,0,W,H);drawDockBackground(ctx);drawPhoto(ctx);drawHeaderReadability(ctx);if(S.overlay)ctx.drawImage(S.overlay,0,0,W,H);if(!S.atlas)return;drawRasterText(ctx,S.first,'small',82,897,58,0,710);drawRasterText(ctx,S.last,'large',48,967,205,0,960);ctx.save();ctx.fillStyle='#f24a18';ctx.shadowColor='rgba(0,0,0,.32)';ctx.shadowBlur=5;ctx.fillRect(56,1194,575,7);ctx.restore();drawRasterText(ctx,S.classLine,'orange',58,1216,52,13,760)}
   function init(){
     buildCard();ensureSavedCardsPanel();renderSavedCards();
     document.addEventListener('click',e=>{
