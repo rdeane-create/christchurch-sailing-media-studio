@@ -49,6 +49,9 @@
     return bridgeReady;
   }
   async function bridge(action,payload){
+    if(typeof window.csmsAuthenticatedBridgeCall==='function'){
+      return await window.csmsAuthenticatedBridgeCall(action,payload||{},{userInitiated:true});
+    }
     await connectBridge();
     return await new Promise((resolve,reject)=>{
       const requestId='team_intro_'+Date.now()+'_'+Math.random().toString(36).slice(2);
@@ -90,7 +93,7 @@
     if(images.length)select.selectedIndex=Math.max(0,Math.min(current,images.length-1));
   }
   async function loadCards(){
-    status('Connecting to Main Studio saved cards...');
+    status('Loading Athlete Main cards into the dropdown...');
     try{
       const result=await bridge('listSavedCards',{});
       const all=Array.isArray(result&&result.cards)?result.cards:[];
@@ -103,7 +106,7 @@
       fillCardSelect();
       status(cards.length?'Choose an Athlete Main card from the dropdown, then add it to the team order.':'No Athlete Main saved cards were found.');
     }catch(err){
-      status('Could not load saved cards: '+(err&&err.message?err.message:String(err)));
+      status('Could not load saved cards inside Studio: '+(err&&err.message?err.message:String(err)));
     }
   }
   async function getCardImage(fileId){
@@ -227,25 +230,35 @@
     ctx.lineTo(W*.53,y+2);
     ctx.lineTo(W*.915,y+2);
     ctx.stroke();
-    const topY=y+h*.25;
-    ctx.strokeStyle='#f24a18';
-    ctx.lineWidth=3;
-    ctx.beginPath();
-    ctx.moveTo(W*.16,topY);
-    ctx.lineTo(W*.31,topY);
-    ctx.moveTo(W*.69,topY);
-    ctx.lineTo(W*.84,topY);
-    ctx.stroke();
+    const glow=ctx.createRadialGradient(W/2,y+h*.52,W*.05,W/2,y+h*.52,W*.48);
+    glow.addColorStop(0,'rgba(255,255,255,.12)');
+    glow.addColorStop(.52,'rgba(255,255,255,.04)');
+    glow.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=glow;
+    ctx.fillRect(0,y,W,h);
+    const font=size=>`900 ${size}px Arial Black,Arial,sans-serif`;
+    const size=fitText(ctx,text,W*.86,62,30,font);
+    ctx.font=font(size);
     ctx.fillStyle='#ffffff';
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    ctx.font='italic 900 43px Arial Black,Arial,sans-serif';
-    ctx.fillText('TEAM INTRODUCTION',W/2,topY);
-    const font=size=>`900 ${size}px Arial Black,Arial,sans-serif`;
-    const size=fitText(ctx,text,W*.86,58,28,font);
-    ctx.font=font(size);
-    ctx.fillStyle='#ffffff';
-    ctx.fillText(text,W/2,y+h*.62);
+    ctx.shadowColor='rgba(0,0,0,.42)';
+    ctx.shadowBlur=9;
+    ctx.shadowOffsetY=4;
+    ctx.fillText(text,W/2,y+h*.54);
+    ctx.shadowColor='transparent';
+    ctx.strokeStyle='rgba(255,255,255,.62)';
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(W*.14,y+h*.76);
+    ctx.lineTo(W*.32,y+h*.76);
+    ctx.moveTo(W*.68,y+h*.76);
+    ctx.lineTo(W*.86,y+h*.76);
+    ctx.stroke();
+    ctx.fillStyle='#f24a18';
+    ctx.beginPath();
+    ctx.arc(W/2,y+h*.76,7,0,Math.PI*2);
+    ctx.fill();
   }
   function draw(){
     const canvas=q('tiCanvas');
@@ -324,7 +337,7 @@
     new MutationObserver(addTemplateCard).observe(document.body,{childList:true,subtree:true});
     window.__CSMS_TEAM_INTRODUCTION__=true;
     window.CSMSTeamIntroRefresh=addTemplateCard;
-    window.CSMSTeamIntroduction={version:'20260830-studio-stable-v1',open:openTemplate,refresh:addTemplateCard};
+    window.CSMSTeamIntroduction={version:'20260831-internal-card-picker-v1',open:openTemplate,refresh:addTemplateCard};
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
   else init();
