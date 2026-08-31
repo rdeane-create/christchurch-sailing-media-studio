@@ -213,7 +213,7 @@
     ctx.closePath();
   }
   function drawFooter(ctx){
-    const text=String(q('tiTitle')?.value||'Introducing your 2026/2027 Seahorses').trim();
+    const text=String(q('tiTitle')?.value||'Introducing Your 2026/2027 Seahorses').trim();
     const y=Math.round(H*.842),h=H-y;
     const g=ctx.createLinearGradient(0,y,0,H);
     g.addColorStop(0,'rgba(4,30,62,.98)');
@@ -280,7 +280,7 @@
     ctx.arcTo(x,y,x+w,y,r);
     ctx.closePath();
   }
-  function gridLayout(count,progress){
+  function baseGridBoxes(count){
     const cols=Number(q('tiColumns')?.value)||7;
     const rows=Math.max(1,Math.ceil(Math.max(1,count)/cols));
     const margin=48,gap=count>42?5:8,headerH=252,footerTop=Math.round(H*.842)-18;
@@ -295,20 +295,29 @@
     for(let i=0;i<count;i++){
       const col=i%cols,row=Math.floor(i/cols);
       const gx=margin+col*(tileW+gap),gy=startY+row*(tileH+gap);
-      const local=ease(Math.max(0,Math.min(1,(progress-i*.016)/.34)));
-      const heroScale=Math.min(2.75,Math.max(1.55,430/tileW));
-      const hw=tileW*heroScale,hh=tileH*heroScale;
-      const hx=W/2-hw/2,hy=headerH+32;
-      const arc=Math.sin(Math.PI*local);
-      boxes.push({
-        x:hx+(gx-hx)*local+arc*(i%2===0?20:-20),
-        y:hy+(gy-hy)*local-arc*22,
-        w:hw+(tileW-hw)*local,
-        h:hh+(tileH-hh)*local,
-        alpha:local
-      });
+      boxes.push({x:gx,y:gy,w:tileW,h:tileH});
     }
     return boxes;
+  }
+  function sequenceBox(target,index,stepProgress){
+    const growEnd=.30,holdEnd=.62,dropEnd=1;
+    const heroSafeTop=238,heroSafeBottom=Math.round(H*.842)-36,heroSafeH=heroSafeBottom-heroSafeTop;
+    const cardRatio=4/5;
+    let heroW=Math.min(W*.82,heroSafeH*cardRatio*.94);
+    let heroH=heroW/cardRatio;
+    if(heroH>heroSafeH*.94){heroH=heroSafeH*.94;heroW=heroH*cardRatio;}
+    const heroX=W/2-heroW/2,heroY=heroSafeTop+(heroSafeH-heroH)/2-18;
+    const startW=target.w*.86,startH=target.h*.86,startX=W/2-startW/2,startY=heroSafeTop+50;
+    if(stepProgress<growEnd){
+      const p=ease(stepProgress/growEnd);
+      return {x:startX+(heroX-startX)*p,y:startY+(heroY-startY)*p-20*Math.sin(Math.PI*p),w:startW+(heroW-startW)*p,h:startH+(heroH-startH)*p,alpha:p};
+    }
+    if(stepProgress<holdEnd){
+      const p=(stepProgress-growEnd)/(holdEnd-growEnd),breathe=1+.012*Math.sin(Math.PI*p);
+      return {x:heroX-heroW*(breathe-1)/2,y:heroY-heroH*(breathe-1)/2,w:heroW*breathe,h:heroH*breathe,alpha:1};
+    }
+    const p=ease((stepProgress-holdEnd)/(dropEnd-holdEnd)),arc=Math.sin(Math.PI*p);
+    return {x:heroX+(target.x-heroX)*p+arc*(index%2===0?34:-34),y:heroY+(target.y-heroY)*p-arc*38,w:heroW+(target.w-heroW)*p,h:heroH+(target.h-heroH)*p,alpha:1};
   }
   function drawCard(ctx,item,x,y,w,h){
     const img=item.img||item;
@@ -337,14 +346,28 @@
     ctx.fillStyle='#07152f';
     ctx.fillRect(0,0,W,H);
     drawHeader(ctx);
-    const boxes=gridLayout(images.length,progress);
+    const targets=baseGridBoxes(images.length);
+    const count=images.length;
+    let active=-1,activeProgress=1;
+    if(progress<1&&count){
+      const sequence=progress*count;
+      active=Math.min(count-1,Math.floor(sequence));
+      activeProgress=sequence-active;
+    }
     images.forEach((item,i)=>{
-      const box=boxes[i];
+      if(progress<1&&i>=active)return;
+      const box=targets[i];
+      drawCard(ctx,item,box.x,box.y,box.w,box.h);
+    });
+    if(progress<1&&active>=0&&images[active]){
+      ctx.fillStyle='rgba(1,8,22,.38)';
+      ctx.fillRect(0,220,W,Math.round(H*.842)-220);
+      const box=sequenceBox(targets[active],active,activeProgress);
       ctx.save();
       ctx.globalAlpha=box.alpha;
-      drawCard(ctx,item,box.x,box.y,box.w,box.h);
+      drawCard(ctx,images[active],box.x,box.y,box.w,box.h);
       ctx.restore();
-    });
+    }
     drawFooter(ctx);
     status(`${images.length} headshot${images.length===1?'':'s'} loaded.`);
   }
@@ -352,8 +375,9 @@
     cancelAnimationFrame(animFrame);
     animStart=performance.now();
     status('Playing team intro motion preview...');
+    const duration=Math.max(1800,Math.min(26000,images.length*1500));
     function step(now){
-      const p=Math.min(1,(now-animStart)/1650);
+      const p=Math.min(1,(now-animStart)/duration);
       draw(p);
       if(p<1)animFrame=requestAnimationFrame(step);
       else status(`${images.length} headshot${images.length===1?'':'s'} loaded. Motion preview complete.`);
@@ -376,7 +400,7 @@
       panel.id='teamIntroductionWorkspace';
       panel.className='panel';
       panel.style.marginTop='14px';
-      panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><h2 style="margin:0">${NAME}</h2><button id="tiClose" class="secondary tiny" type="button">Close</button></div><div style="display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:18px;align-items:start"><div><div class="control"><label>Main Studio saved Athlete cards</label><select id="tiSavedCards"></select></div><button id="tiLoadCards" class="primary" type="button" style="width:100%;margin-top:8px">Load Athlete Cards</button><button id="tiAddCards" class="secondary" type="button" style="width:100%;margin-top:8px">Add Card To Team</button><div class="control" style="margin-top:14px"><label>Team order</label><select id="tiOrder" size="8" style="min-height:150px"></select></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><button id="tiMoveUp" class="secondary" type="button">Move Up</button><button id="tiMoveDown" class="secondary" type="button">Move Down</button><button id="tiRemove" class="secondary" type="button">Remove</button></div><div class="control" style="margin-top:14px"><label>Add headshots from computer</label><input id="tiFiles" type="file" accept="image/*" multiple></div><button id="tiAddFiles" class="secondary" type="button" style="width:100%;margin-top:8px">Add Chosen Files</button><div class="control"><label>Footer line</label><input id="tiTitle" value="Introducing your 2026/2027 Seahorses"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="control"><label>Columns</label><select id="tiColumns"><option>6</option><option selected>7</option><option>8</option><option>9</option><option>10</option></select></div><div class="control"><label>Fit</label><select id="tiFit"><option value="contain" selected>Show Full Card</option><option value="cover">Fill Tile</option></select></div></div><button id="tiMotion" class="primary" type="button" style="width:100%;margin-top:8px">Play Motion Preview</button><button id="tiBuild" class="secondary" type="button" style="width:100%;margin-top:8px">Build Still Preview</button><button id="tiDownload" class="secondary" type="button" style="width:100%;margin-top:8px">Download PNG</button><button id="tiClear" class="secondary" type="button" style="width:100%;margin-top:8px">Clear</button><div id="tiStatus" class="hint" style="margin-top:10px">Ready. Load saved cards when needed.</div></div><div style="background:#08152e;border-radius:18px;padding:18px;display:flex;justify-content:center;align-items:center;min-height:720px"><canvas id="tiCanvas" width="1080" height="1350" style="width:min(100%,520px);aspect-ratio:4/5;background:#07152f;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.35)"></canvas></div></div>`;
+      panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><h2 style="margin:0">${NAME}</h2><button id="tiClose" class="secondary tiny" type="button">Close</button></div><div style="display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:18px;align-items:start"><div><div class="control"><label>Main Studio saved Athlete cards</label><select id="tiSavedCards"></select></div><button id="tiLoadCards" class="primary" type="button" style="width:100%;margin-top:8px">Load Athlete Cards</button><button id="tiAddCards" class="secondary" type="button" style="width:100%;margin-top:8px">Add Card To Team</button><div class="control" style="margin-top:14px"><label>Team order</label><select id="tiOrder" size="8" style="min-height:150px"></select></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><button id="tiMoveUp" class="secondary" type="button">Move Up</button><button id="tiMoveDown" class="secondary" type="button">Move Down</button><button id="tiRemove" class="secondary" type="button">Remove</button></div><div class="control" style="margin-top:14px"><label>Add headshots from computer</label><input id="tiFiles" type="file" accept="image/*" multiple></div><button id="tiAddFiles" class="secondary" type="button" style="width:100%;margin-top:8px">Add Chosen Files</button><div class="control"><label>Footer line</label><input id="tiTitle" value="Introducing Your 2026/2027 Seahorses"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="control"><label>Columns</label><select id="tiColumns"><option>6</option><option selected>7</option><option>8</option><option>9</option><option>10</option></select></div><div class="control"><label>Fit</label><select id="tiFit"><option value="contain" selected>Show Full Card</option><option value="cover">Fill Tile</option></select></div></div><button id="tiMotion" class="primary" type="button" style="width:100%;margin-top:8px">Play Motion Preview</button><button id="tiBuild" class="secondary" type="button" style="width:100%;margin-top:8px">Build Still Preview</button><button id="tiDownload" class="secondary" type="button" style="width:100%;margin-top:8px">Download PNG</button><button id="tiClear" class="secondary" type="button" style="width:100%;margin-top:8px">Clear</button><div id="tiStatus" class="hint" style="margin-top:10px">Ready. Load saved cards when needed.</div></div><div style="background:#08152e;border-radius:18px;padding:18px;display:flex;justify-content:center;align-items:center;min-height:720px"><canvas id="tiCanvas" width="1080" height="1350" style="width:min(100%,520px);aspect-ratio:4/5;background:#07152f;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.35)"></canvas></div></div>`;
       (q('templateLibraryList')?.parentElement||document.body).appendChild(panel);
       q('tiClose').onclick=()=>panel.hidden=true;
       q('tiLoadCards').onclick=loadCards;
@@ -417,7 +441,7 @@
     new MutationObserver(addTemplateCard).observe(document.body,{childList:true,subtree:true});
     window.__CSMS_TEAM_INTRODUCTION__=true;
     window.CSMSTeamIntroRefresh=addTemplateCard;
-    window.CSMSTeamIntroduction={version:'20260831-motion-footer-v2',open:openTemplate,refresh:addTemplateCard};
+    window.CSMSTeamIntroduction={version:'20260831-sequential-hero-footer-v3',open:openTemplate,refresh:addTemplateCard};
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
   else init();
