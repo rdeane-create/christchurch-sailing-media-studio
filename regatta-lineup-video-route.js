@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  const VERSION='20260814-regatta-lineup-video-route-v2';
+  const VERSION='20260830-regatta-lineup-video-route-team-intro-stable';
 
   function activateNative(name){
     if(typeof window.activateWorkspace==='function'){
@@ -74,7 +74,7 @@
   function loadTeamIntroductionHelper(){
     if(window.__CSMS_TEAM_INTRODUCTION__||document.querySelector('script[data-csms-team-introduction]'))return;
     const script=document.createElement('script');
-    script.src='team-introduction-layout-v1.js?v=20260830-team-introduction-v1';
+    script.src='team-introduction-layout-v1.js?v=20260830-studio-stable-v1';
     script.async=false;
     script.dataset.csmsTeamIntroduction='1';
     script.onload=function(){
