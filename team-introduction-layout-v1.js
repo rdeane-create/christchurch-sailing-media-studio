@@ -6,7 +6,7 @@
   const HEADER_OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp?v=20260830-team-intro-header';
   const HEADER_GRAY='#d0d6df';
   const q=id=>document.getElementById(id);
-  let images=[],cards=[],headerOverlay=null,headerOverlayReady=false,bridgePort=null,bridgeReady=null,bridgeToken='',pending=new Map();
+  let images=[],cards=[],headerOverlay=null,headerOverlayReady=false,animFrame=0,animStart=0,bridgePort=null,bridgeReady=null,bridgeToken='',pending=new Map();
   function status(text){const el=q('tiStatus');if(el)el.textContent=text;}
   function wait(){return new Promise(r=>setTimeout(r,0));}
   function b64ToBlob(base64,mimeType){const binary=atob(base64);const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return new Blob([bytes],{type:mimeType||'image/png'});}
@@ -93,7 +93,7 @@
     if(images.length)select.selectedIndex=Math.max(0,Math.min(current,images.length-1));
   }
   async function loadCards(){
-    status('Loading Athlete Main cards into the dropdown...');
+    status('Connecting to Main Studio saved cards...');
     try{
       const result=await bridge('listSavedCards',{});
       const all=Array.isArray(result&&result.cards)?result.cards:[];
@@ -106,7 +106,7 @@
       fillCardSelect();
       status(cards.length?'Choose an Athlete Main card from the dropdown, then add it to the team order.':'No Athlete Main saved cards were found.');
     }catch(err){
-      status('Could not load saved cards inside Studio: '+(err&&err.message?err.message:String(err)));
+      status('Could not load saved cards: '+(err&&err.message?err.message:String(err)));
     }
   }
   async function getCardImage(fileId){
@@ -122,7 +122,7 @@
     const img=await getCardImage(card.fileId);
     if(img)images.push({img,label:cardLabel(card)});
     renderOrder();
-    draw();
+    playMotion();
   }
   async function addFiles(){
     const input=q('tiFiles');
@@ -137,7 +137,7 @@
     }
     input.value='';
     renderOrder();
-    draw();
+    playMotion();
   }
   function moveOrdered(delta){
     const select=q('tiOrder');
@@ -148,14 +148,14 @@
     images.splice(to,0,item);
     renderOrder();
     select.selectedIndex=to;
-    draw();
+    playMotion();
   }
   function removeOrdered(){
     const select=q('tiOrder');
     if(!select||select.selectedIndex<0)return;
     images.splice(select.selectedIndex,1);
     renderOrder();
-    draw();
+    playMotion();
   }
   function fitDraw(ctx,img,x,y,w,h,mode){
     const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height,ir=iw/ih,or=w/h;
@@ -214,53 +214,122 @@
   }
   function drawFooter(ctx){
     const text=String(q('tiTitle')?.value||'Introducing your 2026/2027 Seahorses').trim();
-    const y=Math.round(H*.852),h=H-y;
+    const y=Math.round(H*.842),h=H-y;
     const g=ctx.createLinearGradient(0,y,0,H);
-    g.addColorStop(0,'rgba(3,24,52,.97)');
-    g.addColorStop(1,'rgba(2,14,35,1)');
+    g.addColorStop(0,'rgba(4,30,62,.98)');
+    g.addColorStop(.58,'rgba(2,17,42,.995)');
+    g.addColorStop(1,'rgba(1,8,22,1)');
     footerPath(ctx,y);
     ctx.fillStyle=g;
     ctx.fill();
     ctx.strokeStyle='#f24a18';
-    ctx.lineWidth=4;
+    ctx.lineWidth=8;
     ctx.beginPath();
     ctx.moveTo(W*.085,y+2);
     ctx.lineTo(W*.47,y+2);
-    ctx.lineTo(W*.50,y-6);
+    ctx.lineTo(W*.50,y-14);
     ctx.lineTo(W*.53,y+2);
     ctx.lineTo(W*.915,y+2);
     ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.78)';
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(W*.13,y+20);
+    ctx.bezierCurveTo(W*.35,y+2,W*.65,y+2,W*.87,y+20);
+    ctx.stroke();
     const glow=ctx.createRadialGradient(W/2,y+h*.52,W*.05,W/2,y+h*.52,W*.48);
-    glow.addColorStop(0,'rgba(255,255,255,.12)');
-    glow.addColorStop(.52,'rgba(255,255,255,.04)');
+    glow.addColorStop(0,'rgba(255,255,255,.16)');
+    glow.addColorStop(.46,'rgba(255,255,255,.055)');
     glow.addColorStop(1,'rgba(255,255,255,0)');
     ctx.fillStyle=glow;
     ctx.fillRect(0,y,W,h);
-    const font=size=>`900 ${size}px Arial Black,Arial,sans-serif`;
-    const size=fitText(ctx,text,W*.86,62,30,font);
+    const font=size=>`italic 900 ${size}px Arial Black,Impact,Arial,sans-serif`;
+    const size=fitText(ctx,text,W*.88,72,34,font);
     ctx.font=font(size);
     ctx.fillStyle='#ffffff';
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    ctx.shadowColor='rgba(0,0,0,.42)';
-    ctx.shadowBlur=9;
-    ctx.shadowOffsetY=4;
-    ctx.fillText(text,W/2,y+h*.54);
+    ctx.shadowColor='rgba(0,0,0,.72)';
+    ctx.shadowBlur=16;
+    ctx.shadowOffsetY=5;
+    ctx.lineWidth=Math.max(3,size*.075);
+    ctx.strokeStyle='rgba(1,8,22,.70)';
+    ctx.strokeText(text,W/2,y+h*.52);
+    ctx.fillText(text,W/2,y+h*.52);
     ctx.shadowColor='transparent';
-    ctx.strokeStyle='rgba(255,255,255,.62)';
-    ctx.lineWidth=2;
+    ctx.strokeStyle='rgba(255,255,255,.74)';
+    ctx.lineWidth=3;
     ctx.beginPath();
-    ctx.moveTo(W*.14,y+h*.76);
-    ctx.lineTo(W*.32,y+h*.76);
-    ctx.moveTo(W*.68,y+h*.76);
-    ctx.lineTo(W*.86,y+h*.76);
+    ctx.moveTo(W*.13,y+h*.78);
+    ctx.lineTo(W*.35,y+h*.78);
+    ctx.moveTo(W*.65,y+h*.78);
+    ctx.lineTo(W*.87,y+h*.78);
     ctx.stroke();
     ctx.fillStyle='#f24a18';
     ctx.beginPath();
-    ctx.arc(W/2,y+h*.76,7,0,Math.PI*2);
+    ctx.arc(W/2,y+h*.78,9,0,Math.PI*2);
     ctx.fill();
   }
-  function draw(){
+  function ease(t){return t<=0?0:t>=1?1:t*t*(3-2*t);}
+  function rounded(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+  function gridLayout(count,progress){
+    const cols=Number(q('tiColumns')?.value)||7;
+    const rows=Math.max(1,Math.ceil(Math.max(1,count)/cols));
+    const margin=48,gap=count>42?5:8,headerH=252,footerTop=Math.round(H*.842)-18;
+    const available=footerTop-headerH;
+    const tileW=(W-margin*2-gap*(cols-1))/cols;
+    const fullCardH=tileW*1.25;
+    const maxTileH=(available-gap*(rows-1))/rows;
+    const tileH=Math.min(fullCardH,maxTileH);
+    const gridH=rows*tileH+(rows-1)*gap;
+    const startY=headerH+Math.max(0,(available-gridH)/2);
+    const boxes=[];
+    for(let i=0;i<count;i++){
+      const col=i%cols,row=Math.floor(i/cols);
+      const gx=margin+col*(tileW+gap),gy=startY+row*(tileH+gap);
+      const local=ease(Math.max(0,Math.min(1,(progress-i*.016)/.34)));
+      const heroScale=Math.min(2.75,Math.max(1.55,430/tileW));
+      const hw=tileW*heroScale,hh=tileH*heroScale;
+      const hx=W/2-hw/2,hy=headerH+32;
+      const arc=Math.sin(Math.PI*local);
+      boxes.push({
+        x:hx+(gx-hx)*local+arc*(i%2===0?20:-20),
+        y:hy+(gy-hy)*local-arc*22,
+        w:hw+(tileW-hw)*local,
+        h:hh+(tileH-hh)*local,
+        alpha:local
+      });
+    }
+    return boxes;
+  }
+  function drawCard(ctx,item,x,y,w,h){
+    const img=item.img||item;
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,.30)';
+    ctx.shadowBlur=Math.max(8,w*.11);
+    ctx.shadowOffsetY=Math.max(5,w*.04);
+    rounded(ctx,x,y,w,h,Math.max(5,w*.04));
+    ctx.fillStyle='#dce4ee';
+    ctx.fill();
+    ctx.shadowColor='transparent';
+    rounded(ctx,x,y,w,h,Math.max(5,w*.04));
+    ctx.clip();
+    fitDraw(ctx,img,x,y,w,h,q('tiFit')?.value||'contain');
+    ctx.restore();
+    ctx.strokeStyle='rgba(255,255,255,.46)';
+    ctx.lineWidth=Math.max(1,w*.012);
+    rounded(ctx,x,y,w,h,Math.max(5,w*.04));
+    ctx.stroke();
+  }
+  function draw(progress=1){
     const canvas=q('tiCanvas');
     if(!canvas)return;
     const ctx=canvas.getContext('2d');
@@ -268,28 +337,38 @@
     ctx.fillStyle='#07152f';
     ctx.fillRect(0,0,W,H);
     drawHeader(ctx);
-    const footerH=170,margin=54,gap=8,cols=Number(q('tiColumns')?.value)||7,rows=Math.max(1,Math.ceil(Math.max(1,images.length)/cols));
-    const y0=260,areaH=H-footerH-y0-20,tileW=(W-margin*2-gap*(cols-1))/cols,tileH=(areaH-gap*(rows-1))/rows;
+    const boxes=gridLayout(images.length,progress);
     images.forEach((item,i)=>{
-      const col=i%cols,row=Math.floor(i/cols),x=margin+col*(tileW+gap),y=y0+row*(tileH+gap);
-      ctx.save();ctx.beginPath();ctx.rect(x,y,tileW,tileH);ctx.clip();
-      ctx.fillStyle='#dce4ee';ctx.fillRect(x,y,tileW,tileH);
-      fitDraw(ctx,item.img||item,x,y,tileW,tileH,q('tiFit')?.value||'cover');
+      const box=boxes[i];
+      ctx.save();
+      ctx.globalAlpha=box.alpha;
+      drawCard(ctx,item,box.x,box.y,box.w,box.h);
       ctx.restore();
-      ctx.strokeStyle='rgba(255,255,255,.28)';ctx.lineWidth=2;ctx.strokeRect(x,y,tileW,tileH);
     });
     drawFooter(ctx);
     status(`${images.length} headshot${images.length===1?'':'s'} loaded.`);
   }
+  function playMotion(){
+    cancelAnimationFrame(animFrame);
+    animStart=performance.now();
+    status('Playing team intro motion preview...');
+    function step(now){
+      const p=Math.min(1,(now-animStart)/1650);
+      draw(p);
+      if(p<1)animFrame=requestAnimationFrame(step);
+      else status(`${images.length} headshot${images.length===1?'':'s'} loaded. Motion preview complete.`);
+    }
+    animFrame=requestAnimationFrame(step);
+  }
   function download(){
     if(!images.length){status('Add saved cards or files first.');return;}
-    draw();
+    draw(1);
     const a=document.createElement('a');
     a.href=q('tiCanvas').toDataURL('image/png');
     a.download='christchurch-team-introduction.png';
     a.click();
   }
-  function clearAll(){images=[];cards=[];fillCardSelect();renderOrder();draw();status('Cleared.');}
+  function clearAll(){images=[];cards=[];fillCardSelect();renderOrder();draw(1);status('Cleared.');}
   function openTemplate(){
     let panel=q('teamIntroductionWorkspace');
     if(!panel){
@@ -297,7 +376,7 @@
       panel.id='teamIntroductionWorkspace';
       panel.className='panel';
       panel.style.marginTop='14px';
-      panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><h2 style="margin:0">${NAME}</h2><button id="tiClose" class="secondary tiny" type="button">Close</button></div><div style="display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:18px;align-items:start"><div><div class="control"><label>Main Studio saved Athlete cards</label><select id="tiSavedCards"></select></div><button id="tiLoadCards" class="primary" type="button" style="width:100%;margin-top:8px">Load Athlete Cards</button><button id="tiAddCards" class="secondary" type="button" style="width:100%;margin-top:8px">Add Card To Team</button><div class="control" style="margin-top:14px"><label>Team order</label><select id="tiOrder" size="8" style="min-height:150px"></select></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><button id="tiMoveUp" class="secondary" type="button">Move Up</button><button id="tiMoveDown" class="secondary" type="button">Move Down</button><button id="tiRemove" class="secondary" type="button">Remove</button></div><div class="control" style="margin-top:14px"><label>Add headshots from computer</label><input id="tiFiles" type="file" accept="image/*" multiple></div><button id="tiAddFiles" class="secondary" type="button" style="width:100%;margin-top:8px">Add Chosen Files</button><div class="control"><label>Footer line</label><input id="tiTitle" value="Introducing your 2026/2027 Seahorses"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="control"><label>Columns</label><select id="tiColumns"><option>6</option><option selected>7</option><option>8</option><option>9</option><option>10</option></select></div><div class="control"><label>Fit</label><select id="tiFit"><option value="cover" selected>Fill</option><option value="contain">Fit</option></select></div></div><button id="tiBuild" class="primary" type="button" style="width:100%;margin-top:8px">Build Preview</button><button id="tiDownload" class="secondary" type="button" style="width:100%;margin-top:8px">Download PNG</button><button id="tiClear" class="secondary" type="button" style="width:100%;margin-top:8px">Clear</button><div id="tiStatus" class="hint" style="margin-top:10px">Ready. Load saved cards when needed.</div></div><div style="background:#08152e;border-radius:18px;padding:18px;display:flex;justify-content:center;align-items:center;min-height:720px"><canvas id="tiCanvas" width="1080" height="1350" style="width:min(100%,520px);aspect-ratio:4/5;background:#07152f;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.35)"></canvas></div></div>`;
+      panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><h2 style="margin:0">${NAME}</h2><button id="tiClose" class="secondary tiny" type="button">Close</button></div><div style="display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:18px;align-items:start"><div><div class="control"><label>Main Studio saved Athlete cards</label><select id="tiSavedCards"></select></div><button id="tiLoadCards" class="primary" type="button" style="width:100%;margin-top:8px">Load Athlete Cards</button><button id="tiAddCards" class="secondary" type="button" style="width:100%;margin-top:8px">Add Card To Team</button><div class="control" style="margin-top:14px"><label>Team order</label><select id="tiOrder" size="8" style="min-height:150px"></select></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><button id="tiMoveUp" class="secondary" type="button">Move Up</button><button id="tiMoveDown" class="secondary" type="button">Move Down</button><button id="tiRemove" class="secondary" type="button">Remove</button></div><div class="control" style="margin-top:14px"><label>Add headshots from computer</label><input id="tiFiles" type="file" accept="image/*" multiple></div><button id="tiAddFiles" class="secondary" type="button" style="width:100%;margin-top:8px">Add Chosen Files</button><div class="control"><label>Footer line</label><input id="tiTitle" value="Introducing your 2026/2027 Seahorses"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="control"><label>Columns</label><select id="tiColumns"><option>6</option><option selected>7</option><option>8</option><option>9</option><option>10</option></select></div><div class="control"><label>Fit</label><select id="tiFit"><option value="contain" selected>Show Full Card</option><option value="cover">Fill Tile</option></select></div></div><button id="tiMotion" class="primary" type="button" style="width:100%;margin-top:8px">Play Motion Preview</button><button id="tiBuild" class="secondary" type="button" style="width:100%;margin-top:8px">Build Still Preview</button><button id="tiDownload" class="secondary" type="button" style="width:100%;margin-top:8px">Download PNG</button><button id="tiClear" class="secondary" type="button" style="width:100%;margin-top:8px">Clear</button><div id="tiStatus" class="hint" style="margin-top:10px">Ready. Load saved cards when needed.</div></div><div style="background:#08152e;border-radius:18px;padding:18px;display:flex;justify-content:center;align-items:center;min-height:720px"><canvas id="tiCanvas" width="1080" height="1350" style="width:min(100%,520px);aspect-ratio:4/5;background:#07152f;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.35)"></canvas></div></div>`;
       (q('templateLibraryList')?.parentElement||document.body).appendChild(panel);
       q('tiClose').onclick=()=>panel.hidden=true;
       q('tiLoadCards').onclick=loadCards;
@@ -306,18 +385,19 @@
       q('tiMoveDown').onclick=()=>moveOrdered(1);
       q('tiRemove').onclick=removeOrdered;
       q('tiAddFiles').onclick=()=>addFiles().catch(err=>status('Could not add files: '+err.message));
-      q('tiBuild').onclick=draw;
+      q('tiMotion').onclick=playMotion;
+      q('tiBuild').onclick=()=>draw(1);
       q('tiDownload').onclick=download;
       q('tiClear').onclick=clearAll;
-      q('tiColumns').onchange=draw;
-      q('tiFit').onchange=draw;
-      q('tiTitle').oninput=draw;
+      q('tiColumns').onchange=()=>draw(1);
+      q('tiFit').onchange=()=>draw(1);
+      q('tiTitle').oninput=()=>draw(1);
       fillCardSelect();
       renderOrder();
     }
     panel.hidden=false;
     loadHeaderOverlay();
-    draw();
+    draw(1);
     panel.scrollIntoView({behavior:'smooth',block:'start'});
   }
   function addTemplateCard(){
@@ -337,7 +417,7 @@
     new MutationObserver(addTemplateCard).observe(document.body,{childList:true,subtree:true});
     window.__CSMS_TEAM_INTRODUCTION__=true;
     window.CSMSTeamIntroRefresh=addTemplateCard;
-    window.CSMSTeamIntroduction={version:'20260831-internal-card-picker-v1',open:openTemplate,refresh:addTemplateCard};
+    window.CSMSTeamIntroduction={version:'20260831-motion-footer-v2',open:openTemplate,refresh:addTemplateCard};
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
   else init();
