@@ -300,7 +300,11 @@
     return boxes;
   }
   function sequenceBox(target,index,stepProgress){
-    const growEnd=.30,holdEnd=.62,dropEnd=1;
+    const motionMs=Number(q('tiSpeed')?.value||2400);
+    const holdMs=Number(q('tiHold')?.value||1100);
+    const perCardMs=Math.max(1,motionMs+holdMs);
+    const growEnd=Math.max(.12,Math.min(.42,(motionMs*.42)/perCardMs));
+    const holdEnd=Math.max(growEnd+.08,Math.min(.86,(motionMs*.42+holdMs)/perCardMs));
     const heroSafeTop=238,heroSafeBottom=Math.round(H*.842)-36,heroSafeH=heroSafeBottom-heroSafeTop;
     const cardRatio=4/5;
     const featureScale=Number(q('tiFeatureSize')?.value||94)/100;
@@ -330,7 +334,7 @@
         alpha:1
       };
     }
-    const p=ease((stepProgress-holdEnd)/(dropEnd-holdEnd));
+    const p=ease((stepProgress-holdEnd)/(1-holdEnd));
     const arc=Math.sin(Math.PI*p);
     return {
       x:heroX+(target.x-heroX)*p+arc*(index%2===0?34:-34),
@@ -397,9 +401,9 @@
     cancelAnimationFrame(animFrame);
     animStart=performance.now();
     status('Playing team intro motion preview...');
-    const speed=Number(q('tiSpeed')?.value||2100);
-    const holdBoost=Number(q('tiHold')?.value||600);
-    const duration=Math.max(2200,Math.min(90000,images.length*(speed+holdBoost)));
+    const speed=Number(q('tiSpeed')?.value||2400);
+    const hold=Number(q('tiHold')?.value||1100);
+    const duration=Math.max(2200,Math.min(120000,images.length*(speed+hold)));
     function step(now){
       const p=Math.min(1,(now-animStart)/duration);
       draw(p);
@@ -424,7 +428,7 @@
       panel.id='teamIntroductionWorkspace';
       panel.className='panel';
       panel.style.marginTop='14px';
-      panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><h2 style="margin:0">${NAME}</h2><button id="tiClose" class="secondary tiny" type="button">Close</button></div><div style="display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:18px;align-items:start"><div><div class="control"><label>Main Studio saved Athlete cards</label><select id="tiSavedCards"></select></div><button id="tiLoadCards" class="primary" type="button" style="width:100%;margin-top:8px">Load Athlete Cards</button><button id="tiAddCards" class="secondary" type="button" style="width:100%;margin-top:8px">Add Card To Team</button><div class="control" style="margin-top:14px"><label>Team order</label><select id="tiOrder" size="8" style="min-height:150px"></select></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><button id="tiMoveUp" class="secondary" type="button">Move Up</button><button id="tiMoveDown" class="secondary" type="button">Move Down</button><button id="tiRemove" class="secondary" type="button">Remove</button></div><div class="control" style="margin-top:14px"><label>Add headshots from computer</label><input id="tiFiles" type="file" accept="image/*" multiple></div><button id="tiAddFiles" class="secondary" type="button" style="width:100%;margin-top:8px">Add Chosen Files</button><div class="control"><label>Footer line</label><input id="tiTitle" value="Introducing Your 2026/2027 Seahorses"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="control"><label>Columns</label><select id="tiColumns"><option>6</option><option selected>7</option><option>8</option><option>9</option><option>10</option></select></div><div class="control"><label>Fit</label><select id="tiFit"><option value="contain" selected>Show Full Card</option><option value="cover">Fill Tile</option></select></div></div><div class="control"><label>Feature size <span id="tiFeatureSizeVal" class="value">108%</span></label><input id="tiFeatureSize" type="range" min="80" max="115" value="108"></div><div class="control"><label>Motion speed <span id="tiSpeedVal" class="value">2.4s/card</span></label><input id="tiSpeed" type="range" min="1200" max="4200" step="100" value="2400"></div><div class="control"><label>Hold time <span id="tiHoldVal" class="value">1.1s</span></label><input id="tiHold" type="range" min="300" max="2200" step="100" value="1100"></div><button id="tiMotion" class="primary" type="button" style="width:100%;margin-top:8px">Play Motion Preview</button><button id="tiBuild" class="secondary" type="button" style="width:100%;margin-top:8px">Build Still Preview</button><button id="tiDownload" class="secondary" type="button" style="width:100%;margin-top:8px">Download PNG</button><button id="tiClear" class="secondary" type="button" style="width:100%;margin-top:8px">Clear</button><div id="tiStatus" class="hint" style="margin-top:10px">Ready. Load saved cards when needed.</div></div><div style="background:#08152e;border-radius:18px;padding:18px;display:flex;justify-content:center;align-items:center;min-height:720px"><canvas id="tiCanvas" width="1080" height="1350" style="width:min(100%,520px);aspect-ratio:4/5;background:#07152f;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.35)"></canvas></div></div>`;
+      panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px"><h2 style="margin:0">${NAME}</h2><button id="tiClose" class="secondary tiny" type="button">Close</button></div><div style="display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:18px;align-items:start"><div><div class="control"><label>Main Studio saved Athlete cards</label><select id="tiSavedCards"></select></div><button id="tiLoadCards" class="primary" type="button" style="width:100%;margin-top:8px">Load Athlete Cards</button><button id="tiAddCards" class="secondary" type="button" style="width:100%;margin-top:8px">Add Card To Team</button><div class="control" style="margin-top:14px"><label>Team order</label><select id="tiOrder" size="8" style="min-height:150px"></select></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><button id="tiMoveUp" class="secondary" type="button">Move Up</button><button id="tiMoveDown" class="secondary" type="button">Move Down</button><button id="tiRemove" class="secondary" type="button">Remove</button></div><div class="control" style="margin-top:14px"><label>Add headshots from computer</label><input id="tiFiles" type="file" accept="image/*" multiple></div><button id="tiAddFiles" class="secondary" type="button" style="width:100%;margin-top:8px">Add Chosen Files</button><div class="control"><label>Footer line</label><input id="tiTitle" value="Introducing Your 2026/2027 Seahorses"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="control"><label>Columns</label><select id="tiColumns"><option>6</option><option selected>7</option><option>8</option><option>9</option><option>10</option></select></div><div class="control"><label>Fit</label><select id="tiFit"><option value="contain" selected>Show Full Card</option><option value="cover">Fill Tile</option></select></div></div><div class="control"><label>Feature size <span id="tiFeatureSizeVal" class="value">108%</span></label><input id="tiFeatureSize" type="range" min="80" max="115" value="108"></div><div class="control"><label>Motion speed <span id="tiSpeedVal" class="value">2.4s motion</span></label><input id="tiSpeed" type="range" min="1200" max="4200" step="100" value="2400"></div><div class="control"><label>Hold time <span id="tiHoldVal" class="value">1.1s hold</span></label><input id="tiHold" type="range" min="300" max="2200" step="100" value="1100"></div><button id="tiMotion" class="primary" type="button" style="width:100%;margin-top:8px">Play Motion Preview</button><button id="tiBuild" class="secondary" type="button" style="width:100%;margin-top:8px">Build Still Preview</button><button id="tiDownload" class="secondary" type="button" style="width:100%;margin-top:8px">Download PNG</button><button id="tiClear" class="secondary" type="button" style="width:100%;margin-top:8px">Clear</button><div id="tiStatus" class="hint" style="margin-top:10px">Ready. Load saved cards when needed.</div></div><div style="background:#08152e;border-radius:18px;padding:18px;display:flex;justify-content:center;align-items:center;min-height:720px"><canvas id="tiCanvas" width="1080" height="1350" style="width:min(100%,520px);aspect-ratio:4/5;background:#07152f;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.35)"></canvas></div></div>`;
       (q('templateLibraryList')?.parentElement||document.body).appendChild(panel);
       q('tiClose').onclick=()=>panel.hidden=true;
       q('tiLoadCards').onclick=loadCards;
@@ -440,9 +444,9 @@
       q('tiColumns').onchange=()=>draw(1);
       q('tiFit').onchange=()=>draw(1);
       q('tiTitle').oninput=()=>draw(1);
-      q('tiFeatureSize').oninput=()=>{q('tiFeatureSizeVal').textContent=q('tiFeatureSize').value+'%';draw(1);};
-      q('tiSpeed').oninput=()=>{q('tiSpeedVal').textContent=(Number(q('tiSpeed').value)/1000).toFixed(1)+'s/card';};
-      q('tiHold').oninput=()=>{q('tiHoldVal').textContent=(Number(q('tiHold').value)/1000).toFixed(1)+'s';};
+      q('tiFeatureSize').oninput=()=>{q('tiFeatureSizeVal').textContent=q('tiFeatureSize').value+'%';if(images.length)playMotion();else draw(1);};
+      q('tiSpeed').oninput=()=>{q('tiSpeedVal').textContent=(Number(q('tiSpeed').value)/1000).toFixed(1)+'s motion';if(images.length)playMotion();};
+      q('tiHold').oninput=()=>{q('tiHoldVal').textContent=(Number(q('tiHold').value)/1000).toFixed(1)+'s hold';if(images.length)playMotion();};
       fillCardSelect();
       renderOrder();
     }
@@ -468,7 +472,7 @@
     new MutationObserver(addTemplateCard).observe(document.body,{childList:true,subtree:true});
     window.__CSMS_TEAM_INTRODUCTION__=true;
     window.CSMSTeamIntroRefresh=addTemplateCard;
-    window.CSMSTeamIntroduction={version:'20260831-speed-controls-v4',open:openTemplate,refresh:addTemplateCard};
+    window.CSMSTeamIntroduction={version:'20260831-live-slider-controls-v5',open:openTemplate,refresh:addTemplateCard};
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
   else init();
