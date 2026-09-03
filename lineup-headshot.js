@@ -1,9 +1,8 @@
 (function(){
   'use strict';
   const NAME='Lineup Headshot';
-  const VERSION='20260903-lineup-headshot-separate-library-v1';
+  const VERSION='20260903-lineup-headshot-save-retry-v1';
   const LINEUP_CARD_TYPE='ATHLETE LINEUP HEADSHOT CARD';
-  const LINEUP_COLLECTION='Lineup Headshots';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -103,6 +102,7 @@
     for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
     return new Blob([bytes],{type:mimeType||'image/png'});
   }
+  function saveDelay(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
   async function savedCardBridgeCall(action,payload={}){
     if(typeof csmsAuthenticatedBridgeCall!=='function'){
       throw new Error('Google Drive Bridge is unavailable. Refresh Studio and connect Google Drive.');
@@ -113,28 +113,37 @@
         new Promise((_,reject)=>setTimeout(()=>reject(new Error('Google Drive connection timed out. Refresh Studio and try again.')),12000))
       ]);
     }
+    const timeoutMs=action==='saveCard'?60000:20000;
     return await Promise.race([
       csmsAuthenticatedBridgeCall(action,payload,{userInitiated:true}),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('Google Drive did not respond to '+action+' within 20 seconds.')),20000))
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('Google Drive did not respond to '+action+' within '+Math.round(timeoutMs/1000)+' seconds.')),timeoutMs))
     ]);
   }
   async function putSavedCard(card){
     const data=await savedCardBlobToBase64(card.blob);
-    const result=await savedCardBridgeCall('saveCard',{
+    const payload={
       name:card.name,
       cardType:card.type||LINEUP_CARD_TYPE,
-      collection:card.collection||LINEUP_COLLECTION,
-      folderName:card.folderName||LINEUP_COLLECTION,
-      savedFolder:card.savedFolder||LINEUP_COLLECTION,
-      saveFolderName:card.saveFolderName||LINEUP_COLLECTION,
-      libraryKey:card.libraryKey||'lineup-headshots',
       first:card.first||'',
       last:card.last||'',
       classLine:card.classLine||'',
       data
-    });
-    if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive did not save the card');
-    return result.card;
+    };
+    let lastError=null;
+    for(let attempt=1;attempt<=3;attempt++){
+      try{
+        const result=await savedCardBridgeCall('saveCard',payload);
+        if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive did not save the card');
+        return result.card;
+      }catch(err){
+        lastError=err;
+        if(attempt<3){
+          setCutoutStatus(`Google Drive save slowed down. Retrying ${attempt+1}/3...`);
+          await saveDelay(1600*attempt);
+        }
+      }
+    }
+    throw lastError||new Error('Drive did not save the card');
   }
   async function getSavedCards(){
     const result=await savedCardBridgeCall('listSavedCards',{});
@@ -198,7 +207,7 @@
     try{
       const blob=await canvasBlob(c);
       const id=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(36).slice(2));
-      await putSavedCard({id,name,type:LINEUP_CARD_TYPE,collection:LINEUP_COLLECTION,folderName:LINEUP_COLLECTION,savedFolder:LINEUP_COLLECTION,first:S.first,last:S.last,classLine:S.classLine,createdAt:Date.now(),blob});
+      await putSavedCard({id,name,type:LINEUP_CARD_TYPE,first:S.first,last:S.last,classLine:S.classLine,createdAt:Date.now(),blob});
       S.cardNameDirty=false;syncCardName(true);
       if(btn)btn.textContent='Saved to Drive ✓';
       if(typeof window.CSMSRenderSavedHeadshotCards==='function'){
@@ -211,6 +220,7 @@
       console.error('Save Card to Drive failed',err);
       if(btn){btn.disabled=false;btn.textContent='Save Failed — Try Again';}
       const message=err&&err.message?err.message:String(err||'Unknown Drive error');
+      setCutoutStatus('Save failed: '+message);
       alert('Save Card failed: '+message);
     }
   }
