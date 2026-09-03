@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260903-weekly-lineup-card-filter-v2';
+const VERSION='20260903-download-button-style-v1';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -47,9 +47,9 @@ function previewPanel(){
     [...w.children].find(el=>el!==left&&(el.querySelector?.('canvas,video')||/preview/i.test(norm(el.textContent))))||null;
 }
 function addStyles(){
-  if(q('csmsRegattaLayoutStylesV11'))return;
-  ['csmsRegattaLayoutStylesV8','csmsRegattaLayoutStylesV7','csmsRegattaLayoutStylesV6','csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
-  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV11';s.textContent=`
+  if(q('csmsRegattaLayoutStylesV12'))return;
+  ['csmsRegattaLayoutStylesV11','csmsRegattaLayoutStylesV8','csmsRegattaLayoutStylesV7','csmsRegattaLayoutStylesV6','csmsRegattaLayoutStylesV5','csmsRegattaLayoutStylesV4','csmsRegattaLayoutStylesV3','csmsRegattaLayoutStyles'].forEach(id=>q(id)?.remove());
+  const s=document.createElement('style');s.id='csmsRegattaLayoutStylesV12';s.textContent=`
 #workspace-video .csmsRegattaTitle{padding:2px 0 16px;margin:0 0 18px;border-bottom:1px solid #d8e2ed;overflow:hidden}
 #workspace-video .csmsRegattaEyebrow{color:#10213c;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;font-weight:900;letter-spacing:.24em;text-transform:uppercase;margin:0 0 6px 2px}
 #workspace-video .csmsRegattaTitleText{display:inline-block;color:#07152f;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:42px;font-weight:900;font-style:italic;letter-spacing:-.06em;line-height:.92;transform:skewX(-9deg);transform-origin:left center;text-transform:uppercase}
@@ -59,7 +59,9 @@ function addStyles(){
 #workspace-video .csmsRegattaMetaBottom h2{margin:0 0 12px;color:#10213c;font-size:20px}
 #workspace-video .csmsRegattaMetaBottom .control{margin-bottom:12px}
 #workspace-video .csmsPreviewActionBar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:stretch;width:100%;margin:8px 0 12px;padding:10px;background:#f8fafc;border:1px solid #d8e2ed;border-radius:12px;box-sizing:border-box}
-#workspace-video .csmsPreviewActionBar button,#workspace-video .csmsPreviewActionBar a{margin:0!important;width:100%!important;min-width:0!important;min-height:44px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;box-sizing:border-box!important}
+#workspace-video .csmsPreviewActionBar button,#workspace-video .csmsPreviewActionBar a{margin:0!important;width:100%!important;min-width:0!important;min-height:44px!important;padding:12px 15px!important;border:0!important;border-radius:12px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;box-sizing:border-box!important;font:inherit!important;font-weight:700!important;text-decoration:none!important;cursor:pointer!important;line-height:1.2!important}
+#workspace-video .csmsPreviewActionBar a.primary{background:#ff6f18!important;color:#fff!important}
+#workspace-video .csmsPreviewActionBar a.secondary{background:#e9eef6!important;color:#163052!important}
 @media(max-width:900px){#workspace-video .csmsPreviewActionBar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 `;
   document.head.appendChild(s);
