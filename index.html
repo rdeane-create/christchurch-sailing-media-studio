@@ -2661,6 +2661,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       <progress id="progress" value="0" max="1" hidden></progress>
       <div id="status" class="status" aria-live="polite">Upload a background, logo, and athlete images.</div>
       <button id="downloadBtn" class="primary" type="button" style="display:none;margin-top:12px">Save Video</button>
+      <button id="openVideoBtn" class="secondary" type="button" style="display:none;margin-top:12px">Open Video File</button>
       <a id="downloadLink" style="display:none" download hidden></a>
     </section>
 
@@ -15309,6 +15310,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   const progress=document.getElementById('progress');
   const downloadLink=document.getElementById('downloadLink');
   const downloadBtn=document.getElementById('downloadBtn');
+  const openVideoBtn=document.getElementById('openVideoBtn');
 
   let background=null, logo=null, athletes=[], lastRenderedVideo=null;
   const TEAM_INTRO_SESSION_KEY='csms_team_intro_loaded_cards_v1';
@@ -16852,6 +16854,15 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     }
   }
 
+  function openRenderedVideo(event,result){
+    if(!result?.url)return;
+    event.preventDefault();
+    const opened=window.open(result.url,'_blank','noopener');
+    status.textContent=opened
+      ?`Opened ${result.filename}. Use the video menu to download if it is not in Downloads.`
+      :'Chrome blocked the video tab. Allow pop-ups for this site, then click Open Video File again.';
+  }
+
   // Public bridge used only by the top-level Test Studio button.
   window.runVideoStudioSelfTest=()=>{
     if(!canvas||!ctx)throw new Error('video canvas is unavailable');
@@ -16888,6 +16899,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(downloadBtn){
       downloadBtn.classList.remove('csmsDownloadReady');
       downloadBtn.style.display='none';
+    }
+    if(openVideoBtn){
+      openVideoBtn.classList.remove('csmsDownloadReady');
+      openVideoBtn.style.display='none';
     }
     progress.hidden=false;progress.value=0;
     const canvasStream=canvas.captureStream(30),combined=new MediaStream();
@@ -16981,6 +16996,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       downloadBtn.classList.add('csmsDownloadReady');
       downloadBtn.style.display='block';
     }
+    if(openVideoBtn){
+      openVideoBtn.classList.add('csmsDownloadReady');
+      openVideoBtn.style.display='block';
+    }
     status.textContent=`${result.label} ready. If it did not appear in Downloads, use Save ${result.label} video.`;
     completeActiveProductionWork(isTeamIntroMode()?'Team Introduction':'Regatta Lineup',`${result.label} render completed and is ready for review`);
   }
@@ -17007,6 +17026,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   document.getElementById('exportSelectedBtn').addEventListener('click',exportSelected);
   downloadBtn?.addEventListener('click',event=>handleRenderedVideoDownload(event,lastRenderedVideo));
+  openVideoBtn?.addEventListener('click',event=>openRenderedVideo(event,lastRenderedVideo));
 
   els.beatSync.addEventListener('change',()=>drawFrame(0,true));
   els.beatsPerAthlete.addEventListener('change',()=>drawFrame(0,true));
@@ -24709,7 +24729,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="athlete-main-headshot-approved-exact.js?v=20260830-clean-athlete-cutout-8"></script>
 <script src="lineup-headshot.js?v=20260903-lineup-headshot-save-retry-v1"></script>
 <script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
-<script src="regatta-lineup-layout-v2.js?v=20260903-download-real-button-v1"></script>
+<script src="regatta-lineup-layout-v2.js?v=20260903-open-video-fallback-v1"></script>
 <script src="team-introduction-layout-v1.js?v=20260902-team-intro-no-length-cap-v2"></script>
 <script src="college-acceptance.js?v=20260815-college-acceptance-v1"></script>
 <script src="regatta-results-story.js?v=20260816-v59-template-gallery-card"></script>

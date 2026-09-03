@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260903-download-real-button-v1';
+const VERSION='20260903-open-video-fallback-v1';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -63,6 +63,7 @@ function addStyles(){
 #workspace-video .csmsPreviewActionBar a.primary{background:#ff6f18!important;color:#fff!important}
 #workspace-video .csmsPreviewActionBar a.secondary{background:#e9eef6!important;color:#163052!important}
 #workspace-video .csmsPreviewActionBar #downloadBtn:not(.csmsDownloadReady){display:none!important}
+#workspace-video .csmsPreviewActionBar #openVideoBtn:not(.csmsDownloadReady){display:none!important}
 #workspace-video .csmsPreviewActionBar #downloadLink:not([href]){display:none!important}
 @media(max-width:900px){#workspace-video .csmsPreviewActionBar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 `;
@@ -243,8 +244,11 @@ function actionKind(btn){
   const id=String(btn.id||'').toLowerCase();
   if(!t&& !id)return '';
   if(t.includes('preview selected title'))return '';
+  if(id==='downloadbtn'||id==='downloadlink'||/\bdownload\b/.test(t)||/\bsave .*video\b/.test(t))return 'download';
+  if(id==='openvideobtn'||/\bopen video file\b/.test(t))return 'open';
+  if(id==='csmssavetolibrarybtn'||/\bsave to library\b/.test(t))return 'save-library';
   if(id==='renderbtn'||/\brender\b/.test(t))return 'render';
-  if(/\bexport\b/.test(t)||/\bdownload\b/.test(t)||id.includes('export')||id.includes('download'))return 'export';
+  if(/\bexport\b/.test(t)||id.includes('export'))return 'export';
   if(/\bsave\b/.test(t)||id.includes('save'))return 'save';
   if(t==='preview'||t==='preview layout'||t==='preview video'||(/^preview\b/.test(t)&&!t.includes('selected title'))||id.includes('preview'))return 'preview';
   return '';
@@ -257,7 +261,7 @@ function movePreviewActions(){
   const buttons=[...w.querySelectorAll('button,a')].filter(b=>b!==bar&&isPreviewAction(b));
   const byKind=new Map();
   for(const b of buttons){const kind=actionKind(b);if(kind&&!byKind.has(kind))byKind.set(kind,b);}
-  const desired=[byKind.get('preview'),byKind.get('render'),ensureSaveToLibraryButton(),byKind.get('save'),byKind.get('export')].filter(Boolean);
+  const desired=[byKind.get('preview'),byKind.get('render'),ensureSaveToLibraryButton(),byKind.get('download'),byKind.get('open'),byKind.get('export')].filter(Boolean);
   desired.forEach((b,i)=>{
     const current=bar.children[i]||null;
     if(current!==b)bar.insertBefore(b,current);
