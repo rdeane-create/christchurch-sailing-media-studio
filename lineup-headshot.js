@@ -1,7 +1,9 @@
 (function(){
   'use strict';
   const NAME='Lineup Headshot';
-  const VERSION='20260830-lineup-headshot-saved-folder-2';
+  const VERSION='20260903-lineup-headshot-separate-library-v1';
+  const LINEUP_CARD_TYPE='ATHLETE LINEUP HEADSHOT CARD';
+  const LINEUP_COLLECTION='Lineup Headshots';
   const W=1080,H=1350;
   const OVERLAY_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_LOCKED_OVERLAY_v1.webp';
   const ATLAS_SRC='assets/Reference/ATHLETE_MAIN_HEADSHOT_APPROVED_GLYPH_ATLAS_v1.webp';
@@ -120,7 +122,12 @@
     const data=await savedCardBlobToBase64(card.blob);
     const result=await savedCardBridgeCall('saveCard',{
       name:card.name,
-      cardType:card.type||'ATHLETE LINEUP HEADSHOT CARD',
+      cardType:card.type||LINEUP_CARD_TYPE,
+      collection:card.collection||LINEUP_COLLECTION,
+      folderName:card.folderName||LINEUP_COLLECTION,
+      savedFolder:card.savedFolder||LINEUP_COLLECTION,
+      saveFolderName:card.saveFolderName||LINEUP_COLLECTION,
+      libraryKey:card.libraryKey||'lineup-headshots',
       first:card.first||'',
       last:card.last||'',
       classLine:card.classLine||'',
@@ -191,7 +198,7 @@
     try{
       const blob=await canvasBlob(c);
       const id=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(36).slice(2));
-      await putSavedCard({id,name,type:'ATHLETE LINEUP HEADSHOT CARD',first:S.first,last:S.last,classLine:S.classLine,createdAt:Date.now(),blob});
+      await putSavedCard({id,name,type:LINEUP_CARD_TYPE,collection:LINEUP_COLLECTION,folderName:LINEUP_COLLECTION,savedFolder:LINEUP_COLLECTION,first:S.first,last:S.last,classLine:S.classLine,createdAt:Date.now(),blob});
       S.cardNameDirty=false;syncCardName(true);
       if(btn)btn.textContent='Saved to Drive ✓';
       if(typeof window.CSMSRenderSavedHeadshotCards==='function'){

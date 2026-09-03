@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260814-regatta-lineup-layout-v11';
+const VERSION='20260903-lineup-cards-only-v1';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -10,6 +10,12 @@ let loadingCards=false;
 
 function workspace(){return q('workspace-video');}
 function norm(s){return String(s||'').replace(/\s+/g,' ').trim();}
+function isLineupHeadshotCard(card){
+  const type=String(card.cardType||card.type||'').toUpperCase();
+  const name=String(card.name||'').toUpperCase();
+  const collection=String(card.collection||card.folderName||card.savedFolder||'').toUpperCase();
+  return (type.includes('LINEUP')&&type.includes('HEADSHOT'))||name.includes('LINEUP HEADSHOT')||(collection.includes('LINEUP')&&collection.includes('HEADSHOT'));
+}
 function bridgeCall(action,payload={}){
   if(typeof window.csmsAuthenticatedBridgeCall!=='function'){
     return Promise.reject(new Error('Google Drive Bridge is unavailable. Refresh Studio and connect Google Drive.'));
@@ -91,19 +97,19 @@ function findNativeAthleteSelect(){
 async function loadSavedCards(){
   const sel=findNativeAthleteSelect();if(!sel||loadingCards)return;
   loadingCards=true;sel.dataset.csmsDriveAthletes='1';
-  sel.innerHTML='<option value="">Loading saved Athlete Cards…</option>';
+  sel.innerHTML='<option value="">Loading saved Lineup Cards…</option>';
   try{
     const result=await bridgeCall('listSavedCards',{});
-    savedCards=(result&&Array.isArray(result.cards)?result.cards:[]).filter(c=>/athlete/i.test(String(c.cardType||c.name||'')));
+    savedCards=(result&&Array.isArray(result.cards)?result.cards:[]).filter(isLineupHeadshotCard);
     savedCards.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
-    sel.innerHTML='<option value="">Choose saved Athlete Card…</option>';
-    savedCards.forEach(card=>{const o=document.createElement('option');o.value=card.fileId;o.textContent=String(card.name||'Athlete Card').replace(/\.png$/i,'');sel.appendChild(o);});
+    sel.innerHTML='<option value="">Choose saved Lineup Card…</option>';
+    savedCards.forEach(card=>{const o=document.createElement('option');o.value=card.fileId;o.textContent=String(card.name||'Lineup Card').replace(/\.png$/i,'');sel.appendChild(o);});
     let hint=q('csmsDriveAthleteHint');
     if(!hint){hint=document.createElement('div');hint.id='csmsDriveAthleteHint';hint.className='csmsDriveAthleteHint';sel.insertAdjacentElement('afterend',hint);}
-    hint.textContent=savedCards.length?`${savedCards.length} Athlete Card${savedCards.length===1?'':'s'} available from Google Drive.`:'No saved Athlete Cards found in Google Drive yet.';
+    hint.textContent=savedCards.length?`${savedCards.length} Lineup Card${savedCards.length===1?'':'s'} available from Google Drive.`:'No saved Lineup Cards found in Google Drive yet.';
   }catch(err){
     console.error('Regatta athlete card library load failed',err);
-    sel.innerHTML='<option value="">Drive Athlete Library unavailable</option>';
+    sel.innerHTML='<option value="">Drive Lineup Library unavailable</option>';
     let hint=q('csmsDriveAthleteHint');
     if(!hint){hint=document.createElement('div');hint.id='csmsDriveAthleteHint';hint.className='csmsDriveAthleteHint';sel.insertAdjacentElement('afterend',hint);}
     hint.textContent=err?.message||'Could not load Athlete Cards from Drive.';
@@ -117,7 +123,7 @@ async function addCardById(id){
     if(hint)hint.textContent='Loading '+String(meta.name||'Athlete Card').replace(/\.png$/i,'')+'…';
     if(!loadedFiles.has(id)){
       const result=await bridgeCall('getSavedCard',{fileId:id});
-      if(!result?.card?.data)throw new Error('Athlete Card image could not be loaded from Drive.');
+      if(!result?.card?.data)throw new Error('Lineup Card image could not be loaded from Drive.');
       const blob=b64Blob(result.card.data,result.card.mimeType||'image/png');
       loadedFiles.set(id,new File([blob],meta.name||'athlete-card.png',{type:result.card.mimeType||'image/png'}));
     }

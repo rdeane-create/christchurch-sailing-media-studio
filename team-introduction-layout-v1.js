@@ -122,6 +122,13 @@
     const athlete=`${card.first||''} ${card.last||''}`.trim();
     return athlete||String(card.name||'Athlete Main Headshot').replace(/\.png$/i,'');
   }
+  function isMainHeadshotCard(card){
+    const type=String(card.cardType||card.type||'').toUpperCase();
+    const name=String(card.name||'').toUpperCase();
+    const collection=String(card.collection||card.folderName||card.savedFolder||'').toUpperCase();
+    if(type.includes('LINEUP')||name.includes('LINEUP')||collection.includes('LINEUP'))return false;
+    return type==='ATHLETE HEADSHOT CARD'||name.includes('ATHLETE HEADSHOT CARD');
+  }
   function fillCardSelect(){
     const select=q('tiSavedCards');
     if(!select)return;
@@ -155,11 +162,7 @@
     try{
       const result=await bridge('listSavedCards',{});
       const all=Array.isArray(result&&result.cards)?result.cards:[];
-      cards=all.filter(card=>{
-        const type=String(card.cardType||card.type||'').toUpperCase();
-        const name=String(card.name||'').toUpperCase();
-        return (type.includes('ATHLETE HEADSHOT')&&!type.includes('LINEUP'))||name.includes('ATHLETE HEADSHOT CARD');
-      }).map(card=>({...card,fileId:String(card.fileId||card.id||'')})).filter(card=>card.fileId);
+      cards=all.filter(isMainHeadshotCard).map(card=>({...card,fileId:String(card.fileId||card.id||'')})).filter(card=>card.fileId);
       cards.sort((a,b)=>cardLabel(a).localeCompare(cardLabel(b)));
       fillCardSelect();
       status(cards.length?'Saved cards loaded. Use Add All Loaded Cards for the full roster.':'No Athlete Main saved cards were found.');
