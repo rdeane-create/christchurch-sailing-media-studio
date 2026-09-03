@@ -74,7 +74,7 @@
   function loadTeamIntroductionHelper(){
     if(window.__CSMS_TEAM_INTRODUCTION__||document.querySelector('script[data-csms-team-introduction]'))return;
     const script=document.createElement('script');
-    script.src='team-introduction-layout-v1.js?v=20260831-live-slider-controls-v5';
+    script.src='team-introduction-layout-v1.js?v=20260902-team-intro-uncapped-video';
     script.async=false;
     script.dataset.csmsTeamIntroduction='1';
     script.onload=function(){
