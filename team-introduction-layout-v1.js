@@ -483,13 +483,16 @@
     drawFooter(ctx);
     status(`${images.length} headshot${images.length===1?'':'s'} loaded.`);
   }
+  function motionDuration(){
+    const speed=Number(q('tiSpeed')?.value||2400);
+    const hold=Number(q('tiHold')?.value||1100);
+    return Math.max(2200,images.length*(speed+hold));
+  }
   function playMotion(){
     cancelAnimationFrame(animFrame);
     animStart=performance.now();
     status('Playing team intro motion preview...');
-    const speed=Number(q('tiSpeed')?.value||2400);
-    const hold=Number(q('tiHold')?.value||1100);
-    const duration=Math.max(2200,Math.min(120000,images.length*(speed+hold)));
+    const duration=motionDuration();
     function step(now){
       const p=Math.min(1,(now-animStart)/duration);
       draw(p);
@@ -528,9 +531,7 @@
     }
     recorder.ondataavailable=event=>{if(event.data&&event.data.size)chunks.push(event.data);};
     const done=new Promise((resolve,reject)=>{recorder.onstop=resolve;recorder.onerror=event=>reject(event.error||new Error('Video recording failed'));});
-    const speed=Number(q('tiSpeed')?.value||2400);
-    const hold=Number(q('tiHold')?.value||1100);
-    const duration=Math.max(2200,Math.min(120000,images.length*(speed+hold)));
+    const duration=motionDuration();
     const started=performance.now();
     recorder.start(250);
     await new Promise(resolve=>{
