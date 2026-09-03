@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260903-lineup-cards-only-v1';
+const VERSION='20260903-weekly-lineup-card-filter-v2';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -80,9 +80,11 @@ function findAthleteHeading(){
 }
 function findNativeAthleteSelect(){
   const w=workspace();if(!w)return null;
+  const native=q('videoLibraryAthletes');
+  if(native)return native;
   for(const sel of [...w.querySelectorAll('select')]){
     const block=sel.closest('.control')||sel.parentElement;
-    if(norm(block?.textContent).toLowerCase().includes('add athletes from'))return sel;
+    if(norm(block?.textContent).toLowerCase().includes('saved lineup headshots'))return sel;
   }
   const heading=findAthleteHeading();
   if(heading){
@@ -112,7 +114,7 @@ async function loadSavedCards(){
     sel.innerHTML='<option value="">Drive Lineup Library unavailable</option>';
     let hint=q('csmsDriveAthleteHint');
     if(!hint){hint=document.createElement('div');hint.id='csmsDriveAthleteHint';hint.className='csmsDriveAthleteHint';sel.insertAdjacentElement('afterend',hint);}
-    hint.textContent=err?.message||'Could not load Athlete Cards from Drive.';
+    hint.textContent=err?.message||'Could not load Lineup Cards from Drive.';
   }finally{loadingCards=false;}
 }
 async function addCardById(id){
@@ -120,7 +122,7 @@ async function addCardById(id){
   const meta=savedCards.find(c=>c.fileId===id);if(!meta)return;
   const hint=q('csmsDriveAthleteHint');
   try{
-    if(hint)hint.textContent='Loading '+String(meta.name||'Athlete Card').replace(/\.png$/i,'')+'…';
+    if(hint)hint.textContent='Loading '+String(meta.name||'Lineup Card').replace(/\.png$/i,'')+'…';
     if(!loadedFiles.has(id)){
       const result=await bridgeCall('getSavedCard',{fileId:id});
       if(!result?.card?.data)throw new Error('Lineup Card image could not be loaded from Drive.');
@@ -136,8 +138,8 @@ async function addCardById(id){
     }
     const dt=new DataTransfer();selectedCardIds.forEach(cardId=>{const f=loadedFiles.get(cardId);if(f)dt.items.add(f);});
     input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));
-    if(hint)hint.textContent=`Added ${String(meta.name||'Athlete Card').replace(/\.png$/i,'')} • ${selectedCardIds.length} athlete card${selectedCardIds.length===1?'':'s'} in lineup.`;
-  }catch(err){console.error('Add Regatta athlete card failed',err);if(hint)hint.textContent=err?.message||'Could not add Athlete Card.';}
+    if(hint)hint.textContent=`Added ${String(meta.name||'Lineup Card').replace(/\.png$/i,'')} • ${selectedCardIds.length} lineup card${selectedCardIds.length===1?'':'s'} in lineup.`;
+  }catch(err){console.error('Add Regatta lineup card failed',err);if(hint)hint.textContent=err?.message||'Could not add Lineup Card.';}
 }
 function wireNativeAthleteSelect(){
   q('csmsRegattaAthleteCards')?.remove();

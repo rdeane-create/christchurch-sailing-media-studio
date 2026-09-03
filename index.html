@@ -2448,20 +2448,20 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         <div class="control">
           <label for="videoAthleteSource">Add athletes from</label>
           <select id="videoAthleteSource">
-            <option value="library" selected>Athlete Library</option>
+            <option value="library" selected>Lineup Headshot Cards</option>
             <option value="finder">Finder / Files</option>
           </select>
         </div>
 
         <div id="videoLibraryPanel">
           <div class="control">
-            <label for="videoAthleteSearch">Search saved athletes</label>
+            <label for="videoAthleteSearch">Search lineup headshots</label>
             <input id="videoAthleteSearch" type="text" placeholder="Search by name or class year">
           </div>
           <div class="control">
-            <label for="videoLibraryAthletes">Saved athletes</label>
+            <label for="videoLibraryAthletes">Saved lineup headshots</label>
             <select id="videoLibraryAthletes" multiple size="8"></select>
-            <div class="hint">Hold Command to select multiple athletes, then click Add Selected.</div>
+            <div class="hint">Hold Command to select multiple cards, then click Add Selected.</div>
           </div>
           <div class="actions">
             <button id="refreshVideoLibraryBtn" class="secondary" type="button">Refresh Library</button>
@@ -15454,11 +15454,87 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     drawFrame(0,true);
   });
 
+  let videoLineupSavedCards=[];
+
+  function isVideoLineupHeadshotCard(card){
+    const type=String(card.cardType||card.type||'').toUpperCase();
+    const name=String(card.name||'').toUpperCase();
+    return (type.includes('LINEUP')&&type.includes('HEADSHOT'))||name.includes('LINEUP HEADSHOT');
+  }
+
+  function videoLineupCardName(card){
+    const athlete=`${card.first||''} ${card.last||''}`.trim();
+    return athlete||String(card.name||'Lineup Headshot').replace(/\.png$/i,'');
+  }
+
+  async function videoLineupBridgeCall(action,payload={}){
+    if(typeof csmsAuthenticatedBridgeCall!=='function'){
+      throw new Error('Connect Google Drive to load Lineup Headshot cards.');
+    }
+    if(typeof csmsEnsureAuthenticatedBridge==='function'){
+      await csmsEnsureAuthenticatedBridge({userInitiated:true});
+    }
+    return csmsAuthenticatedBridgeCall(action,payload,{userInitiated:true});
+  }
+
+  async function getVideoLineupSavedCards(){
+    const result=await videoLineupBridgeCall('listSavedCards',{});
+    if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive Saved Cards library is unavailable.');
+    return (Array.isArray(result.cards)?result.cards:[])
+      .filter(isVideoLineupHeadshotCard)
+      .map(card=>({...card,fileId:String(card.fileId||card.id||'')}))
+      .filter(card=>card.fileId)
+      .sort((a,b)=>videoLineupCardName(a).localeCompare(videoLineupCardName(b)));
+  }
+
+  async function getVideoLineupCardBlob(fileId){
+    const result=await videoLineupBridgeCall('getSavedCard',{fileId});
+    if(!result||!result.ok||!result.card||!result.card.data)throw new Error('Lineup Headshot card could not be loaded from Drive.');
+    return csmsBase64ToBlob(result.card.data,result.card.mimeType||'image/png');
+  }
+
   async function populateVideoAthleteLibrary(){
     const select=document.getElementById('videoLibraryAthletes');
     if(!select)return;
 
     const query=(document.getElementById('videoAthleteSearch')?.value||'').trim().toLowerCase();
+    if(!isTeamIntroMode()){
+      select.innerHTML='<option value="">Loading Lineup Headshot cards...</option>';
+      try{
+        videoLineupSavedCards=await getVideoLineupSavedCards();
+      }catch(err){
+        videoLineupSavedCards=[];
+        select.innerHTML='<option value="">Drive Lineup Headshots unavailable</option>';
+        status.textContent=err&&err.message?err.message:'Could not load Lineup Headshot cards.';
+        return;
+      }
+
+      const cards=query
+        ? videoLineupSavedCards.filter(card=>`${videoLineupCardName(card)} ${card.classLine||''}`.toLowerCase().includes(query))
+        : videoLineupSavedCards;
+
+      select.innerHTML='';
+      for(const card of cards){
+        const option=document.createElement('option');
+        option.value=card.fileId;
+        option.textContent=videoLineupCardName(card);
+        option.dataset.source='drive-lineup-headshot';
+        select.append(option);
+      }
+
+      if(!cards.length){
+        const option=document.createElement('option');
+        option.disabled=true;
+        option.textContent='No saved Lineup Headshot cards found';
+        select.append(option);
+      }
+
+      status.textContent=cards.length
+        ? `${cards.length} Lineup Headshot card${cards.length===1?'':'s'} available.`
+        : 'No saved Lineup Headshot cards found. Save Lineup Headshot cards first.';
+      return;
+    }
+
     let items=await getUnifiedAthletes();
 
     items.sort((a,b)=>{
@@ -15494,7 +15570,30 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const select=document.getElementById('videoLibraryAthletes');
     const chosen=[...select.selectedOptions].map(option=>option.value);
     if(!chosen.length){
-      status.textContent='Select one or more saved athletes first.';
+      status.textContent=isTeamIntroMode()?'Select one or more saved athletes first.':'Select one or more saved Lineup Headshot cards first.';
+      return;
+    }
+
+    if(!isTeamIntroMode()){
+      const selected=videoLineupSavedCards.filter(card=>chosen.includes(card.fileId));
+
+      for(const card of selected){
+        if(athletes.some(a=>a.athleteId===card.fileId))continue;
+        const blob=await getVideoLineupCardBlob(card.fileId);
+        const file=new File([blob],card.name||'lineup-headshot.png',{type:blob.type||'image/png'});
+        const img=await loadImageFile(file);
+        athletes.push({
+          file,
+          img,
+          athleteId:card.fileId,
+          displayName:videoLineupCardName(card)
+        });
+      }
+
+      renderAthleteList();
+      drawFrame(0,true);
+      persistTeamIntroSession();
+      status.textContent=`${athletes.length} Lineup Headshot card${athletes.length===1?'':'s'} loaded for video.`;
       return;
     }
 
@@ -24526,7 +24625,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="athlete-main-headshot-approved-exact.js?v=20260830-clean-athlete-cutout-8"></script>
 <script src="lineup-headshot.js?v=20260903-lineup-headshot-save-retry-v1"></script>
 <script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
-<script src="regatta-lineup-layout-v2.js?v=20260903-lineup-cards-only-v1"></script>
+<script src="regatta-lineup-layout-v2.js?v=20260903-weekly-lineup-card-filter-v2"></script>
 <script src="team-introduction-layout-v1.js?v=20260902-team-intro-no-length-cap-v2"></script>
 <script src="college-acceptance.js?v=20260815-college-acceptance-v1"></script>
 <script src="regatta-results-story.js?v=20260816-v59-template-gallery-card"></script>
