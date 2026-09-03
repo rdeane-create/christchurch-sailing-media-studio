@@ -16856,7 +16856,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     }
 
     recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
-    const done=new Promise(resolve=>recorder.onstop=resolve);
+    const done=new Promise((resolve,reject)=>{
+      recorder.onstop=resolve;
+      recorder.onerror=e=>reject(e.error||new Error('Video recording failed.'));
+    });
     recorder.start(250);
     const dur=durationFor(athletes.length),start=performance.now();
 
@@ -16877,29 +16880,48 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     });
 
     if(sourceNode){try{sourceNode.stop()}catch{}}
-    recorder.stop();await done;progress.hidden=true;
+    recorder.stop();
+    try{
+      await done;
+    }catch(e){
+      progress.hidden=true;setOutputProfile(previous);
+      status.textContent=`Video export failed: ${String(e?.message||e)}`;
+      return null;
+    }
+    progress.hidden=true;
 
     const blob=new Blob(chunks,{type:recorder.mimeType||mime||'video/webm'});
+    if(!chunks.length||!blob.size){
+      setOutputProfile(previous);
+      status.textContent='Video render finished, but the browser did not return a video file. Try Chrome or Safari, then render again.';
+      return null;
+    }
     const ext=blob.type.includes('mp4')?'mp4':'webm';
     const slug=els.eventName.value.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
     const filename=`Christchurch_${slug}_${OUTPUT_PROFILES[profile].ext}.${ext}`;
     const url=URL.createObjectURL(blob);
 
     if(autoDownload){
-      const a=document.createElement('a');a.href=url;a.download=filename;a.click();
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=filename;
+      a.style.display='none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>a.remove(),0);
     }
     setOutputProfile(previous);
     return {url,filename,label:OUTPUT_PROFILES[profile].label};
   }
 
   async function renderVideo(){
-    const result=await renderCurrentProfile(activeProfile,false);
+    const result=await renderCurrentProfile(activeProfile,true);
     if(!result)return;
     downloadLink.href=result.url;
     downloadLink.download=result.filename;
-    downloadLink.textContent=`Download ${result.label}`;
+    downloadLink.textContent=`Download ${result.label} again`;
     downloadLink.style.display='block';
-    status.textContent=`${result.label} ready.`;
+    status.textContent=`${result.label} ready. Download started. If it did not appear, use the button again.`;
     completeActiveProductionWork(isTeamIntroMode()?'Team Introduction':'Regatta Lineup',`${result.label} render completed and is ready for review`);
   }
 
@@ -16910,7 +16932,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(!choices.length){status.textContent='Select at least one export format.';return;}
     for(let i=0;i<choices.length;i++){
       status.textContent=`Exporting ${i+1} of ${choices.length}: ${OUTPUT_PROFILES[choices[i]].label}`;
-      const result=await renderCurrentProfile(choices[i],false);
+      const result=await renderCurrentProfile(choices[i],true);
       if(!result)break;
       const row=document.createElement('div');row.className='athleteItem';
       const icon=document.createElement('div');icon.textContent='✓';icon.style.fontWeight='800';icon.style.fontSize='22px';
