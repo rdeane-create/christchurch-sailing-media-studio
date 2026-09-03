@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260903-download-button-style-v1';
+const VERSION='20260903-download-button-hidden-v1';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -62,6 +62,7 @@ function addStyles(){
 #workspace-video .csmsPreviewActionBar button,#workspace-video .csmsPreviewActionBar a{margin:0!important;width:100%!important;min-width:0!important;min-height:44px!important;padding:12px 15px!important;border:0!important;border-radius:12px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;box-sizing:border-box!important;font:inherit!important;font-weight:700!important;text-decoration:none!important;cursor:pointer!important;line-height:1.2!important}
 #workspace-video .csmsPreviewActionBar a.primary{background:#ff6f18!important;color:#fff!important}
 #workspace-video .csmsPreviewActionBar a.secondary{background:#e9eef6!important;color:#163052!important}
+#workspace-video .csmsPreviewActionBar #downloadLink:not([href]){display:none!important}
 @media(max-width:900px){#workspace-video .csmsPreviewActionBar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 `;
   document.head.appendChild(s);
