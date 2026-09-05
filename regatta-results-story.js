@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260904-regatta-results-title-wrap-v1';
+const VERSION='20260904-regatta-results-title-control-v1';
 const TEMPLATE_NAME='REGATTA RESULTS STORY — LOCKED TEMPLATE';
 const W=1080,H=1920,NAVY='#06295a',NAVY2='#0d3467',ORANGE='#f4511e',WHITE='#ffffff',INK='#102d4c',MIST='#f4f6f8',LINE='#d9e0e7';
 let scoreImage=null,coverPhoto=null,mediaItems=[],scoreReaderStatus='Upload official score sheet to read Christchurch results.';
@@ -15,8 +15,36 @@ function q(id){return document.getElementById(id)}
 function rounded(ctx,x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.closePath()}
 function fit(ctx,text,max,size,min=24){let s=size;while(s>min){ctx.font=`900 ${s}px Arial,Helvetica,sans-serif`;if(ctx.measureText(text).width<=max)break;s-=2}return s}
 function wrappedTitle(ctx,text,max,size,min=44,maxLines=2){
-  const words=String(text||'').trim().split(/\s+/).filter(Boolean);
+  const raw=String(text||'').trim();
+  const manual=raw.split('|').map(part=>part.trim()).filter(Boolean);
+  const fits=(line,s)=>{ctx.font=`900 ${s}px Arial,Helvetica,sans-serif`;return ctx.measureText(line).width<=max};
+  if(manual.length>1){
+    const lines=manual.slice(0,maxLines);
+    for(let s=size;s>=min;s-=2){
+      if(lines.every(line=>fits(line,s)))return {lines,size:s};
+    }
+    return {lines,size:min};
+  }
+  const words=raw.split(/\s+/).filter(Boolean);
   if(!words.length)return {lines:[''],size:min};
+  if(maxLines===2&&words.length>1){
+    let best=null;
+    for(let split=1;split<words.length;split++){
+      const lines=[words.slice(0,split).join(' '),words.slice(split).join(' ')];
+      for(let s=size;s>=min;s-=2){
+        ctx.font=`900 ${s}px Arial,Helvetica,sans-serif`;
+        const widths=lines.map(line=>ctx.measureText(line).width);
+        if(widths.every(width=>width<=max)){
+          const balance=Math.abs(widths[0]-widths[1])/max;
+          const earlierBreakPenalty=Math.max(0,(words.length/2)-split)*.12;
+          const score=s-balance*14-earlierBreakPenalty;
+          if(!best||score>best.score)best={lines,size:s,score};
+          break;
+        }
+      }
+    }
+    if(best)return {lines:best.lines,size:best.size};
+  }
   for(let s=size;s>=min;s-=2){
     ctx.font=`900 ${s}px Arial,Helvetica,sans-serif`;
     const lines=[];
