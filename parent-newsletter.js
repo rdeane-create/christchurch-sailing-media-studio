@@ -102,7 +102,7 @@
   function uploadControls(host,slot,label,kind) {
     const wrap=document.createElement('div');wrap.className='control';
     const l=document.createElement('label'),input=document.createElement('input'),info=document.createElement('p'),remove=document.createElement('button');
-    input.type='file';input.id='pn-upload-'+slot;input.accept=kind==='photo'?'image/jpeg,image/png,image/webp,image/gif':'video/*,.mp4,.mov,.m4v,.webm';l.htmlFor=input.id;l.textContent=label;
+    input.type='file';input.id='pn-upload-'+slot;if(kind==='photo')input.accept='image/jpeg,image/png,image/webp,image/gif';l.htmlFor=input.id;l.textContent=label;
     info.className='hint';remove.type='button';remove.className='secondary tiny';remove.textContent='Remove uploaded '+kind;
     const refresh=()=>{info.textContent=localMedia(slot)?.name||(mediaRefs[slot]?'Saved file loading…':'No file selected');remove.hidden=!mediaRefs[slot];};
     remove.onclick=()=>{delete mediaRefs[slot];refresh();update();};
