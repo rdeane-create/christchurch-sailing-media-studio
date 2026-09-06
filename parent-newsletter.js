@@ -3,6 +3,8 @@
   'use strict';
   // Reuse approved brand artwork; absolute public URLs survive email copy/export.
   const BRAND_HEADER = 'https://rdeane-create.github.io/christchurch-sailing-media-studio/assets/HeroV3/hero-header-master.png';
+  const SCHEDULE_PATH = 'assets/schedules/fall-2026-visa-schedule.png';
+  const SCHEDULE_URL = 'https://rdeane-create.github.io/christchurch-sailing-media-studio/' + SCHEDULE_PATH;
   const KEY = 'csms_parent_newsletter_v1';
   const titles = ['On the Water', 'In the Classroom', 'Around Campus', 'Upcoming Events', 'Athlete Spotlight', 'Team/Program Updates', 'Photos/Media', 'Notes/Reminders'];
   const hints = ['Practice focus, regatta highlights, and lessons learned.', 'What sailors are learning and how it connects to sailing.', 'Campus life, school traditions, activities, and community highlights.', 'Date • Event • Location • What families need to do', 'Name, class year, and a moment worth celebrating.', 'Program news, volunteer opportunities, and team milestones.', 'A short caption and a link to this issue’s photos or video.', 'Keep this brief: deadlines, equipment, and travel reminders.'];
@@ -44,7 +46,7 @@
   function plain() { return `CHRISTCHURCH SAILING\n${state.title}\n${state.issue} • ${state.date}\n\n${state.intro}\n\n`+state.sections.filter(s=>s.visible).map(s=>`${s.title}\n${s.body}${safeUrl(s.link)?'\n'+s.linkLabel+': '+safeUrl(s.link):''}${safeUrl(s.image)?'\n'+s.alt+': '+safeUrl(s.image):''}`).join('\n\n')+'\n\nChristchurch Sailing\n'+['facebook','instagram'].filter(k=>safeUrl(state[k])).map(k=>k+': '+safeUrl(state[k])).join('\n'); }
   let panel, preview, status;
   function update() {
-    preview.srcdoc=html();
+    preview.srcdoc=html().replaceAll(SCHEDULE_URL, esc(new URL(SCHEDULE_PATH, document.baseURI).href));
     try {localStorage.setItem(KEY,JSON.stringify(state)); status.textContent='Draft saved in this browser.';} catch (_) {status.textContent='Browser storage unavailable. Download a draft backup to keep your edits.';}
     if(!safeUrl(state.facebook)||!safeUrl(state.instagram)) status.textContent+=' Add both social profile URLs to include the footer links.';
   }
@@ -56,7 +58,7 @@
     if(!multiline) input.type=type; else input.rows=4;
     input.value=obj[key]; input.placeholder=placeholder;
     input.addEventListener('input',()=>{obj[key]=input.value;input.setCustomValidity(type==='url'&&input.value&&!safeUrl(input.value)?'Use a full https:// URL.':'');update();});
-    wrap.append(l,input);host.append(wrap);
+    wrap.append(l,input);host.append(wrap);return input;
   }
   function open() {
     if(panel){panel.hidden=false;panel.scrollIntoView({behavior:'smooth'});return;}
@@ -65,7 +67,7 @@
     (document.getElementById('templateLibraryList')?.parentElement||document.body).appendChild(panel);
     preview=panel.querySelector('iframe');status=panel.querySelector('[role=status]');const form=panel.querySelector('.pn-fields');
     [['title','Newsletter title'],['issue','Issue'],['date','Date'],['intro','Welcome / introduction'],['hero','Hero image URL'],['heroAlt','Hero image description'],['facebook','Facebook profile URL'],['instagram','Instagram profile URL']].forEach(([k,l])=>field(form,state,k,l,k==='intro',['hero','facebook','instagram'].includes(k)?'url':'text'));
-    state.sections.forEach((s,i)=>{const d=document.createElement('details');d.dataset.section=i;const summary=document.createElement('summary');summary.textContent=titles[i];d.append(summary);const label=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.checked=s.visible;c.onchange=()=>{s.visible=c.checked;update();};label.append(c,document.createTextNode(' Show this section'));d.append(label);field(d,s,'title','Section heading');field(d,s,'body','Content',true,'text',hints[i]);field(d,s,'image','Image URL',false,'url');field(d,s,'alt','Image description');field(d,s,'link','Link URL',false,'url');field(d,s,'linkLabel','Link text');form.append(d);});
+    state.sections.forEach((s,i)=>{const d=document.createElement('details');d.dataset.section=i;const summary=document.createElement('summary');summary.textContent=titles[i];d.append(summary);const label=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.checked=s.visible;c.onchange=()=>{s.visible=c.checked;update();};label.append(c,document.createTextNode(' Show this section'));d.append(label);field(d,s,'title','Section heading');field(d,s,'body','Content',true,'text',hints[i]);const imageField=field(d,s,'image','Image URL',false,'url');const altField=field(d,s,'alt','Image description');const linkField=field(d,s,'link','Link URL',false,'url');const linkLabelField=field(d,s,'linkLabel','Link text');if(i===3){const add=document.createElement('button');add.type='button';add.className='secondary tiny';add.textContent='Add Fall 2026 schedule';add.onclick=()=>{s.image=SCHEDULE_URL;s.alt='Christchurch Sailing — Fall 2026 regatta schedule. Open the full-size schedule for event details.';imageField.value=s.image;imageField.setCustomValidity('');altField.value=s.alt;if(!s.link.trim()){s.link=SCHEDULE_URL;s.linkLabel='Open full-size schedule';linkField.value=s.link;linkLabelField.value=s.linkLabel;linkField.setCustomValidity('');}s.visible=true;c.checked=true;update();};d.append(add);}form.append(d);});
     const actions=panel.querySelector('.pn-actions');
     function button(label,fn){const b=document.createElement('button');b.type='button';b.className='secondary tiny';b.textContent=label;b.onclick=fn;actions.append(b);}
     button('Copy formatted email',async()=>{try{await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([emailBody()],{type:'text/html'}),'text/plain':new Blob([plain()],{type:'text/plain'})})]);status.textContent='Copied. Paste into your email composer with formatting.';}catch(_){status.textContent='Formatted clipboard unavailable. Download HTML, open it in a browser, select the newsletter and copy it into your email composer.';}});
