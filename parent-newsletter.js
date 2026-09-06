@@ -110,20 +110,20 @@
     const refresh=()=>{info.textContent=localMedia(slot)?.name||(mediaRefs[slot]?'Saved file loading…':'No file selected');remove.hidden=!mediaRefs[slot];};
     remove.onclick=()=>{delete mediaRefs[slot];refresh();update();};
     input.onchange=async()=>{
-      const file=input.files[0];if(!file)return;input.disabled=true;
+      const file=input.files[0];if(!file)return;input.disabled=true;info.textContent='Saving '+file.name+'…';
       try {
         const extension=file.name.split('.').pop().toLowerCase();
         const videoTypes={mp4:'video/mp4',m4v:'video/mp4',mov:'video/quicktime',webm:'video/webm'};
         const mime=kind==='video'?(videoTypes[extension]||file.type):file.type;
         const allowed=kind==='photo'?['image/jpeg','image/png','image/webp','image/gif']:['video/mp4','video/webm','video/quicktime'];
         if(!allowed.includes(mime))throw Error(kind==='video'?'Choose MP4, MOV, M4V, or WebM. Other video formats need conversion to MP4.':'Choose a supported photo file.');
-        if(file.size>100*1024*1024)throw Error('Choose a file under 100 MB.');
+        if(file.size>100*1024*1024)throw Error('This file is '+(file.size/1024/1024).toFixed(1)+' MB. Choose a video under 100 MB, such as a 720p MP4 export.');
         const data=await readData(file.slice(0,file.size,mime));
         if(kind==='photo'){const im=new Image();im.src=data;await im.decode();}
         const record={id:'pn-'+crypto.randomUUID(),name:file.name,type:mime,size:file.size,data};
         await mediaStore('readwrite',store=>store.put(record));
         mediaCache.set(record.id,record);mediaRefs[slot]=record.id;refresh();update();
-      } catch(error){status.textContent='Upload not added: '+error.message+' Your existing draft is unchanged.';}
+      } catch(error){info.textContent='Upload not added: '+error.message+' Your existing draft is unchanged.';status.textContent=info.textContent;}
       finally {input.disabled=false;input.value='';}
     };
     wrap.append(l,input,info,remove);host.append(wrap);refresh();
