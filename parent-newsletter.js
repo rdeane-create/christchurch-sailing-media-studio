@@ -6,12 +6,13 @@
   const hints = ['Practice focus, regatta highlights, and lessons learned.', 'What sailors are learning and how it connects to sailing.', 'Date • Event • Location • What families need to do', 'Name, class year, and a moment worth celebrating.', 'Program news, volunteer opportunities, and team milestones.', 'A short caption and a link to this issue’s photos or video.', 'Keep this brief: deadlines, equipment, and travel reminders.'];
   const esc = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const safeUrl = value => { try { const u = new URL(value); return u.protocol === 'https:' ? u.href : ''; } catch (_) { return ''; } };
-  const fresh = () => ({title:'The Seahorse Sailing Newsletter', issue:'Issue 01', date:new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}), intro:'News from the water, the classroom, and our sailing community.', hero:'', heroAlt:'Christchurch Sailing', facebook:'', instagram:'https://www.instagram.com/christchurchsailing/', sections:titles.map(title=>({title,visible:true,body:'',image:'',alt:'',link:'',linkLabel:'Read more'}))});
+  const fresh = () => ({title:'The Seahorse Sailing Newsletter', issue:'Issue 01', date:new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}), intro:'News from the water, the classroom, and our sailing community.', hero:'', heroAlt:'Christchurch Sailing', facebook:'https://www.facebook.com/profile.php?id=61568278366488', instagram:'https://www.instagram.com/christchurchsailing/', sections:titles.map(title=>({title,visible:true,body:'',image:'',alt:'',link:'',linkLabel:'Read more'}))});
   let state = fresh(), loadWarning = '';
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (saved && Array.isArray(saved.sections) && saved.sections.length === titles.length) {
       for (const k of Object.keys(state).filter(k=>k!=='sections')) if(typeof saved[k]==='string') state[k]=saved[k];
+      if (!state.facebook.trim()) state.facebook = fresh().facebook;
       if (!state.instagram.trim()) state.instagram = fresh().instagram;
       state.sections=state.sections.map((s,i)=>Object.fromEntries(Object.entries(s).map(([k,v])=>[k,typeof saved.sections[i]?.[k]===typeof v?saved.sections[i][k]:v])));
     }
