@@ -159,6 +159,67 @@
     add.onclick=()=>{const link={url:'',label:''};if(!Array.isArray(section.extraLinks))section.extraLinks=[];section.extraLinks.push(link);row(link);update();list.lastElementChild.querySelector('input').focus();};
     host.append(list,add);
   }
+  // Saved issues are immutable snapshots; media records are retained and shared by ID.
+  async function issueStore(mode, action) {
+    const db=await new Promise((resolve,reject)=>{
+      const r=indexedDB.open('csms_parent_newsletter_library_v1',1);
+      r.onupgradeneeded=()=>r.result.createObjectStore('issues',{keyPath:'id'});
+      r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+    });
+    try{return await new Promise((resolve,reject)=>{
+      const tx=db.transaction('issues',mode),r=action(tx.objectStore('issues'));
+      tx.oncomplete=()=>resolve(r.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });}finally{db.close();}
+  }
+  async function saveIssue(label) {
+    // Capture before awaiting so continued typing cannot change the saved snapshot.
+    const draft=JSON.parse(JSON.stringify(draftData()));
+    for(const id of Object.values(draft.mediaRefs)) {
+      if(!await mediaStore('readonly',store=>store.get(id)))throw Error('An uploaded file is missing. Restore your media backup before saving.');
+    }
+    const record={id:crypto.randomUUID(),name:label||[draft.issue,draft.title,draft.date].filter(Boolean).join(' — '),savedAt:new Date().toISOString(),draft};
+    await issueStore('readwrite',store=>store.put(record));
+    return record;
+  }
+  function libraryControls(actions) {
+    const area=document.createElement('details');
+    const heading=document.createElement('summary');heading.textContent='Saved newsletters';area.append(heading);
+    const note=document.createElement('p');note.className='hint';note.textContent='Keep as many saved versions as you need in this browser. Opening an issue or starting a new one saves a copy of your current draft first. Download a draft backup for a separate copy you can keep on your computer.';area.append(note);
+    const list=document.createElement('div');area.append(list);actions.after(area);
+    async function refresh() {
+      const records=await issueStore('readonly',store=>store.getAll());
+      list.replaceChildren();
+      if(!records.length){list.textContent='No saved newsletters yet. Choose Save newsletter to keep this issue.';return;}
+      records.sort((a,b)=>b.savedAt.localeCompare(a.savedAt));
+      for(const record of records){
+        const row=document.createElement('div');row.style.cssText='padding:12px 0;border-bottom:1px solid #d8e2ed';
+        const title=document.createElement('strong');title.textContent=record.name;
+        const time=document.createElement('p');time.className='hint';time.textContent='Saved '+new Date(record.savedAt).toLocaleString();
+        const b=document.createElement('button');b.type='button';b.className='secondary tiny';b.textContent='Open saved newsletter';b.setAttribute('aria-label','Open '+record.name);
+        b.onclick=()=>run(b,async()=>{
+          await saveIssue();
+          const next=JSON.parse(JSON.stringify(record.draft));
+          // Load all referenced files before replacing any current editor content.
+          for(const id of Object.values(next.mediaRefs||{})){
+            const file=await mediaStore('readonly',store=>store.get(id));
+            if(!file)throw Error('A saved media file is missing. Your current draft is unchanged.');
+            mediaCache.set(id,file);
+          }
+          state=next;mediaRefs=next.mediaRefs||{};delete state.mediaRefs;
+          panel.remove();panel=null;open();
+          status.textContent='Saved newsletter opened. A copy of your previous draft is in Saved newsletters.';
+        });
+        row.append(title,time,b);list.append(row);
+      }
+    }
+    async function run(button,action){button.disabled=true;try{await action();}catch(error){status.textContent='Newsletter library: '+error.message;}finally{button.disabled=false;}}
+    const save=document.createElement('button');save.type='button';save.className='primary tiny';save.textContent='Save newsletter';
+    save.onclick=()=>run(save,async()=>{const record=await saveIssue();await refresh();area.open=true;status.textContent='Saved newsletter: '+record.name+'. Your current draft remains editable.';});
+    const create=document.createElement('button');create.type='button';create.className='secondary tiny';create.textContent='New newsletter';
+    create.onclick=()=>run(create,async()=>{await saveIssue();state=fresh();state.issue='';mediaRefs={};panel.remove();panel=null;open();status.textContent='New newsletter ready. Your previous draft is in Saved newsletters.';});
+    actions.prepend(save,create);
+    refresh().catch(()=>{list.textContent='Saved newsletters are unavailable. Your current draft is unchanged; use Download draft backup.';});
+  }
   function open() {
     if(panel){panel.hidden=false;panel.scrollIntoView({behavior:'smooth'});return;}
     panel=document.createElement('section');panel.id='parentNewsletterWorkspace';panel.className='panel';
@@ -182,6 +243,7 @@
         for(const file of files){if(Object.values(refs).includes(file.id)){await mediaStore('readwrite',store=>store.put(file));mediaCache.set(file.id,file);}}
         state=next;delete state.mediaRefs;delete state.mediaFiles;mediaRefs=refs;panel.remove();panel=null;open();}catch(_){status.textContent='Could not restore: choose a newsletter draft backup. Your current draft is unchanged.';}};input.click();});
     button('Close',()=>{panel.hidden=true;});
+    libraryControls(actions);
     hydrateMedia().then(()=>{if(panel)update();}).catch(()=>{status.textContent='Uploaded files could not be loaded. Your draft text is preserved.';});
     update();if(loadWarning){status.textContent=loadWarning;loadWarning='';}panel.scrollIntoView({behavior:'smooth',block:'start'});
   }
