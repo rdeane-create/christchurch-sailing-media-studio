@@ -174,13 +174,17 @@
   async function saveIssue(label) {
     // Capture before awaiting so continued typing cannot change the saved snapshot.
     const draft=JSON.parse(JSON.stringify(draftData()));
-    for(const id of Object.values(draft.mediaRefs)) {
-      if(!await mediaStore('readonly',store=>store.get(id)))throw Error('An uploaded file is missing. Restore your media backup before saving.');
+    const missing=[];
+    for(const [slot,id] of Object.entries(draft.mediaRefs)) {
+      let file=await mediaStore('readonly',store=>store.get(id));
+      if(!file && mediaCache.has(id)){file=mediaCache.get(id);await mediaStore('readwrite',store=>store.put(file));}
+      if(!file)missing.push(slot);
     }
-    const record={id:crypto.randomUUID(),name:label||[draft.issue,draft.title,draft.date].filter(Boolean).join(' — '),savedAt:new Date().toISOString(),draft};
+    const record={id:crypto.randomUUID(),name:label||[draft.issue,draft.title,draft.date].filter(Boolean).join(' — '),savedAt:new Date().toISOString(),draft,missing};
     await issueStore('readwrite',store=>store.put(record));
     return record;
   }
+  function missingNotice(slots) {return slots?.length?' Saved text and links are safe. Missing uploads: '+slots.map(slot=>slot.startsWith('hero')?'Hero '+(slot==='hero'?'photo':'video'):titles[Number(slot.split('-')[1])]+' '+slot.split('-')[0]).join(', ')+'. Re-upload those files or restore a media backup.':'';}
   function libraryControls(actions) {
     const area=document.createElement('details');
     const heading=document.createElement('summary');heading.textContent='Saved newsletters';area.append(heading);
@@ -194,7 +198,7 @@
       for(const record of records){
         const row=document.createElement('div');row.style.cssText='padding:12px 0;border-bottom:1px solid #d8e2ed';
         const title=document.createElement('strong');title.textContent=record.name;
-        const time=document.createElement('p');time.className='hint';time.textContent='Saved '+new Date(record.savedAt).toLocaleString();
+        const time=document.createElement('p');time.className='hint';time.textContent='Saved '+new Date(record.savedAt).toLocaleString()+missingNotice(record.missing);
         const b=document.createElement('button');b.type='button';b.className='secondary tiny';b.textContent='Open saved newsletter';b.setAttribute('aria-label','Open '+record.name);
         b.onclick=()=>run(b,async()=>{
           await saveIssue();
@@ -202,8 +206,7 @@
           // Load all referenced files before replacing any current editor content.
           for(const id of Object.values(next.mediaRefs||{})){
             const file=await mediaStore('readonly',store=>store.get(id));
-            if(!file)throw Error('A saved media file is missing. Your current draft is unchanged.');
-            mediaCache.set(id,file);
+            if(file)mediaCache.set(id,file);
           }
           state=next;mediaRefs=next.mediaRefs||{};delete state.mediaRefs;
           panel.remove();panel=null;open();
@@ -212,9 +215,9 @@
         row.append(title,time,b);list.append(row);
       }
     }
-    async function run(button,action){button.disabled=true;try{await action();}catch(error){status.textContent='Newsletter library: '+error.message;}finally{button.disabled=false;}}
+    async function run(button,action){button.disabled=true;status.textContent='Saving newsletter…';try{await action();}catch(error){status.textContent='Newsletter library: '+error.message;}finally{button.disabled=false;}}
     const save=document.createElement('button');save.type='button';save.className='primary tiny';save.textContent='Save newsletter';
-    save.onclick=()=>run(save,async()=>{const record=await saveIssue();await refresh();area.open=true;status.textContent='Saved newsletter: '+record.name+'. Your current draft remains editable.';});
+    save.onclick=()=>run(save,async()=>{const record=await saveIssue();await refresh();area.open=true;status.textContent='Saved newsletter: '+record.name+'. Your current draft remains editable.'+missingNotice(record.missing);});
     const create=document.createElement('button');create.type='button';create.className='secondary tiny';create.textContent='New newsletter';
     create.onclick=()=>run(create,async()=>{await saveIssue();state=fresh();state.issue='';mediaRefs={};panel.remove();panel=null;open();status.textContent='New newsletter ready. Your previous draft is in Saved newsletters.';});
     actions.prepend(save,create);
