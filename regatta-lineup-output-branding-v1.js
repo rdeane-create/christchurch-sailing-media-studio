@@ -146,15 +146,6 @@ function drawFooter(ctx,W,H){
   ctx.fillStyle='#f24a18';
   ctx.fillText(location,W/2,y+h*.76);
 
-  ctx.strokeStyle='rgba(255,255,255,.72)';
-  ctx.lineWidth=2;
-  ctx.beginPath();
-  ctx.moveTo(W*.13,y+h*.76);
-  ctx.lineTo(W*.24,y+h*.76);
-  ctx.moveTo(W*.76,y+h*.76);
-  ctx.lineTo(W*.87,y+h*.76);
-  ctx.stroke();
-
   ctx.restore();
 }
 
