@@ -16397,7 +16397,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function ensureTeamIntroRenderAssets(){
-    if(!isTeamIntroMode())return;
+    // Both video modes can use the official embedded burgee by default.
     if(!logo){
       logo=officialBurgee;
     }
@@ -16936,10 +16936,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   async function renderCurrentProfile(profile,autoDownload=false){
     ensureTeamIntroRenderAssets();
-    if(athletes.length<1 || (!isTeamIntroMode()&&(!background||!logo))){
+    if(athletes.length<1){
       status.textContent=isTeamIntroMode()
         ?'Please load at least one Team Intro card before rendering.'
-        :'Please upload a background, official logo, and at least one athlete image.';
+        :'Please add at least one Lineup Headshot card before rendering.';
       return null;
     }
     if(!canvas.captureStream||typeof MediaRecorder==='undefined'){
