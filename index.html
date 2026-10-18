@@ -15724,7 +15724,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     box.innerHTML='';
     athletes.forEach((a,i)=>{
       const row=document.createElement('div'); row.className='athleteItem';
-      const img=document.createElement('img'); img.src=a.img.src;
+      const img=document.createElement('img');
+      // loadImageFile releases its URL after decoding. Give this new image
+      // its own URL instead of copying the already-revoked source URL.
+      const thumbnailUrl=URL.createObjectURL(a.file);
+      img.onload=img.onerror=()=>URL.revokeObjectURL(thumbnailUrl);
+      img.src=thumbnailUrl;
       const name=document.createElement('span'); name.textContent=`${i+1}. ${a.file.name}`;
       const remove=document.createElement('button'); remove.className='tiny danger'; remove.textContent='Remove';
       remove.addEventListener('click',()=>{
