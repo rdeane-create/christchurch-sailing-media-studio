@@ -2464,6 +2464,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
             <div class="hint">Hold Command to select multiple cards, then click Add Selected.</div>
           </div>
           <div class="actions">
+            <button id="connectVideoDriveBtn" class="secondary" type="button">Connect Google Drive</button>
             <button id="refreshVideoLibraryBtn" class="secondary" type="button">Refresh Library</button>
             <button id="addLibraryAthletesBtn" class="primary" type="button">Add Selected</button>
           </div>
@@ -7920,6 +7921,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     if(typeof port.start==='function'){
       port.start();
     }
+    port.postMessage({source:'csms-studio',type:'connected'});
   }
 
   function csmsBridgeBanner(){
@@ -8034,11 +8036,26 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     );
   }
 
+  function csmsBridgeSourceMatches(source,expectedSource){
+    // HtmlService sends from a sandbox nested inside the expected iframe or
+    // popup. Only accept that window or its descendants; keep token checks.
+    for(let depth=0;source && depth<8;depth++){
+      if(source===expectedSource)return true;
+      try{
+        const parent=source.parent;
+        if(!parent || parent===source)return false;
+        source=parent;
+      }catch{return false;}
+    }
+    return false;
+  }
+
   function csmsHandshakePromise(
     expectedSource,
     transport,
     timeoutMs
   ){
+    const handshakeToken=csmsAuthBridgeToken;
     return new Promise((resolve,reject)=>{
       const timeout=setTimeout(()=>{
         window.removeEventListener(
@@ -8061,12 +8078,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         if(
           data.source!=='csms-drive-bridge' ||
           data.type!=='channel-ready' ||
-          data.bridgeToken!==csmsAuthBridgeToken
+          data.bridgeToken!==handshakeToken ||
+          handshakeToken!==csmsAuthBridgeToken
         )return;
 
         if(
           expectedSource &&
-          event.source!==expectedSource
+          !csmsBridgeSourceMatches(event.source,expectedSource)
         )return;
 
         const port=
@@ -8143,7 +8161,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         30000
       );
 
-    await csmsAuthBridgeReadyPromise;
+    try{
+      await csmsAuthBridgeReadyPromise;
+    }catch(err){
+      csmsResetBridgeConnection();
+      throw err;
+    }
 
     csmsHideDriveConnectPrompt();
 
@@ -15656,6 +15679,21 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   document.getElementById('videoAthleteSearch')?.addEventListener('input',()=>{
     populateVideoAthleteLibrary()
       .catch(err=>console.warn('Video athlete search unavailable',err));
+  });
+  document.getElementById('connectVideoDriveBtn')?.addEventListener('click',async()=>{
+    const button=document.getElementById('connectVideoDriveBtn');
+    button.disabled=true;
+    button.textContent='Connecting…';
+    try{
+      await csmsConnectDrivePopup();
+      await populateVideoAthleteLibrary();
+      button.textContent='Google Drive connected';
+    }catch(err){
+      status.textContent=err.message||'Google Drive could not connect.';
+      button.textContent='Connect Google Drive';
+    }finally{
+      button.disabled=false;
+    }
   });
   document.getElementById('refreshVideoLibraryBtn')?.addEventListener('click',()=>{
     populateVideoAthleteLibrary()
