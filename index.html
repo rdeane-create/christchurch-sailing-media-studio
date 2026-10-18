@@ -16896,25 +16896,16 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   async function handleRenderedVideoDownload(event,result){
     if(!result?.url)return;
     event.preventDefault();
-    try{
-      if(window.showSaveFilePicker){
-        const saved=await saveVideoWithPicker(result);
-        if(saved){
-          status.textContent=`${result.label} saved.`;
-          return;
-        }
-      }
-      downloadLink.href=result.url;
-      downloadLink.download=result.filename;
-      downloadLink.click();
-      status.textContent=`${result.label} download started.`;
-    }catch(e){
-      if(e?.name==='AbortError'){
-        status.textContent='Video save canceled. Use the button when you are ready to save it.';
-      }else{
-        status.textContent=`Video save failed: ${String(e?.message||e)}`;
-      }
-    }
+    // Download directly from this user gesture. The file picker can be
+    // canceled or blocked and async batch auto-downloads can lose activation.
+    const link=document.createElement('a');
+    link.href=result.url;
+    link.download=result.filename;
+    link.style.display='none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(()=>link.remove(),1000);
+    status.textContent=`${result.label} download started. Check Chrome Downloads.`;
   }
 
   function openRenderedVideo(event,result){
@@ -17050,14 +17041,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     return {url,filename,label:OUTPUT_PROFILES[profile].label,blob};
   }
 
-  async function renderVideo(){
-    const result=await renderCurrentProfile(activeProfile,false);
-    if(!result)return;
+  function setRenderedVideoReady(result){
     lastRenderedVideo=result;
     downloadLink.href=result.url;
     downloadLink.download=result.filename;
     if(downloadBtn){
-      downloadBtn.textContent=`Save ${result.label} video`;
+      downloadBtn.textContent=`Download ${result.label} video`;
       downloadBtn.classList.add('csmsDownloadReady');
       downloadBtn.disabled=false;
       downloadBtn.style.display='block';
@@ -17066,7 +17055,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       openVideoBtn.classList.add('csmsDownloadReady');
       openVideoBtn.style.display='block';
     }
-    status.textContent=`${result.label} ready. Click Save ${result.label} video to choose where to put it.`;
+  }
+
+  async function renderVideo(){
+    const result=await renderCurrentProfile(activeProfile,false);
+    if(!result)return;
+    setRenderedVideoReady(result);
+    status.textContent=`${result.label} ready. Click Download ${result.label} video.`;
     completeActiveProductionWork(isTeamIntroMode()?'Team Introduction':'Regatta Lineup',`${result.label} render completed and is ready for review`);
   }
 
@@ -17075,10 +17070,12 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const box=document.getElementById('batchDownloads');
     box.innerHTML='';
     if(!choices.length){status.textContent='Select at least one export format.';return;}
+    let firstResult=null;
     for(let i=0;i<choices.length;i++){
       status.textContent=`Exporting ${i+1} of ${choices.length}: ${OUTPUT_PROFILES[choices[i]].label}`;
-      const result=await renderCurrentProfile(choices[i],true);
+      const result=await renderCurrentProfile(choices[i],false);
       if(!result)break;
+      if(!firstResult)firstResult=result;
       const row=document.createElement('div');row.className='athleteItem';
       const icon=document.createElement('div');icon.textContent='✓';icon.style.fontWeight='800';icon.style.fontSize='22px';
       const name=document.createElement('span');name.textContent=result.filename;
@@ -17086,7 +17083,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       link.addEventListener('click',event=>handleRenderedVideoDownload(event,result));
       row.append(icon,name,link);box.append(row);
     }
-    status.textContent='Selected export package is ready.';
+    if(firstResult)setRenderedVideoReady(firstResult);
+    status.textContent=firstResult
+      ?'Selected export package is ready. Click Download beside each file to save it.'
+      :status.textContent;
     completeActiveProductionWork(isTeamIntroMode()?'Team Introduction':'Regatta Lineup','Selected export package completed');
   }
 
