@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='20260903-disabled-save-button-v1';
+const VERSION='20261017-persistent-download-button-v2';
 const q=id=>document.getElementById(id);
 let savedCards=[];
 let selectedCardIds=[];
@@ -243,6 +243,8 @@ function actionKind(btn){
   const t=buttonLabel(btn);
   const id=String(btn.id||'').toLowerCase();
   if(!t&& !id)return '';
+  // Transport anchors and batch download links are not preview controls.
+  if(id==='downloadlink'||btn.closest?.('#batchDownloads'))return '';
   if(t.includes('preview selected title'))return '';
   if(id==='downloadbtn'||id==='downloadlink'||/\bdownload\b/.test(t)||/\bsave .*video\b/.test(t))return 'download';
   if(id==='openvideobtn'||/\bopen video file\b/.test(t))return 'open';
@@ -261,6 +263,23 @@ function movePreviewActions(){
   const buttons=[...w.querySelectorAll('button,a')].filter(b=>b!==bar&&isPreviewAction(b));
   const byKind=new Map();
   for(const b of buttons){const kind=actionKind(b);if(kind&&!byKind.has(kind))byKind.set(kind,b);}
+  // Prefer the actual controls even after moving them into the preview.
+  // Document order otherwise lets the hidden download anchor replace and
+  // detach the button that the renderer updates when a video is ready.
+  for(const [kind,id] of [['preview','previewBtn'],['render','renderBtn'],['download','downloadBtn'],['open','openVideoBtn'],['export','exportSelectedBtn']]){
+    const control=q(id);
+    if(control)byKind.set(kind,control);
+  }
+  const download=byKind.get('download');
+  if(download){
+    if(download.disabled){
+      if(download.textContent==='Render first')download.textContent='Download Video';
+      download.title='Render Video first to prepare your download.';
+    }else{
+      download.textContent=download.textContent.replace(/^Save /,'Download ');
+      download.title='Download the rendered video.';
+    }
+  }
   const desired=[byKind.get('preview'),byKind.get('render'),ensureSaveToLibraryButton(),byKind.get('download'),byKind.get('open'),byKind.get('export')].filter(Boolean);
   desired.forEach((b,i)=>{
     const current=bar.children[i]||null;
