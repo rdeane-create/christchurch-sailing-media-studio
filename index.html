@@ -841,6 +841,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   .creativeIntentGrid,.creativeSummaryGrid{grid-template-columns:1fr}
 }
 </style>
+<script src="photo-source-policy.js?v=20261018-1"></script>
+<link rel="stylesheet" href="studio-workspace.css?v=20261018-1">
 </head>
 <body>
 <div class="app">
@@ -2589,7 +2591,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       <div class="section">
         <h2>Christchurch Brand Kit</h2>
         <div class="notice">
-          Locked rule: athlete photos are never AI-rendered or retouched. The Studio only crops, resizes, positions, and masks the uploaded pixels.
+          Locked rule: athlete photos are never AI-rendered or retouched. The Studio only crops, proportionally resizes, and positions the uploaded pixels. Original files are never replaced.
         </div>
         <div class="row">
           <div class="control">
@@ -5483,13 +5485,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   async function ensureDefaultTemplates(){
-    const obsoleteTemplateNames=new Set(['COLLEGE ANNOUNCEMENT — MASTER v1.0','CHRISTCHURCH HERO CARD — MASTER v1.0']);
-    const all=await mediaGetAll();
-    for(const item of all){
-      if(item&&item.type==='template'&&obsoleteTemplateNames.has(String(item.name||''))){
-        await mediaDelete(item.id);
-      }
-    }
+    // Retain saved templates; changing workspace appearance never deletes library entries.
     const remaining=(await mediaGetAll()).filter(x=>x.type==='template');
     if(!remaining.length){
       await mediaPut({id:'template_lineup_v1',type:'template',collection:'lineup',name:'Regatta Lineup v1',version:1,base:null,created:new Date().toISOString()});
@@ -17141,13 +17137,14 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   const ASSET_STORE='creativeAssets';
 
   const CREATIVE_DIRECTOR_RULE='Real Christchurch photographs are documentary assets. Never regenerate, repaint, retouch, relight, sharpen, stylize, face-edit, object-edit, or otherwise alter source pixels. Use only non-destructive placement operations.';
-  const OPENAI_PHOTO_IMMUTABLE_RULE='Real Christchurch photographs are immutable documentary assets. Never regenerate, repaint, retouch, relight, sharpen, blur, stylize, face-edit, object-edit, background-edit, or otherwise alter source pixels. Only select, crop, proportionally scale, reposition, rotate, mask, or adjust opacity.';
-  const PHOTO_INTEGRITY_BLOCK_MESSAGE='Photo Integrity Protection prevents generative or destructive changes to real photographs. Only crop, proportional scale, reposition, rotate, mask and opacity are permitted.';
+  const OPENAI_PHOTO_IMMUTABLE_RULE='Real Christchurch photographs are immutable documentary assets. Never regenerate, repaint, retouch, relight, sharpen, blur, stylize, face-edit, object-edit, background-edit, or otherwise alter source pixels. Only select an existing original, proportionally size it, and crop/reposition it. Never change rotation, opacity, masking, colors, or source pixels.';
+  const PHOTO_INTEGRITY_BLOCK_MESSAGE='Photo Integrity Protection prevents generative or destructive changes to real photographs. Only proportional sizing and cropping/repositioning are permitted. Originals and saved template artwork stay intact.';
   const AI_PROVIDER_ENDPOINT='http://127.0.0.1:8765';
   const AI_PROVIDER_TIMEOUT_MS=120000;
   const AI_PROVIDER_TEST_TIMEOUT_MS=130000;
   const ALLOWED_PHOTO_METADATA_OPS=['cropPhoto','scalePhotoProportionally','repositionPhoto','rotatePhoto','maskPhoto','setPhotoOpacity','setPhotoFitMode'];
-  const ALLOWED_AI_PHOTO_ACTIONS=['selectExistingPhoto','insertPhotoLayer','replacePhotoWithExistingAsset','cropPhoto','scalePhotoProportionally','repositionPhoto','rotatePhoto','maskPhoto','setPhotoOpacity','lockPhotoLayer','unlockPhotoLayer'];
+  const ALLOWED_AI_PHOTO_ACTIONS=['selectExistingPhoto','insertPhotoLayer','replacePhotoWithExistingAsset','cropPhoto','scalePhotoProportionally','repositionPhoto','lockPhotoLayer','unlockPhotoLayer'];
+  const BLOCKED_PHOTO_PLACEMENT_ACTIONS=new Set(['rotatePhoto','maskPhoto','setPhotoOpacity']);
   const PROHIBITED_ACTION_PATTERN=/regenerat|repaint|retouch|relight|sharpen|blur|remove object|add object|alter face|alter body|alter clothing|alter boat|alter sail|replace background|styliz|generative fill|image-to-image|synthetic/i;
   const ROLE_SYSTEM_PROMPTS={
     creative_director:'Balance hierarchy, pacing, brand strength and conversion goals in one coherent direction.',
@@ -17200,7 +17197,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     'addTextLayer','updateTextLayer','restyleTextLayer','moveLayer','resizeLayer','alignLayer','reorderLayer','duplicateLayer','lockLayer','unlockLayer','showLayer','hideLayer','deleteLayer',
     'addOfficialLogo','updateLayerColor','applyBrandPalette',
     'addShape','addBanner','addLine','updateShape','updateBorder','updateOpacity',
-    'selectExistingPhoto','insertPhotoLayer','replacePhotoWithExistingAsset','cropPhoto','scalePhotoProportionally','repositionPhoto','rotatePhoto','maskPhoto','setPhotoOpacity','lockPhotoLayer','unlockPhotoLayer',
+    'selectExistingPhoto','insertPhotoLayer','replacePhotoWithExistingAsset','cropPhoto','scalePhotoProportionally','repositionPhoto','lockPhotoLayer','unlockPhotoLayer',
     'groupLayers','ungroupLayers','alignLayers','distributeLayers',
     'exportPNG','createFeedVersion','createStoryVersion','createSquareVersion','createCarouselVersion'
   ];
@@ -20162,6 +20159,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       ui.photoScale.value=String(t.scale);
       ui.photoOffsetX.value=String(t.cropX);
       ui.photoOffsetY.value=String(t.cropY);
+      [ui.photoRotation,ui.photoOpacity,ui.photoMask].forEach(control=>{control.disabled=true;control.closest('label')?.setAttribute('data-original-photo-only','true');});
       ui.photoRotation.value=String(t.rotation);
       ui.photoOpacity.value=String(t.opacity);
       ui.photoMask.value=t.mask;
@@ -20409,8 +20407,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       sourceHeight:asset.height,
       sourceMime:asset.mimeType,
       importedAt:asset.importedAt,
-      transform:{scale:1,cropX:0,cropY:0,rotation:0,opacity:1,fitMode:'fill',mask:'rounded'},
-      photoIntegrity:{mode:'original-pixels-only',operations:['crop','proportional-scale','reposition','mask','opacity','rotation','fit-fill']},
+      transform:{scale:1,cropX:0,cropY:0,rotation:0,opacity:1,fitMode:'fill',mask:'none'},
+      photoIntegrity:{mode:'original-pixels-only',operations:['crop','proportional-scale','reposition','fit-fill']},
       history:[],
       generativeProviderUsed:false,
       lastIntegrityCheck:null,
@@ -20523,7 +20521,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 
   function validateCreativeDirectorAction(actionName){
     const clean=String(actionName||'').trim();
-    if(PROHIBITED_ACTION_PATTERN.test(clean)){
+    if(BLOCKED_PHOTO_PLACEMENT_ACTIONS.has(clean)||PROHIBITED_ACTION_PATTERN.test(clean)){
       return {ok:false,message:PHOTO_INTEGRITY_BLOCK_MESSAGE};
     }
     if(!APPROVED_AI_ACTION_SET.has(clean)){
@@ -21831,7 +21829,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       permittedCanvasActions:[
         'createDesign','applyTemplate','changeCanvasPreset','saveDesign','saveAsTemplate',
         'addTextLayer','addShape','addBanner','addLine','addOfficialLogo','groupLayers','alignLayers','distributeLayers','moveLayer','resizeLayer','reorderLayer','restyleTextLayer','updateTextLayer','updateLayerColor','updateBorder','updateOpacity','lockLayer','unlockLayer','showLayer','hideLayer','duplicateLayer','deleteLayer',
-        'selectExistingPhoto','insertPhotoLayer','replacePhotoWithExistingAsset','cropPhoto','scalePhotoProportionally','repositionPhoto','rotatePhoto','maskPhoto','setPhotoOpacity','lockPhotoLayer','unlockPhotoLayer',
+        'selectExistingPhoto','insertPhotoLayer','replacePhotoWithExistingAsset','cropPhoto','scalePhotoProportionally','repositionPhoto','lockPhotoLayer','unlockPhotoLayer',
         'createFeedVersion','createStoryVersion','createSquareVersion','createCarouselVersion','exportPNG'
       ],
       roleMode:mode,
@@ -21919,7 +21917,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
           'text.update','text.insert','text.restyle','layer.reorder','layer.visibility.toggle',
           'createDesign','applyTemplate','changeCanvasPreset','saveDesign','saveAsTemplate',
           'addTextLayer','addShape','addBanner','addLine','addOfficialLogo','groupLayers','alignLayers','distributeLayers','moveLayer','resizeLayer','reorderLayer','restyleTextLayer','updateTextLayer','updateLayerColor','updateBorder','updateOpacity','lockLayer','unlockLayer','showLayer','hideLayer','duplicateLayer','deleteLayer',
-          'selectExistingPhoto','insertPhotoLayer','replacePhotoWithExistingAsset','cropPhoto','scalePhotoProportionally','repositionPhoto','rotatePhoto','maskPhoto','setPhotoOpacity','lockPhotoLayer','unlockPhotoLayer',
+          'selectExistingPhoto','insertPhotoLayer','replacePhotoWithExistingAsset','cropPhoto','scalePhotoProportionally','repositionPhoto','lockPhotoLayer','unlockPhotoLayer',
           'createFeedVersion','createStoryVersion','createSquareVersion','createCarouselVersion','exportPNG'
         ],
         instruction:'Use only approvedActionEnum values exactly. Do not emit aliases or unknown action names.'
@@ -22919,6 +22917,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         errors.push(`Unknown or disallowed action: ${type}`);
         continue;
       }
+      if(BLOCKED_PHOTO_PLACEMENT_ACTIONS.has(type)){errors.push(PHOTO_INTEGRITY_BLOCK_MESSAGE);continue;}
       const merged=JSON.stringify(action||{});
       if(PROHIBITED_ACTION_PATTERN.test(merged)){
         errors.push(PHOTO_INTEGRITY_BLOCK_MESSAGE);
@@ -23152,6 +23151,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   function applyActionToDesign(action,design){
     const values=action.values&&typeof action.values==='object'?action.values:{};
     const layer=action.layerId?design.layers.find(item=>item.id===action.layerId):null;
+    if(BLOCKED_PHOTO_PLACEMENT_ACTIONS.has(action.actionType)||(layer?.type==='photo'&&!window.CSMSPhotoSourcePolicy.allows(action.actionType)))throw new Error(PHOTO_INTEGRITY_BLOCK_MESSAGE);
     switch(action.actionType){
       case 'createDesign':{
         const next=createDesignFromTemplate(String(values.templateId||design.templateId||'christchurch_alumni_invitation'),String(values.presetKey||design.presetKey||'ig_feed_portrait'),String(values.name||`${design.name} Variant`).slice(0,120));
@@ -23427,7 +23427,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       setRequestControlsDisabled(true);
       refreshAIProviderSurface();
       appendActivity('proposal requested',`${modeLabel(mode)}${quickAction?` • ${quickAction}`:''}`);
-      const strictActionHint='Use only approved action names exactly: text.update, text.insert, text.restyle, layer.reorder, layer.visibility.toggle, selectExistingPhoto, insertPhotoLayer, replacePhotoWithExistingAsset, cropPhoto, scalePhotoProportionally, repositionPhoto, rotatePhoto, maskPhoto, setPhotoOpacity, lockPhotoLayer, unlockPhotoLayer. Do not emit aliases. Do not include prohibited photo edits.';
+      const strictActionHint='Use only approved action names exactly: text.update, text.insert, text.restyle, layer.reorder, layer.visibility.toggle, selectExistingPhoto, insertPhotoLayer, replacePhotoWithExistingAsset, cropPhoto, scalePhotoProportionally, repositionPhoto, lockPhotoLayer, unlockPhotoLayer. Do not emit aliases. Do not include prohibited photo edits.';
       const directive=[quickAction?`Creative action focus: ${quickAction}.`:'',followup?`Follow-up from user: ${followup}`:''].filter(Boolean).join('\n');
       const reviewPrompt=reviewOnly
         ?`${brief}\n\nDesign review rubric: visual hierarchy, readability, contrast, spacing, alignment, balance, visual energy, copy density, CTA prominence, logo usage, safe margins, platform fit, Photo Integrity status. Include precise pixel-level recommendations.`
@@ -24009,6 +24009,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   function setPhotoTransform(field,value,historyAction,message){
+    if(!['scale','cropX','cropY','fitMode'].includes(field)){setStatus(PHOTO_INTEGRITY_BLOCK_MESSAGE);return;}
     const layer=selectedPhotoLayer();
     if(!layer||layer.locked){setStatus('Select an unlocked photo layer first.');return;}
     if(isHeroCardDesign()&&isHeroCardEditablePhotoLayer(layer)&&!['scale','cropX','cropY'].includes(field)){
@@ -24035,13 +24036,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const layer=selectedPhotoLayer();
     if(!layer){setStatus('Select a photo layer first.');return;}
     pushUndo();
-    layer.transform=normalizePhotoTransform({scale:1,cropX:0,cropY:0,rotation:0,opacity:1,fitMode:'fill',mask:'rounded'});
+    layer.transform=normalizePhotoTransform({...layer.transform,scale:1,cropX:0,cropY:0});
     appendPhotoHistory(layer,'cropPhoto',{reset:true});
     appendPhotoHistory(layer,'scalePhotoProportionally',{reset:true});
     appendPhotoHistory(layer,'repositionPhoto',{reset:true});
-    appendPhotoHistory(layer,'rotatePhoto',{reset:true});
-    appendPhotoHistory(layer,'setPhotoOpacity',{reset:true});
-    appendPhotoHistory(layer,'maskPhoto',{reset:true});
     appendPhotoHistory(layer,'setPhotoFitMode',{reset:true});
     commitDesign('Photo transform reset to original.');
   }
@@ -24792,8 +24790,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 </script>
 <script src="csms-template-recovery-v1.js"></script>
 <script src="hero-builder-v3.js?v=20260812-32"></script>
-<script src="athlete-main-headshot-approved-exact.js?v=20260830-clean-athlete-cutout-8"></script>
-<script src="lineup-headshot.js?v=20260903-lineup-headshot-save-retry-v1"></script>
+<script src="athlete-main-headshot-approved-exact.js?v=20261018-original-photo-only"></script>
+<script src="lineup-headshot.js?v=20261018-original-photo-only"></script>
 <script src="regatta-lineup-layout-v2.js?v=20261017-persistent-download-button-v2"></script>
 <script src="team-introduction-layout-v1.js?v=20260902-team-intro-no-length-cap-v2"></script>
 <script src="college-acceptance.js?v=20260815-college-acceptance-v1"></script>
@@ -24801,5 +24799,6 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="regatta-results-story.js?v=20260905-regatta-results-pacing-title-v1"></script>
 <script src="regatta-lineup-video-route.js?v=20260814-2"></script>
 <script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
+<script src="studio-workspace.js?v=20261018-1"></script>
 </body>
 </html>
