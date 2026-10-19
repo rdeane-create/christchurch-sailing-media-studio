@@ -842,7 +842,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 }
 </style>
 <script src="photo-source-policy.js?v=20261018-1"></script>
-<link rel="stylesheet" href="studio-workspace.css?v=20261018-1">
+<link rel="stylesheet" href="studio-workspace.css?v=20261018-2">
 </head>
 <body>
 <div class="app">
@@ -15513,11 +15513,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   async function getVideoLineupSavedCards(){
     const result=await videoLineupBridgeCall('listSavedCards',{});
     if(!result||!result.ok)throw new Error(result&&result.error?result.error:'Drive Saved Cards library is unavailable.');
-    return (Array.isArray(result.cards)?result.cards:[])
+    const cards=(Array.isArray(result.cards)?result.cards:[])
       .filter(isVideoLineupHeadshotCard)
       .map(card=>({...card,fileId:String(card.fileId||card.id||'')}))
       .filter(card=>card.fileId)
       .sort((a,b)=>videoLineupCardName(a).localeCompare(videoLineupCardName(b)));
+    window.CSMSCSOSBridge?.cardInventory(cards);
+    return cards;
   }
 
   async function getVideoLineupCardBlob(fileId){
@@ -17054,11 +17056,13 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   async function renderVideo(){
+    try{window.CSMSCSOSBridge?.start('lineup');}catch(e){status.textContent=e.message;return;}
     const result=await renderCurrentProfile(activeProfile,false);
-    if(!result)return;
+    if(!result){window.CSMSCSOSBridge?.error(Error(status.textContent||'Rendering did not complete.'));return;}
     setRenderedVideoReady(result);
     status.textContent=`${result.label} ready. Click Download ${result.label} video.`;
     completeActiveProductionWork(isTeamIntroMode()?'Team Introduction':'Regatta Lineup',`${result.label} render completed and is ready for review`);
+    if(window.CSMSCSOSBridge?.isLinked('lineup'))try{await window.CSMSCSOSBridge.rendered('lineup',{...result,duration:durationFor(athletes.length),width:OUTPUT_PROFILES[activeProfile].w,height:OUTPUT_PROFILES[activeProfile].h});}catch(e){status.textContent=e.message;window.CSMSCSOSBridge.error(e);}
   }
 
   async function exportSelected(){
@@ -17085,6 +17089,22 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       :status.textContent;
     completeActiveProductionWork(isTeamIntroMode()?'Team Introduction':'Regatta Lineup','Selected export package completed');
   }
+
+
+  // Input adapter: the approved drawing and encoding functions remain unchanged.
+  window.CSMSLineupIntegration={
+    async load(job){
+      const next=[];
+      for(const person of job.participants){
+        if(!person.card?.fileId)throw Error('Review the saved Studio card link for '+person.name+'.');
+        const blob=await getVideoLineupCardBlob(person.card.fileId),file=new File([blob],person.card.name||'approved-lineup-card.png',{type:blob.type||'image/png'}),img=await loadImageFile(file);
+        next.push({file,img,athleteId:person.card.fileId,displayName:person.name});
+      }
+      athletes=next;els.eventName.value=job.event.name;els.location.value=job.event.location;
+      document.getElementById('videoType').value='Weekly Lineup';els.musicSourceMode.value='silent';selectedMusic=null;beatData=null;els.outputProfile.value=job.profile||'story';setOutputProfile(job.profile||'story');
+      renderAthleteList();drawFrame(0,true);status.textContent='CSOS lineup loaded from saved revision '+job.recordVersion+'.';
+    },render:renderVideo
+  };
 
   document.getElementById('exportSelectedBtn').addEventListener('click',exportSelected);
   downloadBtn?.addEventListener('click',event=>handleRenderedVideoDownload(event,lastRenderedVideo));
@@ -24796,9 +24816,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="team-introduction-layout-v1.js?v=20260902-team-intro-no-length-cap-v2"></script>
 <script src="college-acceptance.js?v=20260815-college-acceptance-v1"></script>
 <script src="parent-newsletter.js?v=20260907-parent-newsletter-v13"></script>
-<script src="regatta-results-story.js?v=20260905-regatta-results-pacing-title-v1"></script>
+<script src="regatta-results-story.js?v=20261018-csos-1"></script>
 <script src="regatta-lineup-video-route.js?v=20260814-2"></script>
 <script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
 <script src="studio-workspace.js?v=20261018-1"></script>
+<script src="csos-connection.js?v=20261018-1"></script>
 </body>
 </html>
