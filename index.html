@@ -17056,6 +17056,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   async function renderVideo(){
+    if(window.CSMSCSOSBridge?.isImage('lineup'))return renderLineupPost();
     try{window.CSMSCSOSBridge?.start('lineup');}catch(e){status.textContent=e.message;return;}
     const result=await renderCurrentProfile(activeProfile,false);
     if(!result){window.CSMSCSOSBridge?.error(Error(status.textContent||'Rendering did not complete.'));return;}
@@ -17090,6 +17091,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     completeActiveProductionWork(isTeamIntroMode()?'Team Introduction':'Regatta Lineup','Selected export package completed');
   }
 
+
+  async function renderLineupPost(){
+    try{window.CSMSCSOSBridge.start('lineup');drawFrame(1.1,true);const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('Could not create the lineup post.')),'image/png'));await window.CSMSCSOSBridge.rendered('lineup',{blob,duration:0,width:W,height:H});status.textContent='Lineup post saved privately in CSOS.';}catch(e){status.textContent=e.message;window.CSMSCSOSBridge.error(e);}
+  }
 
   // Input adapter: the approved drawing and encoding functions remain unchanged.
   window.CSMSLineupIntegration={
@@ -24816,10 +24821,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="team-introduction-layout-v1.js?v=20260902-team-intro-no-length-cap-v2"></script>
 <script src="college-acceptance.js?v=20260815-college-acceptance-v1"></script>
 <script src="parent-newsletter.js?v=20260907-parent-newsletter-v13"></script>
-<script src="regatta-results-story.js?v=20261018-csos-1"></script>
+<script src="regatta-results-story.js?v=20261019-posts-1"></script>
 <script src="regatta-lineup-video-route.js?v=20260814-2"></script>
 <script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
 <script src="studio-workspace.js?v=20261018-1"></script>
-<script src="csos-connection.js?v=20261018-2"></script>
+<script src="csos-connection.js?v=20261019-1"></script>
 </body>
 </html>
