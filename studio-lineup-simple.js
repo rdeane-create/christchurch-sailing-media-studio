@@ -1,0 +1,12 @@
+/* Presentation controls only. Existing cards, templates and render composition remain intact. */
+(function(){'use strict';
+const q=id=>document.getElementById(id);
+window.CSMSLineupDownloadName=(event,kind,mime)=>{const clean=v=>String(v||'').normalize('NFKD').replace(/[^A-Za-z0-9 _.-]/g,'').trim().replace(/\s+/g,'_').slice(0,100);return [clean(event.name)||'Regatta',clean(event.date),clean(event.teamLabel),kind==='results'?'Results':'Lineup'].filter(Boolean).join('_')+(mime==='image/png'?'.png':mime.includes('mp4')?'.mp4':'.webm');};
+function init(){const w=q('workspace-video');if(!w)return;
+ for(const h of [...w.querySelectorAll('h2')])if(['Brand Assets','Music Engine — 200 Built-In Beats','Motion','Christchurch Brand Kit'].includes(h.textContent.trim())){const section=h.parentElement;if(!section.classList.contains('section'))continue;const d=document.createElement('details'),summary=document.createElement('summary');d.className='studio-lineup-options';summary.textContent=h.textContent.trim();section.before(d);d.append(summary,section);h.hidden=true;}
+ const advanced=document.createElement('details'),title=document.createElement('summary');advanced.className='studio-lineup-options';title.textContent='Title and animation options';advanced.append(title);const anchor=q('titleStyle')?.closest('.control');if(anchor){anchor.before(advanced);for(const id of ['titleStyle','heroTemplate','motionPreset','introPreset','outroPreset']){const c=q(id)?.closest('.control');if(c&&!advanced.contains(c))advanced.append(c);}}
+ const control=q('location')?.closest('.control');if(control){const d=document.createElement('div');d.className='control';const label=document.createElement('label');label.htmlFor='studioLineupDate';label.textContent='Event date';const input=document.createElement('input');input.type='date';input.id='studioLineupDate';input.value=new Date().toISOString().slice(0,10);d.append(label,input);control.after(d);}
+ window.CSMSLineupEvent=()=>({name:q('eventName')?.value||'Regatta',date:q('studioLineupDate')?.value||''});window.CSMSLineupSetEvent=event=>{if(q('studioLineupDate')){q('studioLineupDate').value=event.date||'';q('studioLineupDate').disabled=true;}};
+ const note=document.createElement('p');note.className='hint';note.textContent='For an assigned regatta lineup, choose the event and teams in Sailing Portal → Media Studio. Download saves to your browser’s download location.';w.prepend(note);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();})();

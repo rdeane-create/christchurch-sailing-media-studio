@@ -191,7 +191,7 @@ async function saveRenderedLineupToLibrary(){
   const btn=q('csmsSaveToLibraryBtn');
   const status=q('status');
   const link=q('downloadLink');
-  if(!link||!link.href||link.style.display==='none'){
+  if(!link||!link.getAttribute('href')||!link.download){
     if(status)status.textContent='Render Video first, then Save to Library.';
     return;
   }

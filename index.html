@@ -17023,7 +17023,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     }
     const ext=blob.type.includes('mp4')?'mp4':'webm';
     const slug=els.eventName.value.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
-    const filename=`Christchurch_${slug}_${OUTPUT_PROFILES[profile].ext}.${ext}`;
+    const linkedEvent=window.CSMSCSOSBridge?.event?.();
+    const filename=window.CSMSLineupDownloadName?.(linkedEvent||window.CSMSLineupEvent?.()||{name:els.eventName.value,date:new Date().toISOString().slice(0,10)},'lineup',blob.type)||`${slug}_${new Date().toISOString().slice(0,10)}_Lineup.${ext}`;
     const url=URL.createObjectURL(blob);
 
     if(autoDownload){
@@ -17105,7 +17106,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
         const blob=await getVideoLineupCardBlob(person.card.fileId),file=new File([blob],person.card.name||'approved-lineup-card.png',{type:blob.type||'image/png'}),img=await loadImageFile(file);
         next.push({file,img,athleteId:person.card.fileId,displayName:person.name});
       }
-      athletes=next;els.eventName.value=job.event.name;els.location.value=job.event.location;
+      athletes=next;window.CSMSLineupSetEvent?.(job.event);els.eventName.value=job.event.name+(job.event.teamLabel?' · '+job.event.teamLabel:'');els.location.value=job.event.location;
       document.getElementById('videoType').value='Weekly Lineup';els.musicSourceMode.value='silent';selectedMusic=null;beatData=null;els.outputProfile.value=job.profile||'story';setOutputProfile(job.profile||'story');
       renderAthleteList();drawFrame(0,true);status.textContent='CSOS lineup loaded from saved revision '+job.recordVersion+'.';
     },render:renderVideo
@@ -24817,7 +24818,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="hero-builder-v3.js?v=20260812-32"></script>
 <script src="athlete-main-headshot-approved-exact.js?v=20261018-original-photo-only"></script>
 <script src="lineup-headshot.js?v=20261018-original-photo-only"></script>
-<script src="regatta-lineup-layout-v2.js?v=20261017-persistent-download-button-v2"></script>
+<script src="regatta-lineup-layout-v2.js?v=20261024-save-fix"></script>
 <script src="team-introduction-layout-v1.js?v=20260902-team-intro-no-length-cap-v2"></script>
 <script src="college-acceptance.js?v=20260815-college-acceptance-v1"></script>
 <script src="parent-newsletter.js?v=20260907-parent-newsletter-v13"></script>
@@ -24825,6 +24826,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="regatta-lineup-video-route.js?v=20260814-2"></script>
 <script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
 <script src="studio-workspace.js?v=20261018-1"></script>
-<script src="csos-connection.js?v=reel-details-20261019"></script>
+<script src="csos-connection.js?v=20261024-team-builder"></script>
+<script src="studio-lineup-simple.js?v=20261024-team-builder"></script>
 </body>
 </html>
