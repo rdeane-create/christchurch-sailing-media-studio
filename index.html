@@ -17098,15 +17098,19 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   // Input adapter: the approved drawing and encoding functions remain unchanged.
+  let lineupLoadSequence=0;
   window.CSMSLineupIntegration={
     async load(job){
+      const sequence=++lineupLoadSequence;
       const next=[];
       for(const person of job.participants){
         if(!person.card?.fileId)throw Error('Review the saved Studio card link for '+person.name+'.');
         const blob=await getVideoLineupCardBlob(person.card.fileId),file=new File([blob],person.card.name||'approved-lineup-card.png',{type:blob.type||'image/png'}),img=await loadImageFile(file);
         next.push({file,img,athleteId:person.card.fileId,displayName:person.name});
       }
-      athletes=next;window.CSMSLineupSetEvent?.(job.event);els.eventName.value=job.event.name+(job.event.teamLabel?' · '+job.event.teamLabel:'');els.location.value=job.event.location;
+      if(sequence!==lineupLoadSequence)return;
+      if(lastRenderedVideo?.url)URL.revokeObjectURL(lastRenderedVideo.url);lastRenderedVideo=null;downloadLink.removeAttribute('href');downloadLink.removeAttribute('download');if(downloadBtn){downloadBtn.disabled=true;downloadBtn.textContent='Create video first';}if(openVideoBtn)openVideoBtn.style.display='none';
+      athletes=next;window.CSMSLineupSetEvent?.(job.event);els.eventName.value=job.event.name+(job.event.teamLabel?' · '+job.event.teamLabel:'');els.location.value=[job.event.location,job.event.date+(job.event.endDate&&job.event.endDate!==job.event.date?' – '+job.event.endDate:'')].filter(Boolean).join(' · ');
       document.getElementById('videoType').value='Weekly Lineup';els.musicSourceMode.value='silent';selectedMusic=null;beatData=null;els.outputProfile.value=job.profile||'story';setOutputProfile(job.profile||'story');
       renderAthleteList();drawFrame(0,true);status.textContent='CSOS lineup loaded from saved revision '+job.recordVersion+'.';
     },render:renderVideo
@@ -24826,7 +24830,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="regatta-lineup-video-route.js?v=20260814-2"></script>
 <script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
 <script src="studio-workspace.js?v=20261018-1"></script>
-<script src="csos-connection.js?v=20261024-team-builder"></script>
-<script src="studio-lineup-simple.js?v=20261024-team-builder"></script>
+<script src="csos-connection.js?v=20261024-live-preview"></script>
+<script src="studio-lineup-simple.js?v=20261024-live-preview"></script>
 </body>
 </html>
