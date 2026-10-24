@@ -17105,8 +17105,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       const next=[];
       for(const person of job.participants){
         if(!person.card?.fileId)throw Error('Review the saved Studio card link for '+person.name+'.');
+        const retained=athletes.find(a=>a.athleteId===person.card.fileId&&a.cardVersion===(person.card.version||0));
+        if(retained){next.push({...retained,displayName:person.name});continue;}
         const blob=await getVideoLineupCardBlob(person.card.fileId),file=new File([blob],person.card.name||'approved-lineup-card.png',{type:blob.type||'image/png'}),img=await loadImageFile(file);
-        next.push({file,img,athleteId:person.card.fileId,displayName:person.name});
+        next.push({file,img,athleteId:person.card.fileId,cardVersion:person.card.version||0,displayName:person.name});
       }
       if(sequence!==lineupLoadSequence)return;
       if(lastRenderedVideo?.url)URL.revokeObjectURL(lastRenderedVideo.url);lastRenderedVideo=null;downloadLink.removeAttribute('href');downloadLink.removeAttribute('download');if(downloadBtn){downloadBtn.disabled=true;downloadBtn.textContent='Create video first';}if(openVideoBtn)openVideoBtn.style.display='none';
