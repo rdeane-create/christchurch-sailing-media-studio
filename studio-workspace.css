@@ -47,3 +47,5 @@ body.studio-shell{--ui-navy:#142c37;--ui-ink:#20333a;--ui-muted:#758087;--ui-lin
 
 
 .studio-lineup-options{border:1px solid #dbe4df;border-radius:7px;margin:10px 0;padding:10px 12px;background:#f7faf6}.studio-lineup-options>summary{cursor:pointer;font-weight:600;font-size:13px}.studio-lineup-options .section{border:0;margin:0;padding:12px 0}.studio-lineup-options .control{margin-top:12px}
+
+.studio-shell.csos-embedded.studio-lineup-preview-only #workspace-video .grid{display:block!important}.studio-shell.csos-embedded.studio-lineup-preview-only #workspace-video .grid>.panel:has(#eventName){display:none!important}.studio-shell.csos-embedded.studio-lineup-preview-only .producerToggle{display:none!important}
