@@ -2466,7 +2466,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
             <div class="hint">Hold Command to select multiple cards, then click Add Selected.</div>
           </div>
           <div class="actions">
-            <button id="connectVideoDriveBtn" class="secondary" type="button">Connect Google Drive</button>
+            <button id="connectVideoDriveBtn" class="secondary" type="button">Connect card library</button>
             <button id="refreshVideoLibraryBtn" class="secondary" type="button">Refresh Library</button>
             <button id="addLibraryAthletesBtn" class="primary" type="button">Add Selected</button>
           </div>
@@ -3771,6 +3771,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   </section>
 </div>
 
+<script src="studio-drive-relay.js?v=20261025-relay"></script>
 <script data-build-source="src/scripts/app.js">// ---- Media Studio collections and local database ----
   const MEDIA_DB='ChristchurchMediaStudio';
   const MEDIA_STORE='media';
@@ -8114,6 +8115,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   }
 
   async function csmsConnectDrivePopup(){
+    if(window.CSMSDriveRelay?.embedded)return window.CSMSDriveRelay.connect();
     if(csmsAuthBridgePort){
       return true;
     }
@@ -8136,7 +8138,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     const popup=
       window.open(
         popupUrl,
-        'csms-drive-bridge',
+        'csms-drive-bridge-'+csmsAuthBridgeToken,
         'popup=yes,width=470,height=220,resizable=yes,scrollbars=yes'
       );
 
@@ -8248,6 +8250,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
   async function csmsEnsureAuthenticatedBridge(
     options={}
   ){
+    if(window.CSMSDriveRelay?.embedded)return window.CSMSDriveRelay.ensure();
     if(csmsAuthBridgePort){
       return true;
     }
@@ -8310,6 +8313,7 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     payload={},
     options={}
   ){
+    if(window.CSMSDriveRelay?.embedded)return window.CSMSDriveRelay.call(action,payload);
     await csmsEnsureAuthenticatedBridge(
       options
     );
@@ -8361,6 +8365,8 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
       }
     );
   }
+
+  window.CSMSDriveRelay?.attach({call:(action,payload)=>csmsAuthenticatedBridgeCall(action,payload,{userInitiated:false}),connect:()=>csmsConnectDrivePopup()});
 
   function csmsStoredRecordToFile(record){
     if(
@@ -15703,10 +15709,10 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
     try{
       await csmsConnectDrivePopup();
       await populateVideoAthleteLibrary();
-      button.textContent='Google Drive connected';
+      button.textContent=videoLineupSavedCards.length?'Card library connected':'Connect card library';
     }catch(err){
       status.textContent=err.message||'Google Drive could not connect.';
-      button.textContent='Connect Google Drive';
+      button.textContent='Connect card library';
     }finally{
       button.disabled=false;
     }
@@ -24833,6 +24839,6 @@ textarea{width:100%;padding:11px 12px;border:1px solid #cbd6e4;border-radius:11p
 <script src="regatta-lineup-output-branding-v1.js?v=20260814-regatta-output-branding-v8"></script>
 <script src="studio-workspace.js?v=20261018-1"></script>
 <script src="csos-connection.js?v=20261024-live-preview"></script>
-<script src="studio-lineup-simple.js?v=20261024-live-preview"></script>
+<script src="studio-lineup-simple.js?v=20261025-relay"></script>
 </body>
 </html>
