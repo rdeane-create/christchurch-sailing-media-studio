@@ -1,0 +1,6 @@
+import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
+let now=0,callback,watchdog;const c={window:{},performance:{now:()=>now},requestAnimationFrame:f=>(callback=f,1),cancelAnimationFrame(){callback=null},setInterval:f=>(watchdog=f,1),clearInterval(){watchdog=null}};vm.createContext(c);vm.runInContext(fs.readFileSync('studio-render-clock.js','utf8'),c);const clock=c.window.CSMSRenderClock;
+assert.equal(clock.dateRange({date:'2026-10-24',endDate:'2026-10-25'}),'October 24–25, 2026');assert.equal(clock.dateRange({date:'2026-10-24'}),'October 24, 2026');assert.equal(clock.dateRange({date:'2026-12-31',endDate:'2027-01-01'}),'December 31, 2026 – January 1, 2027');
+let frames=[];const normal=clock.run(2,t=>frames.push(t));for(now=0;now<=2000;now+=100)callback(now);await normal;assert.equal(frames[0],0);assert.equal(frames.at(-1),2);assert.equal(frames.length,21);
+now=0;let uploaded=false;const paused=clock.run(2,()=>{}).then(()=>uploaded=true);now=6000;watchdog();await assert.rejects(paused,/paused/);assert.equal(uploaded,false);
+now=0;const jump=clock.run(2,()=>{});callback(0);now=5000;callback(now);await assert.rejects(jump,/Animation paused/);console.log({passed:9,area:'Readable event dates, complete timeline, hidden-frame timeout and no zero-duration jump'});
